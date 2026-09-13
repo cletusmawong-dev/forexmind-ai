@@ -187,6 +187,22 @@ class FirestoreStore:
             for k in keys:
                 self._cache.pop(k, None)
 
+    @staticmethod
+    def _normalize(doc):
+        """Firestore returns createdAt/updatedAt as timestamp objects; the rest
+        of the app (and the local store) speak ISO strings. Convert on read so
+        behavior is identical everywhere."""
+        import datetime
+        def conv(v):
+            if isinstance(v, datetime.datetime):
+                return v.isoformat()
+            if isinstance(v, dict):
+                return {k: conv(x) for k, x in v.items()}
+            if isinstance(v, (list, tuple)):
+                return [conv(x) for x in v]
+            return v
+        return {k: conv(v) for k, v in doc.items()}
+
     def _now(self):
         from firebase_admin import firestore
         return firestore.SERVER_TIMESTAMP
@@ -205,7 +221,7 @@ class FirestoreStore:
         if hit is not None:
             return dict(hit) if hit else None
         snap = self.db.collection(coll).document(doc_id).get()
-        val = snap.to_dict() if snap.exists else None
+        val = self._normalize(snap.to_dict()) if snap.exists else None
         self._cache_set(key, val)
         return val
 
@@ -241,7 +257,7 @@ class FirestoreStore:
         q = q.order_by(order_by, direction="DESCENDING" if desc else "ASCENDING")
         if limit:
             q = q.limit(limit)
-        out = [d.to_dict() | {"id": d.id} for d in q.stream()]
+        out = [self._normalize(d.to_dict()) | {"id": d.id} for d in q.stream()]
         self._cache_set(key, out)
         return out
 
