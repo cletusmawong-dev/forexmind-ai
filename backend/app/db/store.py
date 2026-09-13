@@ -304,15 +304,17 @@ class FirestoreStore:
 
 
 _store: Optional[Any] = None
+store_init_error: Optional[str] = None
 
 
 def get_store() -> Any:
-    global _store
+    global _store, store_init_error
     if _store is None:
         if settings.firebase_project_id:
             try:
                 _store = FirestoreStore()
-            except Exception:
+            except Exception as e:
+                store_init_error = f"{type(e).__name__}: {e}"
                 _store = LocalStore()
         else:
             _store = LocalStore()

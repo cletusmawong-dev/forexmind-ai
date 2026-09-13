@@ -68,8 +68,9 @@ def system_info():
         "ai": ai_status(),
         "database": {
             "store": type(State.store).__name__,
-            "firestore_active": bool(settings.firebase_project_id),
+            "firestore_active": type(State.store).__name__ == "FirestoreStore",
             "note": "Set FIREBASE_PROJECT_ID (+ credentials) to activate live Firestore.",
+            "init_error": getattr(__import__("app.db.store", fromlist=["store_init_error"]), "store_init_error", None),
         },
         "notifications": {"fcm": settings.fcm_enabled},
         "markets": INITIAL_MARKETS,
