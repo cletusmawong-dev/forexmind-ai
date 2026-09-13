@@ -30,7 +30,10 @@ class Settings:
     xiro_model: str = os.getenv("XKIRO_MODEL", "xkiro-1")
 
     # --- Market data ----------------------------------------------------------
+    # "historical_demo" replays stored datasets; "live" fetches real market data
+    # (Yahoo keyless, Twelve Data when TWELVEDATA_API_KEY is configured).
     market_data_provider: str = os.getenv("MARKET_DATA_PROVIDER", "historical_demo")
+    twelvedata_api_key: str = os.getenv("TWELVEDATA_API_KEY", "")
 
     # --- Notifications ---------------------------------------------------------
     fcm_enabled: bool = bool(os.getenv("FCM_ENABLED", ""))

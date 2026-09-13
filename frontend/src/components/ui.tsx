@@ -131,10 +131,32 @@ export function Pill({ tone = "neutral", children, className = "" }: { tone?: Pi
 }
 
 export function DemoTag() {
+  const [live, setLive] = React.useState<boolean | null>(null);
+  React.useEffect(() => {
+    let alive = true;
+    const ping = async () => {
+      try {
+        const r = await fetch("/api/health");
+        const d = await r.json();
+        if (alive) setLive(d?.demo === false);
+      } catch { /* keep last state */ }
+    };
+    ping();
+    const id = setInterval(ping, 60000);
+    return () => { alive = false; clearInterval(id); };
+  }, []);
+  if (live) {
+    return (
+      <Pill tone="green" className="!px-3 !py-1.5 whitespace-nowrap">
+        <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-green)] anim-pulse" style={{ boxShadow: "0 0 8px rgba(47,217,138,0.9)" }} />
+        LIVE · REAL-TIME
+      </Pill>
+    );
+  }
   return (
     <Pill tone="amber" className="!px-3 !py-1.5 whitespace-nowrap">
       <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-amber)]" style={{ boxShadow: "0 0 8px rgba(245,184,77,0.8)" }} />
-      DEMO · HISTORICAL
+      {live === false ? "DEMO · HISTORICAL" : "DEMO · HISTORICAL"}
     </Pill>
   );
 }

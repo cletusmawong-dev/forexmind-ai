@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import time
 
 import pandas as pd
 from fastapi import FastAPI
@@ -41,7 +42,9 @@ async def startup():
     init_state()
     seed_if_empty()
     agent_core.ensure_user_docs("demo-user")
-    if settings.replay_enabled:
+    if not State.provider.is_demo:
+        asyncio.create_task(live_loop())
+    elif settings.replay_enabled:
         asyncio.create_task(replay_loop())
 
 
@@ -87,9 +90,59 @@ async def replay_loop():
             await asyncio.sleep(2)
 
 
+async def live_loop():
+    """Real-market agent loop: track active signals every minute, scan on
+    every closed 15M/1H candle boundary, run a learning pass every ~6h."""
+    global _scan_counter, _current_task
+    last_scan_15m = 0
+    last_scan_1h = 0
+    last_learning = 0.0
+    while True:
+        try:
+            await asyncio.sleep(60)
+            now = time.time()
+            _current_task = "Tracking active signals"
+            for market in INITIAL_MARKETS:
+                State.tracker.update_market(market)
+
+            cur_15m = int(now // 900)
+            if cur_15m != last_scan_15m:
+                last_scan_15m = cur_15m
+                user_ids = [u["id"] for u in State.store.list("users", limit=50)]
+                for market in INITIAL_MARKETS:
+                    _current_task = f"Scanning {market}"
+                    for uid in user_ids:
+                        for tf in ("15M", "1H"):
+                            State.engine.scan(uid, market, tf, log_activity=False)
+                    agent_core.log_scanning([market], "15M")
+                _current_task = "Monitoring markets"
+
+            cur_1h = int(now // 3600)
+            if cur_1h != last_scan_1h:
+                last_scan_1h = cur_1h
+                _current_task = "Tracking active signals"
+
+            if now - last_learning > 6 * 3600:
+                last_learning = now
+                _current_task = "Reviewing completed signals"
+                from .learning.analysis import analyze_closed_signals
+                from .learning.hypotheses import propose_from_lessons
+                for uid in {u["id"] for u in State.store.list("users", limit=50)}:
+                    analyze_closed_signals(uid)
+                    propose_from_lessons(uid, max_new=1)
+                _current_task = "Monitoring markets"
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:  # never let the loop die
+            agent_core.log(f"Agent loop warning: {e}", kind="WARN")
+            await asyncio.sleep(5)
+
+
 @app.get("/api/health")
 def health():
-    return {"ok": True, "app": settings.app_name}
+    return {"ok": True, "app": settings.app_name,
+            "provider": State.provider.name if State.provider else None,
+            "demo": State.provider.is_demo if State.provider else True}
 
 
 @app.get("/api/agent/current-task")

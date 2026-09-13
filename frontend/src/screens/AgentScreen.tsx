@@ -174,7 +174,16 @@ export function AgentScreen() {
               Run observation pass
             </button>
             <div className="mt-4 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4 text-[10.5px] leading-relaxed text-[var(--text-muted)]">
-              Market data: <span className="font-semibold text-[var(--accent-amber)]">DEMO · HISTORICAL replay</span> — never presented as live.
+              Market data:{" "}
+              {st.market_data?.demo === false ? (
+                <>
+                  <span className="font-semibold text-[var(--accent-green)]">LIVE · REAL-TIME feed</span> — signals from live prices.
+                </>
+              ) : (
+                <>
+                  <span className="font-semibold text-[var(--accent-amber)]">DEMO · HISTORICAL replay</span> — never presented as live.
+                </>
+              )}
             </div>
           </div>
         </div>
