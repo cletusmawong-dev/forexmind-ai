@@ -5,6 +5,7 @@ import { usePolling } from "../lib/usePolling";
 import type { ActivityItem, AgentStatus } from "../lib/types";
 import { AnimatedNumber, DemoTag, Divider, Glass, PageHeader, Pill, ProgressBar, Segmented, SectionHeader, Spinner, StatusDot } from "../components/ui";
 import { fmtPct, fmtTime, shortAgo } from "../lib/format";
+import { AgentPulse } from "../components/AgentPulse";
 
 const QUICK = [
   "What have you learned from Strategy 2?",
@@ -118,6 +119,11 @@ export function AgentScreen() {
                 <MiniStat label="Approvals" value={st.pending_approvals} tone={st.pending_approvals > 0 ? "text-[var(--accent-amber)]" : ""} />
               </div>
             </Glass>
+
+            {/* ---- agent pulse: live activity proof ---- */}
+            <div className="mt-4">
+              <AgentPulse />
+            </div>
 
             {/* ---- objective ---- */}
             <SectionHeader className="mt-8">Current objective</SectionHeader>

@@ -7,6 +7,7 @@ import type { ActivityItem, AgentStatus, MarketCard, Signal } from "../lib/types
 import { AnimatedNumber, DemoTag, Divider, Glass, Logo, ProgressBar, SectionHeader, Spinner, StatusDot, WaveGraphic, ConnectionState } from "../components/ui";
 import { fmtPct, fmtPrice, fmtTime, greeting, shortAgo } from "../lib/format";
 import { SignalRow } from "../components/SignalRow";
+import { AgentPulse } from "../components/AgentPulse";
 
 export function HomeScreen() {
   const navigate = useNavigate();
@@ -145,6 +146,11 @@ export function HomeScreen() {
           </div>
           <ChevronRight size={16} className="shrink-0 text-[var(--text-muted)]" />
         </Link>
+
+        {/* ---- agent pulse: live proof the agent is working ---- */}
+        <div className="mt-4">
+          <AgentPulse />
+        </div>
 
         {/* ---- active signals ---- */}
         <SectionHeader className="mt-8" right={<Link to="/signals" className="text-[11.5px] font-semibold text-[#8fb4ff] transition hover:text-[var(--accent-cyan)]">View all</Link>}>
