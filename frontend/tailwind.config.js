@@ -4,12 +4,13 @@ export default {
   theme: {
     extend: {
       colors: {
-        base: { DEFAULT: "#0B0D12", 2: "#10131A", 3: "#161B26" },
-        txt: { hi: "#F2F5FA", mid: "#A9B1C2", low: "#69748C", faint: "#454F66" },
-        acc: { DEFAULT: "#6C9EFF", cyan: "#7CD5F2", violet: "#A79BF7" },
-        pos: "#3ECF8E",
-        neg: "#F0788C",
-        warn: "#E5B567",
+        /* palette mirrors the CSS custom-property tokens in index.css */
+        base: { DEFAULT: "#070a12", 2: "#0b101d", 3: "#131a2e" },
+        txt: { hi: "#eef3ff", mid: "#bcc9e6", low: "#8394b6", faint: "#5f6f92" },
+        acc: { DEFAULT: "#4d7cfe", cyan: "#33d6f6", violet: "#8e7bff" },
+        pos: "#2fd98a",
+        neg: "#fb4d6a",
+        warn: "#f5b84d",
       },
       fontFamily: {
         sans: [
@@ -20,9 +21,9 @@ export default {
       boxShadow: {
         soft: "0 12px 40px -14px rgba(0,0,0,0.55)",
         float: "0 20px 60px -16px rgba(0,0,0,0.7)",
-        glow: "0 0 24px rgba(108,158,255,0.22)",
-        glowp: "0 0 24px rgba(167,155,247,0.20)",
-        glows: "0 0 18px rgba(62,207,142,0.30)",
+        glow: "0 0 24px rgba(77,124,254,0.28)",
+        glowp: "0 0 24px rgba(142,123,255,0.24)",
+        glows: "0 0 18px rgba(47,217,138,0.32)",
       },
       keyframes: {
         fadeUp: { from: { opacity: "0", transform: "translateY(10px)" }, to: { opacity: "1", transform: "translateY(0)" } },

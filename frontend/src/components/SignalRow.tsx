@@ -1,56 +1,75 @@
-import { ArrowDownRight, ArrowUpRight } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, ChevronRight } from "lucide-react";
 import type { Signal } from "../lib/types";
 import { fmtPrice, fmtR, statusToneShort } from "../lib/format";
 
-/** Refined market row used in lists — lightweight, hairline-separated. */
+/** Circular glass direction icon with soft glow (SELL = pink ↓, BUY = green ↑). */
+export function CircleDirIcon({ dir, size = 42 }: { dir: "BUY" | "SELL"; size?: number }) {
+  const buy = dir === "BUY";
+  const color = buy ? "var(--accent-green)" : "var(--accent-red)";
+  return (
+    <span
+      className="flex shrink-0 items-center justify-center rounded-full border"
+      style={{
+        width: size,
+        height: size,
+        borderColor: buy ? "rgba(47,217,138,0.35)" : "rgba(251,77,106,0.35)",
+        background: buy
+          ? "linear-gradient(145deg, rgba(47,217,138,0.16), rgba(47,217,138,0.04))"
+          : "linear-gradient(145deg, rgba(251,77,106,0.16), rgba(251,77,106,0.04))",
+        boxShadow: buy ? "0 0 20px rgba(47,217,138,0.18)" : "0 0 20px rgba(251,77,106,0.18)",
+      }}
+      aria-hidden="true"
+    >
+      {buy ? <ArrowUpRight size={size * 0.42} style={{ color }} /> : <ArrowDownRight size={size * 0.42} style={{ color }} />}
+    </span>
+  );
+}
+
+/** Premium signal card matching the reference: direction icon, pair + side +
+ *  timeframe, strategy · ID line, price right, result badge. */
 export function SignalRow({ signal: s, onClick }: { signal: Signal; onClick?: () => void }) {
   const buy = s.direction === "BUY";
   const open = !s.completed;
   return (
     <button
       onClick={onClick}
-      className="tap group relative flex w-full items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-white/[0.025]"
+      className="glass glass-hover tap flex w-full items-center gap-3.5 p-4 text-left"
+      aria-label={`${s.market} ${s.direction} signal`}
     >
-      {/* direction glow */}
-      <span
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border"
-        style={{
-          borderColor: buy ? "rgba(62,207,142,0.3)" : "rgba(240,120,140,0.3)",
-          background: buy ? "rgba(62,207,142,0.08)" : "rgba(240,120,140,0.08)",
-          boxShadow: buy ? "0 0 16px rgba(62,207,142,0.12)" : "0 0 16px rgba(240,120,140,0.12)",
-        }}
-      >
-        {buy ? <ArrowUpRight size={15} className="text-pos" /> : <ArrowDownRight size={15} className="text-neg" />}
-      </span>
-
+      <CircleDirIcon dir={s.direction} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="text-[14px] font-semibold tracking-tight">{s.market}</span>
-          <span className={`text-[10px] font-bold tracking-[0.08em] ${buy ? "text-pos" : "text-neg"}`}>{s.direction}</span>
-          <span className="text-[10px] font-medium text-txt-faint">{s.timeframe}</span>
-          {s.user_action === "entered" && <span className="h-1 w-1 rounded-full bg-acc-cyan" title="You entered" />}
+          <span className="text-[14px] font-bold tracking-tight">{s.market}</span>
+          <span
+            className="text-[10px] font-bold tracking-[0.08em]"
+            style={{ color: buy ? "var(--accent-green)" : "var(--accent-red)" }}
+          >
+            {s.direction}
+          </span>
+          <span className="text-[10px] font-medium text-[var(--text-muted)]">{s.timeframe}</span>
+          <span className="h-1 w-1 rounded-full bg-white/20" />
         </div>
-        <div className="mt-0.5 truncate text-[11px] text-txt-low">
-          {s.strategy_name} · <span className="text-txt-faint">{s.signal_id}</span>
+        <div className="mt-1 truncate text-[11px] text-[var(--text-muted)]">
+          {s.strategy_name} · {s.signal_id}
         </div>
       </div>
-
       <div className="shrink-0 text-right">
-        <div className="num text-[13.5px] font-semibold text-txt-hi">{fmtPrice(s.entry)}</div>
-        <div className="mt-0.5 text-[10.5px] font-medium">
+        <div className="num text-[13.5px] font-semibold">{fmtPrice(s.entry)}</div>
+        <div className="num mt-1 text-[10.5px] font-semibold">
           {open ? (
-            <span className="text-txt-faint">score {s.score}</span>
-          ) : (
-            <span
-              className={
-                s.outcome === "WIN" ? "text-pos" : s.outcome === "LOSS" ? "text-neg" : "text-txt-faint"
-              }
-            >
-              {statusToneShort(s.status)} · {fmtR(s.r_multiple)}
+            <span className="text-[var(--accent-cyan)]">
+              {s.status.startsWith("TP") ? `${s.status.replace("_", "")} · +${(s.r_multiple || 0).toFixed(1)}R` : s.status === "ACTIVE" ? `score ${s.score}` : s.status}
             </span>
+          ) : s.outcome === "WIN" ? (
+            <span className="text-[var(--accent-green)]">{statusToneShort(s.status)} · {fmtR(s.r_multiple)}</span>
+          ) : s.outcome === "LOSS" ? (
+            <span className="text-[var(--accent-red)]">{statusToneShort(s.status)} · {fmtR(s.r_multiple)}</span>
+          ) : (
+            <span className="text-[var(--text-muted)]">{statusToneShort(s.status)}</span>
           )}
         </div>
       </div>
+      <ChevronRight size={15} className="shrink-0 text-[var(--text-muted)] opacity-60" />
     </button>
   );
 }

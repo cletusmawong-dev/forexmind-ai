@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Send } from "lucide-react";
+import { LineChart, Send } from "lucide-react";
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
 import type { ActivityItem, AgentStatus } from "../lib/types";
-import { ConnectionState, DemoTag, Divider, Eyebrow, Glass, GlowDot, Orb, Pill, Segmented, Spinner, ThinProgress, AnimatedNumber } from "../components/ui";
+import { AnimatedNumber, DemoTag, Divider, Glass, PageHeader, Pill, ProgressBar, Segmented, SectionHeader, Spinner, StatusDot } from "../components/ui";
 import { fmtPct, fmtTime, shortAgo } from "../lib/format";
 
 const QUICK = [
@@ -52,23 +52,21 @@ export function AgentScreen() {
 
   if (!status.data) {
     if (status.loading) return <Spinner label="Waking your agent…" />;
-    return <ConnectionState onRetry={status.refresh} label="Can't reach your agent" />;
+    return <div className="pt-10"><Spinner label="…" /></div>;
   }
   const st = status.data;
   const p = st.progress;
-  const scanMatch = st.current_task.match(/Scanning (\w+)/);
-  const line = scanMatch
-    ? `I'm currently scanning ${scanMatch[1]}.`
-    : st.current_task === "Tracking active signals"
-    ? "I'm following active signals to their outcomes."
-    : "I'm monitoring the markets for high-quality setups.";
+
+  const line =
+    st.current_task === "Tracking active signals"
+      ? "I'm following active signals to their outcomes."
+      : st.current_task?.startsWith("Scanning")
+      ? "I'm monitoring the markets for high-quality setups."
+      : "I'm monitoring the markets for high-quality setups.";
 
   return (
-    <div className="animate-fadeUp">
-      <header className="mb-7 flex items-start justify-between">
-        <h1 className="pt-1 text-[22px] font-semibold tracking-tight">Agent</h1>
-        <DemoTag />
-      </header>
+    <div className="anim-fadeUp">
+      <PageHeader title="Agent" right={<DemoTag />} />
 
       <Segmented
         className="mb-7"
@@ -84,68 +82,83 @@ export function AgentScreen() {
       {tab === "presence" && (
         <div className="lg:grid lg:grid-cols-12 lg:gap-10">
           <div className="lg:col-span-7">
-            {/* ---- AI presence ---- */}
+            {/* ---- AI status card ---- */}
             <Glass className="relative overflow-hidden" pad={false}>
               <div
-                className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full opacity-[0.14] blur-3xl animate-drift"
-                style={{ background: "conic-gradient(from 180deg, #6C9EFF, #A79BF7, #7CD5F2, #6C9EFF)" }}
+                className="pointer-events-none absolute -right-16 -top-24 h-60 w-60 rounded-full opacity-25 blur-3xl anim-drift"
+                style={{ background: "conic-gradient(from 180deg, #3e7bfa, #8e7bff, #33d6f6, #3e7bfa)" }}
               />
-              <div className="relative flex items-center gap-5 p-6">
-                <Orb size={84} />
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 text-[12px] text-txt-low">
-                    <GlowDot tone="pos" /> Active
+              <div className="relative p-6">
+                <div className="flex items-start gap-4">
+                  <div
+                    className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-full border border-[rgba(77,124,254,0.4)]"
+                    style={{
+                      background: "radial-gradient(circle at 32% 28%, rgba(62,123,250,0.45), rgba(12,18,38,0.9) 72%)",
+                      boxShadow: "0 0 34px rgba(62,124,250,0.4), inset 0 1px 0 rgba(255,255,255,0.15)",
+                    }}
+                  >
+                    <LineChart size={26} className="text-[#a8c4ff]" strokeWidth={1.9} />
                   </div>
-                  <p className="mt-1.5 text-[15px] font-medium leading-snug text-txt-hi">"{line}"</p>
-                  <p className="mt-1 text-[11px] text-txt-faint">{st.ai.provider === "xkiro" ? "XKiro reasoning · server-side" : "Grounded analyst · no external AI configured"}</p>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 text-[12px] text-[var(--text-secondary)]">
+                      <StatusDot tone="green" /> Active
+                    </div>
+                    <p className="mt-2 text-[15px] font-medium leading-snug">"{line}"</p>
+                    <p className="mt-1.5 text-[11px] text-[var(--text-muted)]">
+                      {st.ai.provider === "xkiro" ? "XKiro reasoning · server-side" : "Grounded analyst · no external AI configured"}
+                    </p>
+                  </div>
                 </div>
               </div>
               <Divider />
-              <div className="grid grid-cols-3 divide-x divide-white/[0.05]">
-                <MiniStat label="Signals today" value={st.signals_today} />
-                <MiniStat label="Lessons" value={st.lessons} tone="text-acc-violet" />
-                <MiniStat label="Approvals" value={st.pending_approvals} tone={st.pending_approvals > 0 ? "text-warn" : ""} />
+              <div className="grid grid-cols-3 divide-x divide-white/[0.06]">
+                <MiniStat label="Signals today" value={st.signals_today} tone="text-[#a8c4ff]" />
+                <MiniStat label="Lessons" value={st.lessons} tone="text-[#b3a6ff]" />
+                <MiniStat label="Approvals" value={st.pending_approvals} tone={st.pending_approvals > 0 ? "text-[var(--accent-amber)]" : ""} />
               </div>
             </Glass>
 
             {/* ---- objective ---- */}
-            <div className="mt-8 px-1">
-              <div className="eyebrow">Current objective</div>
-              <div className="mt-2 flex items-end justify-between">
-                <AnimatedNumber value={p.daily_pl_pct} format={(v) => `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`} className="text-[34px] font-light text-txt-hi" />
-                <span className="num pb-1.5 text-[12px] text-txt-low">
-                  <span className="text-txt-mid">{fmtPct(p.daily_pl_pct)}</span> / +{p.objective_pct}%
+            <SectionHeader className="mt-8">Current objective</SectionHeader>
+            <Glass>
+              <div className="flex items-end justify-between">
+                <AnimatedNumber value={p.daily_pl_pct} format={(v) => `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`} className="text-[38px] font-light leading-none" />
+                <span className="num pb-1 text-[12px] text-[var(--text-secondary)]">
+                  <span className="font-semibold">{fmtPct(p.daily_pl_pct)}</span> / +{p.objective_pct}%
                 </span>
               </div>
-              <div className="mt-3">
-                <ThinProgress pct={Math.max(0, (p.daily_pl_pct / Math.max(p.objective_pct, 0.01)) * 100)} tone={p.daily_pl_pct >= 0 ? "pos" : "acc"} />
+              <div className="mt-4">
+                <ProgressBar pct={Math.max(0, (p.daily_pl_pct / Math.max(p.objective_pct, 0.01)) * 100)} tone={p.daily_pl_pct >= 0 ? "green" : "blue"} />
               </div>
-              <p className="mt-2.5 text-[10.5px] text-txt-faint">
+              <p className="mt-3 text-[10.5px] text-[var(--text-muted)]">
                 Weekly {fmtPct(p.weekly_pl_pct)} · an objective guides my research — it never forces signals.
               </p>
-            </div>
+            </Glass>
 
-            {/* ---- versions ---- */}
-            <Eyebrow className="mb-2 mt-9">Strategy versions</Eyebrow>
-            <Glass pad={false} className="divide-y divide-white/[0.05] !p-0">
+            {/* ---- strategy versions ---- */}
+            <SectionHeader className="mt-8">Strategy versions</SectionHeader>
+            <div className="space-y-3">
               {Object.entries(st.strategy_versions).map(([sid, v], i) => (
-                <a key={sid} href="/strategies" className="tap flex items-center justify-between px-5 py-4 transition hover:bg-white/[0.02]">
-                  <span className="text-[13px] text-txt-mid">
-                    <span className="text-txt-faint">Strategy {i + 1} · </span>
-                    {sid === "strategy_1_zero_lag" ? "Zero Lag Trend" : "9/21 EMA Smart TP/SL"}
-                  </span>
+                <a key={sid} href="/strategies" className="glass glass-hover tap flex items-center justify-between p-4">
+                  <div>
+                    <div className="text-[13px] font-semibold">
+                      Strategy {i + 1} · {sid === "strategy_1_zero_lag" ? "Zero Lag Trend" : "9/21 EMA Smart TP/SL"}
+                    </div>
+                    <div className="mt-0.5 text-[10.5px] text-[var(--text-muted)]">version {v}</div>
+                  </div>
                   <Pill tone="cyan">v{v}</Pill>
                 </a>
               ))}
-            </Glass>
+            </div>
           </div>
 
-          <div className="mt-10 lg:col-span-5 lg:mt-0 lg:border-l lg:border-white/[0.05] lg:pl-10">
-            {/* ---- live timeline ---- */}
-            <Eyebrow className="mb-3">Live activity</Eyebrow>
-            <Timeline items={activity.data?.activity ?? []} />
+          <div className="mt-10 lg:col-span-5 lg:mt-0 lg:border-l lg:border-white/[0.06] lg:pl-10">
+            <SectionHeader>Live activity</SectionHeader>
+            <Glass pad={false} className="!p-5">
+              <Timeline items={activity.data?.activity ?? []} />
+            </Glass>
             <button
-              className="btn-ghost mt-5 w-full"
+              className="btn-ghost mt-4 w-full"
               onClick={async () => {
                 await api.post(endpoints.agentScan);
                 activity.refresh();
@@ -153,15 +166,18 @@ export function AgentScreen() {
             >
               Run observation pass
             </button>
+            <div className="mt-4 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4 text-[10.5px] leading-relaxed text-[var(--text-muted)]">
+              Market data: <span className="font-semibold text-[var(--accent-amber)]">DEMO · HISTORICAL replay</span> — never presented as live.
+            </div>
           </div>
         </div>
       )}
 
       {tab === "timeline" && (
         <div className="lg:mx-auto lg:max-w-2xl">
-          <Eyebrow className="mb-3">Full activity log</Eyebrow>
+          <SectionHeader>Full activity log</SectionHeader>
           <Glass pad={false} className="!p-6">
-            <Timeline items={(activity.data?.activity ?? []).slice(0, 60)} dense />
+            <Timeline items={(activity.data?.activity ?? []).slice(0, 60)} />
           </Glass>
         </div>
       )}
@@ -171,19 +187,18 @@ export function AgentScreen() {
           <Glass className="flex min-h-[480px] flex-col !p-4" pad={false}>
             <div className="flex-1 space-y-4 overflow-y-auto p-2 pb-3">
               {messages.map((m, i) => (
-                <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"} animate-fadeUp`}>
+                <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"} anim-fadeUp`}>
                   {m.role === "agent" && (
-                    <div className="mr-2.5 mt-1.5 h-6 w-6 shrink-0 rounded-full border border-white/10 bg-base-2/70 p-[3px] backdrop-blur-xl">
-                      <div className="h-full w-full rounded-full" style={{ background: "conic-gradient(from 200deg, #6C9EFF, #7CD5F2, #A79BF7, #6C9EFF)", opacity: 0.85 }} />
-                    </div>
+                    <div
+                      className="mr-2.5 mt-1.5 h-6 w-6 shrink-0 rounded-full border border-[rgba(77,124,254,0.4)]"
+                      style={{ background: "radial-gradient(circle at 30% 30%, rgba(62,123,250,0.7), rgba(12,18,38,0.95))", boxShadow: "0 0 14px rgba(62,124,250,0.4)" }}
+                    />
                   )}
                   <div
                     className={`max-w-[82%] whitespace-pre-wrap rounded-[20px] px-4 py-3 text-[12.5px] leading-relaxed ${
-                      m.role === "user"
-                        ? "rounded-br-md text-base"
-                        : "rounded-bl-md border border-white/[0.07] bg-white/[0.04] text-txt-mid"
+                      m.role === "user" ? "rounded-br-md text-white" : "rounded-bl-md border border-white/[0.08] bg-white/[0.04] text-[var(--text-secondary)]"
                     }`}
-                    style={m.role === "user" ? { background: "linear-gradient(120deg,#6C9EFF,#7CD5F2)" } : undefined}
+                    style={m.role === "user" ? { background: "linear-gradient(120deg,#3e7bfa,#2bb8ec)", boxShadow: "0 8px 24px rgba(62,124,250,0.3)" } : undefined}
                   >
                     {m.text}
                   </div>
@@ -191,9 +206,9 @@ export function AgentScreen() {
               ))}
               {thinking && (
                 <div className="flex justify-start">
-                  <div className="ml-[34px] flex gap-1.5 rounded-[20px] rounded-bl-md border border-white/[0.07] bg-white/[0.04] px-4 py-3.5">
+                  <div className="ml-[34px] flex gap-1.5 rounded-[20px] rounded-bl-md border border-white/[0.08] bg-white/[0.04] px-4 py-3.5">
                     {[0, 1, 2].map((i) => (
-                      <span key={i} className="h-1.5 w-1.5 animate-pulseSoft rounded-full bg-acc-cyan" style={{ animationDelay: `${i * 0.35}s` }} />
+                      <span key={i} className="h-1.5 w-1.5 rounded-full bg-[var(--accent-blue)] anim-pulse" style={{ animationDelay: `${i * 0.35}s` }} />
                     ))}
                   </div>
                 </div>
@@ -201,14 +216,14 @@ export function AgentScreen() {
             </div>
             <div className="no-scrollbar mb-3 flex gap-2 overflow-x-auto px-1">
               {QUICK.map((q) => (
-                <button key={q} onClick={() => send(q)} className="shrink-0 rounded-full border border-white/[0.07] bg-white/[0.03] px-3.5 py-1.5 text-[10.5px] text-txt-low transition hover:text-txt-mid">
+                <button key={q} onClick={() => send(q)} className="shrink-0 rounded-full border border-white/[0.08] bg-white/[0.03] px-3.5 py-2 text-[10.5px] text-[var(--text-muted)] transition hover:text-[var(--text-secondary)]">
                   {q}
                 </button>
               ))}
             </div>
             <div className="flex gap-2.5 px-1">
-              <input className="input" placeholder="Ask your agent…" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} />
-              <button className="btn-primary !px-4" onClick={() => send()} disabled={thinking}>
+              <input className="input" placeholder="Ask your agent…" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} aria-label="Message the agent" />
+              <button className="btn-primary !px-4" onClick={() => send()} disabled={thinking} aria-label="Send">
                 <Send size={15} />
               </button>
             </div>
@@ -221,28 +236,30 @@ export function AgentScreen() {
 
 function MiniStat({ label, value, tone }: { label: string; value: number | string; tone?: string }) {
   return (
-    <div className="px-5 py-4 text-center">
-      <div className={`num text-[18px] font-medium ${tone || "text-txt-hi"}`}>{value}</div>
-      <div className="mt-0.5 text-[9.5px] font-medium uppercase tracking-[0.12em] text-txt-faint">{label}</div>
+    <div className="px-4 py-4 text-center">
+      <div className={`num text-[19px] font-semibold ${tone || "text-[var(--text-primary)]"}`}>{value}</div>
+      <div className="mt-1 text-[8.5px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">{label}</div>
     </div>
   );
 }
 
-function Timeline({ items, dense }: { items: ActivityItem[]; dense?: boolean }) {
+function Timeline({ items }: { items: ActivityItem[] }) {
   return (
-    <div className={`relative ${dense ? "space-y-[10px]" : "space-y-[15px]"}`}>
-      <span className="absolute bottom-1 left-[3.5px] top-1 w-px bg-gradient-to-b from-white/[0.1] via-white/[0.05] to-transparent" />
-      {items.slice(0, dense ? 60 : 10).map((a, i) => (
-        <div key={a.id} className="relative flex items-start gap-4 animate-fadeUp" style={{ animationDelay: `${Math.min(i * 50, 400)}ms` }}>
-          <span className="relative mt-[5px] flex h-[8px] w-[8px] shrink-0">
-            {i === 0 && <span className="absolute inset-0 rounded-full bg-acc-cyan opacity-40 animate-pulseSoft" style={{ transform: "scale(2.1)" }} />}
-            <span className={`relative h-[8px] w-[8px] rounded-full ${i === 0 ? "bg-acc-cyan" : "bg-white/20"}`} style={i === 0 ? { boxShadow: "0 0 12px rgba(124,213,242,0.9)" } : {}} />
+    <div className="relative space-y-4">
+      <span className="absolute bottom-1 left-[4.5px] top-1 w-px bg-gradient-to-b from-[rgba(77,124,254,0.4)] via-[rgba(77,124,254,0.12)] to-transparent" />
+      {items.slice(0, 40).map((a, i) => (
+        <div key={a.id} className="relative flex items-start gap-4 anim-fadeUp" style={{ animationDelay: `${Math.min(i * 45, 400)}ms` }}>
+          <span className="relative mt-[5px] flex h-[10px] w-[10px] shrink-0">
+            {i === 0 && <span className="absolute inset-0 rounded-full bg-[var(--accent-blue)] opacity-40 anim-pulse" style={{ transform: "scale(2.1)" }} />}
+            <span className={`relative h-[10px] w-[10px] rounded-full ${i === 0 ? "bg-[var(--accent-blue)]" : "bg-white/20"}`} style={i === 0 ? { boxShadow: "0 0 12px rgba(77,124,254,0.95)" } : {}} />
           </span>
           <div className="min-w-0 flex-1">
-            <div className="text-[12px] leading-snug text-txt-mid">{a.message}</div>
-            <div className="mt-0.5 font-mono text-[9px] text-txt-faint">{fmtTime(a.ts_override || a.createdAt)}</div>
+            <div className="text-[12px] leading-snug text-[var(--text-secondary)]">{a.message}</div>
+            <div className="mt-0.5 flex items-center gap-2 font-mono text-[9px] text-[var(--text-muted)]">
+              {fmtTime(a.ts_override || a.createdAt)}
+              {i === 0 && <span className="font-sans">{shortAgo(a.ts_override || a.createdAt)}</span>}
+            </div>
           </div>
-          {!dense && <span className="shrink-0 text-[9.5px] text-txt-faint">{shortAgo(a.ts_override || a.createdAt)}</span>}
         </div>
       ))}
     </div>

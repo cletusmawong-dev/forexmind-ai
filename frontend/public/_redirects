@@ -1,6 +1,6 @@
 # Netlify redirects (same rules as netlify.toml, kept in sync).
-# ONE LINE TO EDIT: replace REPLACE-WITH-YOUR-BACKEND-HOST with your live
+# ONE LINE TO EDIT: replace forexmind-ai-api.onrender.com with your live
 # backend host, e.g. forexmind-ai-api.onrender.com
 
-/api/*  https://REPLACE-WITH-YOUR-BACKEND-HOST/api/:splat  200
+/api/*  https://forexmind-ai-api.onrender.com/api/:splat  200
 /*      /index.html                                         200

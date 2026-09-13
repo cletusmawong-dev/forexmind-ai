@@ -7,13 +7,13 @@ export function Splash() {
         <div className="relative">
           <div
             className="absolute -inset-10 rounded-full blur-3xl opacity-40 animate-breathe"
-            style={{ background: "conic-gradient(from 200deg, #6C9EFF, #A79BF7, #7CD5F2, #6C9EFF)" }}
+            style={{ background: "conic-gradient(from 200deg, #4d7cfe, #8e7bff, #33d6f6, #4d7cfe)" }}
           />
           <svg width="76" height="76" viewBox="0 0 48 48" fill="none">
             <defs>
               <linearGradient id="slg" x1="0" y1="0" x2="48" y2="48">
-                <stop stopColor="#7CD5F2" />
-                <stop offset="1" stopColor="#6C9EFF" />
+                <stop stopColor="#33d6f6" />
+                <stop offset="1" stopColor="#4d7cfe" />
               </linearGradient>
             </defs>
             <circle cx="24" cy="24" r="21" stroke="url(#slg)" strokeWidth="1.8" />
@@ -24,8 +24,8 @@ export function Splash() {
               strokeLinecap="round"
               strokeLinejoin="round"
             />
-            <path d="M17.5 26.5l4.6-4.6 3 3 5.4-5.4" stroke="#3ECF8E" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M30.5 19.5h-4.4M30.5 19.5v4.4" stroke="#3ECF8E" strokeWidth="1.9" strokeLinecap="round" />
+            <path d="M17.5 26.5l4.6-4.6 3 3 5.4-5.4" stroke="#2fd98a" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M30.5 19.5h-4.4M30.5 19.5v4.4" stroke="#2fd98a" strokeWidth="1.9" strokeLinecap="round" />
           </svg>
         </div>
         <div className="text-center">
