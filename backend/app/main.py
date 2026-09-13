@@ -17,6 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .agent import core as agent_core
 from .config import INITIAL_MARKETS, settings
 from .seed import seed_if_empty
+from .db.store import get_store
 from .state import State, init_state
 from .api import (routes_agent, routes_auth, routes_journal, routes_learning,
                   routes_markets, routes_misc, routes_signals, routes_strategies,
@@ -153,6 +154,19 @@ async def live_loop():
         except Exception as e:  # never let the loop die
             agent_core.log(f"Agent loop warning: {e}", kind="WARN")
             await asyncio.sleep(5)
+
+
+# Firestore daily-quota exhaustion -> honest 503 everywhere, never a 500.
+_QE = getattr(type(get_store()), "_QuotaExhausted", None)
+if _QE is not None:
+    from fastapi.responses import JSONResponse
+
+    @app.exception_handler(_QE)
+    async def quota_exhausted_handler(request, exc):
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "Database daily quota reached — the app pauses until the daily reset. All data is safe."},
+        )
 
 
 @app.get("/api/health")
