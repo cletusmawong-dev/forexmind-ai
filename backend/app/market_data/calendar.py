@@ -20,7 +20,12 @@ from typing import Dict, List, Optional, Tuple
 import requests
 
 FEED = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
+MIRROR = "https://raw.githubusercontent.com/Hero988/ff-news-mirror/main/ff_calendar_thisweek.json"
 UA = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36"}
+
+# Tried in order — origin rate-limits some datacenter IPs (HTTP 429 on Render);
+# the GitHub mirror above exists precisely for that case (hourly Actions relay).
+FEEDS = [(FEED, UA, "origin"), (MIRROR, UA, "mirror")]
 
 # which currencies matter per app market
 MARKET_CURRENCIES: Dict[str, Tuple[str, ...]] = {
@@ -39,6 +44,7 @@ _cache: List[dict] = []
 _cache_ts = 0.0
 _alerted: set = set()   # ids of events already pre-alerted this process
 _last_err: Optional[str] = None   # last feed error, for honest diagnostics
+_last_src: Optional[str] = None  # which feed source served the cache
 _last_ok_ts = 0.0                 # monotonic ts of last successful fetch
 
 
@@ -58,21 +64,19 @@ def _fetch(force: bool = False) -> List[dict]:
         if not force and _cache and (time.monotonic() - _cache_ts) < 3600:
             return _cache
     try:
-        global _last_err, _last_ok_ts
-        events = []
-        err = None
-        for attempt in range(2):   # one retry — CDN occasionally hiccups
+        global _last_err, _last_ok_ts, _last_src
+        events, err = [], None
+        for url, headers, src in FEEDS:
             try:
-                r = requests.get(FEED, headers=UA, timeout=15)
-                events = r.json() if r.status_code == 200 else []
-                if events:
+                r = requests.get(url, headers=headers, timeout=15)
+                cand = r.json() if r.status_code == 200 else []
+                if cand:
+                    events, _last_src = cand, src
                     err = None
                     break
-                err = f"HTTP {r.status_code}"
+                err = f"{src}: HTTP {r.status_code}"
             except Exception as exc:
-                err = f"{type(exc).__name__}: {exc}"[:200]
-            if attempt == 0:
-                time.sleep(2)
+                err = f"{src}: {type(exc).__name__}"[:120]
         _last_err = err if not events else None
         if events:
             _last_ok_ts = time.monotonic()
@@ -106,6 +110,7 @@ def feed_status() -> dict:
             "cached_events": len(_cache),
             "cache_age_min": round((time.monotonic() - _cache_ts) / 60, 1) if _cache_ts else None,
             "last_error": _last_err,
+            "source": _last_src,
         }
 
 
