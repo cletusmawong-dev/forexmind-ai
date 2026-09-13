@@ -33,7 +33,8 @@ SYMBOL_MAP = {
     "GBPUSD": ("GBP/USD", "GBPUSD=X", None, "GBP_USD"),
     "USDJPY": ("USD/JPY", "USDJPY=X", None, "USD_JPY"),
     "XAUUSD": ("XAU/USD", "XAUUSD=X", "GC=F", "XAU_USD"),
-    "NAS100": (None, "^NDX", "NQ=F", "NAS100_USD"),
+    # NAS100: free tier has no index feed; QQQ (Nasdaq-100 ETF) is the proxy.
+    "NAS100": ("QQQ", "^NDX", "NQ=F", "NAS100_USD"),
 }
 
 OANDA_GRAN = {"5M": "M5", "15M": "M15", "30M": "M30", "1H": "H1", "4H": "H4", "1D": "D"}

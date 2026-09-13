@@ -17,6 +17,8 @@ def _market_card(symbol: str) -> dict:
     price = provider.latest_price(symbol)
     card = {"symbol": symbol, "price": price, "demo": provider.is_demo,
             "data_status": provider.data_health(symbol)["status"]}
+    if symbol == "NAS100" and not provider.is_demo:
+        card["note"] = "via QQQ proxy (Nasdaq-100 ETF) - US market hours only"
     df = provider.get_candles(symbol, "15M", limit=1200)
     if df is None or len(df) < 300 or price is None:
         card.update({"bias": "N/A", "timeframe": "15M", "status": "NO DATA"})
