@@ -41,6 +41,10 @@ class Settings:
 
     # --- Notifications ---------------------------------------------------------
     fcm_enabled: bool = bool(os.getenv("FCM_ENABLED", ""))
+    # Telegram phone alerts: bot token from @BotFather + webhook secret.
+    telegram_bot_token: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
+    telegram_bot_username: str = os.getenv("TELEGRAM_BOT_USERNAME", "")
+    telegram_webhook_secret: str = os.getenv("TELEGRAM_WEBHOOK_SECRET", "fxm-hook")
 
     # --- Auth -------------------------------------------------------------------
     jwt_secret: str = os.getenv("FOREXMIND_JWT_SECRET", "dev-only-secret-change-me")

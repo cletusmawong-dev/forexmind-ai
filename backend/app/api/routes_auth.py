@@ -14,7 +14,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 def _public(u: dict) -> dict:
     return {"id": u["id"], "email": u["email"], "display_name": u.get("display_name", ""),
-            "demo": u.get("demo", False)}
+            "demo": u.get("demo", False), "telegram_linked": bool(u.get("telegram_chat_id"))}
 
 
 @router.post("/register")

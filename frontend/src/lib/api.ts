@@ -77,4 +77,5 @@ export const endpoints = {
   goals: "/api/goals",
   settings: "/api/settings",
   systemInfo: "/api/system/info",
+  notificationTest: "/api/notifications/test",
 };

@@ -25,6 +25,16 @@ def notify(user_id: Optional[str], type_: str, title: str, body: str,
         "meta": meta or {},
         "read": False,
     })
+    # Phone delivery (Telegram): best-effort, never blocks the caller.
+    if settings.telegram_bot_token and user_id:
+        try:
+            from .telegram import send_telegram
+            text = f"🤖 {title}"
+            if body:
+                text += f"\n{body}"
+            send_telegram(user_id, text)
+        except Exception:
+            pass
     if settings.fcm_enabled:
         try:  # pragma: no cover - requires FCM credentials
             from firebase_admin import messaging

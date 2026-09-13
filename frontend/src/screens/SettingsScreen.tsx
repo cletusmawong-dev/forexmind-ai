@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Send } from "lucide-react";
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
 import { DemoTag, Divider, Eyebrow, Glass, GlowDot, Pill, Spinner } from "../components/ui";
@@ -10,6 +10,7 @@ export function SettingsScreen() {
   const goals = usePolling<any>(() => api.get(endpoints.goals), 10000);
   const risk = usePolling<any>(() => api.get(endpoints.settings), 10000);
   const info = usePolling<any>(() => api.get(endpoints.systemInfo), 30000);
+  const me = usePolling<any>(() => api.get(endpoints.me), 30000);
   const [toast, setToast] = useState("");
 
   const [balance, setBalance] = useState("");
@@ -110,6 +111,51 @@ export function SettingsScreen() {
         <button className="btn-primary mt-5 w-full" onClick={saveRisk}>
           <Sparkles size={14} /> Save settings
         </button>
+      </Glass>
+
+      {/* ---- telegram phone alerts ---- */}
+      <Eyebrow className="mt-9">Phone alerts · Telegram</Eyebrow>
+      <p className="mb-3 mt-1 px-1 text-[11px] text-txt-faint">Signals, TP/SL hits and approvals delivered even when the app is closed.</p>
+      <Glass>
+        {(() => {
+          const tg = info.data?.notifications?.telegram;
+          const linked = !!me.data?.telegram_linked;
+          const email = me.data?.email || "";
+          if (!tg?.configured) {
+            return <p className="text-[12px] text-txt-mid">Telegram bot not configured yet — add the bot token to enable phone alerts.</p>;
+          }
+          return (
+            <>
+              {linked ? (
+                <div className="flex items-center gap-2.5 text-[12.5px] font-semibold text-pos">
+                  <GlowDot tone="pos" size={7} pulse={false} /> Connected — alerts will arrive in your Telegram.
+                </div>
+              ) : (
+                <ol className="space-y-2.5 text-[12px] leading-relaxed text-txt-mid">
+                  <li><span className="num font-bold text-txt-hi">1.</span> Open <span className="font-semibold text-[var(--accent-cyan)]">t.me/{tg.bot_username || "your_bot"}</span> in Telegram</li>
+                  <li><span className="num font-bold text-txt-hi">2.</span> Send this exact message: <span className="mt-1 block rounded-xl border border-white/[0.08] bg-[rgba(6,11,26,0.6)] px-3 py-2 font-mono text-[11px] text-txt-hi">/start {email}</span></li>
+                  <li><span className="num font-bold text-txt-hi">3.</span> Tap "Check again" below.</li>
+                </ol>
+              )}
+              <div className="mt-4 flex gap-2.5">
+                {!linked && (
+                  <button className="btn-ghost flex-1" onClick={() => me.refresh()}>Check again</button>
+                )}
+                <button
+                  className="btn-primary flex-1"
+                  onClick={async () => {
+                    try {
+                      const r = await api.post<{ sent: boolean }>(endpoints.notificationTest, {});
+                      flash(r.sent ? "Test alert sent — check your Telegram 📲" : "Not linked yet — follow the steps above.");
+                    } catch (e: any) { flash(e.message || "Failed"); }
+                  }}
+                >
+                  <Send size={13} /> Send test alert
+                </button>
+              </div>
+            </>
+          );
+        })()}
       </Glass>
 
       {/* ---- system ---- */}

@@ -21,7 +21,7 @@ from .db.store import get_store
 from .state import State, init_state
 from .api import (routes_agent, routes_auth, routes_journal, routes_learning,
                   routes_markets, routes_misc, routes_signals, routes_strategies,
-                  routes_trades)
+                  routes_trades, routes_telegram)
 
 app = FastAPI(title="ForexMind AI", version="0.1.0",
               description="AI trading research & signal agent - signals only, never execution.")
@@ -30,7 +30,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
                    allow_headers=["*"])
 
 for r in (routes_auth, routes_markets, routes_signals, routes_trades, routes_agent,
-          routes_learning, routes_strategies, routes_journal, routes_misc):
+          routes_learning, routes_strategies, routes_journal, routes_misc, routes_telegram):
     app.include_router(r.router, prefix=settings.api_prefix)
 
 

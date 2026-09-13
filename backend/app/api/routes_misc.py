@@ -72,7 +72,9 @@ def system_info():
             "note": "Set FIREBASE_PROJECT_ID (+ credentials) to activate live Firestore.",
             "init_error": getattr(__import__("app.db.store", fromlist=["store_init_error"]), "store_init_error", None),
         },
-        "notifications": {"fcm": settings.fcm_enabled},
+        "notifications": {"fcm": settings.fcm_enabled,
+                          "telegram": {"configured": bool(settings.telegram_bot_token),
+                                       "bot_username": settings.telegram_bot_username}},
         "markets": INITIAL_MARKETS,
         "disclaimer": ("ForexMind AI is a research & signal agent. It never executes "
                        "trades and never guarantees profits."),
