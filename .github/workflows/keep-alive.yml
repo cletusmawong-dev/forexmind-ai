@@ -1,0 +1,23 @@
+name: Keep API awake
+
+# Free-tier backends sleep after ~15 min idle. This pings every 10 minutes
+# so the trading agent never misses a candle close. Runs on the public repo's
+# free Actions minutes.
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: keep-alive
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping health endpoint
+        run: |
+          curl -sS --max-time 25 "${{ secrets.API_BASE_URL || 'https://forexmind-ai-api.onrender.com' }}/api/health" \
+            && echo "OK" || echo "ping failed (will retry next cycle)"
