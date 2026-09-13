@@ -27,14 +27,16 @@ from ..core.indicators import TF_RULES, resample_ohlcv
 from ..config import settings
 from .base import MarketDataProvider
 
-# app symbol -> (twelvedata symbol, yahoo symbol, yahoo fallback)
+# app symbol -> (twelvedata symbol, yahoo symbol, yahoo fallback, oanda instrument)
 SYMBOL_MAP = {
-    "EURUSD": ("EUR/USD", "EURUSD=X", None),
-    "GBPUSD": ("GBP/USD", "GBPUSD=X", None),
-    "USDJPY": ("USD/JPY", "USDJPY=X", None),
-    "XAUUSD": ("XAU/USD", "XAUUSD=X", "GC=F"),
-    "NAS100": (None, "^NDX", "NQ=F"),
+    "EURUSD": ("EUR/USD", "EURUSD=X", None, "EUR_USD"),
+    "GBPUSD": ("GBP/USD", "GBPUSD=X", None, "GBP_USD"),
+    "USDJPY": ("USD/JPY", "USDJPY=X", None, "USD_JPY"),
+    "XAUUSD": ("XAU/USD", "XAUUSD=X", "GC=F", "XAU_USD"),
+    "NAS100": (None, "^NDX", "NQ=F", "NAS100_USD"),
 }
+
+OANDA_GRAN = {"5M": "M5", "15M": "M15", "30M": "M30", "1H": "H1", "4H": "H4", "1D": "D"}
 
 TF_MINUTES = {"5M": 5, "15M": 15, "30M": 30, "1H": 60, "4H": 240, "1D": 1440}
 
@@ -57,6 +59,17 @@ class LiveProvider(MarketDataProvider):
         self._cache: Dict[Tuple[str, str], Tuple[float, Optional[pd.DataFrame]]] = {}
         self.td_key = settings.twelvedata_api_key
         self._td_last_call = 0.0
+        self.oanda_token = settings.oanda_api_token
+        self.oanda_base = ("https://api-fxtrade.oanda.com" if settings.oanda_env == "live"
+                           else "https://api-fxpractice.oanda.com")
+        self._oanda_last_call = 0.0
+
+    def _oanda_throttle(self):
+        with self._lock:
+            wait = self._oanda_last_call + 1.0 - time.monotonic()
+            if wait > 0:
+                time.sleep(min(wait, 5))
+            self._oanda_last_call = time.monotonic()
 
     def _td_throttle(self):
         """Space Twelve Data calls >= TD_MIN_GAP apart (free-tier friendly)."""
@@ -68,7 +81,47 @@ class LiveProvider(MarketDataProvider):
 
     # ------------------------------------------------------------------
     def _td_symbol(self, market: str) -> Optional[str]:
-        return SYMBOL_MAP.get(market, (None, None, None))[0]
+        return SYMBOL_MAP.get(market, (None, None, None, None))[0]
+
+    # ------------------------------------------------------------------
+    # OANDA v20 (practice or live) - broker-grade candles, complete-flagged
+    # ------------------------------------------------------------------
+    def _fetch_oanda(self, market: str, tf: str, limit: int) -> Optional[pd.DataFrame]:
+        if not self.oanda_token:
+            return None
+        inst = SYMBOL_MAP.get(market, (None, None, None, None))[3]
+        gran = OANDA_GRAN.get(tf)
+        if not inst or not gran:
+            return None
+        try:
+            self._oanda_throttle()
+            r = requests.get(
+                f"{self.oanda_base}/v3/instruments/{inst}/candles",
+                params={"granularity": gran, "count": min(limit, 500), "price": "M"},
+                headers={"Authorization": f"Bearer {self.oanda_token}"},
+                timeout=15,
+            )
+            if r.status_code != 200:
+                return None
+            candles = [c for c in r.json().get("candles", []) if c.get("complete")]
+            if not candles:
+                return None
+            idx = pd.to_datetime([c["time"] for c in candles]).tz_localize(None) \
+                if not pd.to_datetime(candles[0]["time"]).tzinfo else \
+                pd.to_datetime([c["time"] for c in candles]).tz_convert("UTC").tz_localize(None)
+            df = pd.DataFrame(
+                {
+                    "open": [float(c["mid"]["o"]) for c in candles],
+                    "high": [float(c["mid"]["h"]) for c in candles],
+                    "low": [float(c["mid"]["l"]) for c in candles],
+                    "close": [float(c["mid"]["c"]) for c in candles],
+                    "volume": [float(c.get("volume", 0)) for c in candles],
+                },
+                index=idx,
+            )
+            return df
+        except Exception:
+            return None
 
     def _yahoo_symbol(self, market: str) -> str:
         _, y, fb = SYMBOL_MAP.get(market, (None, market, None))
@@ -173,20 +226,20 @@ class LiveProvider(MarketDataProvider):
                 df = hit[1]
                 return df.tail(limit).copy() if df is not None and len(df) else None
 
-        df = None
-        if self.td_key:
+        df = self._aligned(market, tf, self._fetch_oanda(market, tf, limit))
+        if df is None and self.td_key:
             df = self._aligned(market, tf, self._fetch_td(market, tf, limit))
         if df is None:
             df = self._aligned(market, tf, self._fetch_yahoo(market, tf, limit))
         if df is None and self.td_key:  # TD symbol missing on Yahoo-free markets? try Yahoo fallback symbol
-            _, _, fb = SYMBOL_MAP.get(market, (None, None, None))
+            _, _, fb, _o = SYMBOL_MAP.get(market, (None, None, None, None))
             if fb:
                 sym_backup = self._yahoo_symbol(market)
                 try:
-                    SYMBOL_MAP[market] = (self._td_symbol(market), fb, None)
+                    SYMBOL_MAP[market] = (self._td_symbol(market), fb, None, _o)
                     df = self._aligned(market, tf, self._fetch_yahoo(market, tf, limit))
                 finally:
-                    SYMBOL_MAP[market] = (self._td_symbol(market), sym_backup, fb)
+                    SYMBOL_MAP[market] = (self._td_symbol(market), sym_backup, fb, _o)
         with self._lock:
             self._cache[key] = (now, df if df is not None and len(df) else None)
         return df.tail(limit).copy() if df is not None and len(df) else None

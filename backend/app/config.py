@@ -34,6 +34,10 @@ class Settings:
     # (Yahoo keyless, Twelve Data when TWELVEDATA_API_KEY is configured).
     market_data_provider: str = os.getenv("MARKET_DATA_PROVIDER", "historical_demo")
     twelvedata_api_key: str = os.getenv("TWELVEDATA_API_KEY", "")
+    # Optional broker-grade feed (free practice account at oanda.com).
+    # Covers FX, gold and NAS100 CFDs; "practice" uses no real money.
+    oanda_api_token: str = os.getenv("OANDA_API_TOKEN", "")
+    oanda_env: str = os.getenv("OANDA_ENV", "practice")
 
     # --- Notifications ---------------------------------------------------------
     fcm_enabled: bool = bool(os.getenv("FCM_ENABLED", ""))
