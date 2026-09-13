@@ -53,6 +53,22 @@ def patch_settings(body: RiskSettings, user_id: str = Depends(get_user_id)):
 
 
 # ---------------------------------------------------------------- system info
+@router.get("/calendar")
+def calendar():
+    """Upcoming high-impact economic events (next 48h)."""
+    from ..market_data.calendar import high_impact
+    evs = high_impact(hours=48)
+    return {"events": [{"title": e["title"], "country": e["country"],
+                        "impact": e["impact"], "time": e["time"]} for e in evs[:12]]}
+
+
+@router.get("/agent/brief")
+def morning_brief(user_id: str = Depends(get_user_id)):
+    """Today's AI morning brief (built once, cached per day)."""
+    from ..agent import brief as brief_mod
+    return {"brief": brief_mod.build(user_id), "date": brief_mod.today_key()}
+
+
 @router.get("/system/info")
 def system_info():
     return {

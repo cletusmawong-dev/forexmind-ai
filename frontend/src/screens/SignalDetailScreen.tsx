@@ -6,6 +6,7 @@ import { usePolling } from "../lib/usePolling";
 import type { Candle, Signal } from "../lib/types";
 import { DemoTag, Divider, Glass, MetricGrid, Pill, Spinner, StatusDot, ProgressBar } from "../components/ui";
 import { CandleChart, ChartLine } from "../components/CandleChart";
+import { PositionSizeCard } from "../components/PositionSizeCard";
 import { fmtPrice, fmtR, fmtDateTime, TREND_LABEL } from "../lib/format";
 
 export function SignalDetailScreen() {
@@ -116,6 +117,9 @@ export function SignalDetailScreen() {
           <LadderRow label="Risk / reward" value={`1 : ${s.rr_primary}`} tone="" note={s.completed ? fmtR(s.r_multiple) : s.status.replace("_", " ")} />
         </div>
       </Glass>
+
+      {/* ---- MT5 position size ---- */}
+      <PositionSizeCard signal={s} />
 
       {/* ---- MTF ---- */}
       {s.mtf && (

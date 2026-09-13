@@ -8,6 +8,7 @@ import { AnimatedNumber, DemoTag, Divider, Glass, Logo, ProgressBar, SectionHead
 import { fmtPct, fmtPrice, fmtTime, greeting, shortAgo } from "../lib/format";
 import { SignalRow } from "../components/SignalRow";
 import { AgentPulse } from "../components/AgentPulse";
+import { MorningBriefCard } from "../components/MorningBriefCard";
 
 export function HomeScreen() {
   const navigate = useNavigate();
@@ -174,7 +175,9 @@ export function HomeScreen() {
 
       {/* ---- right column (desktop) / below (mobile) ---- */}
       <div className="mt-10 lg:col-span-5 lg:mt-0 lg:border-l lg:border-white/[0.06] lg:pl-10 lg:pt-2">
-        <SectionHeader right={<DemoTag />}>Market Watch</SectionHeader>
+        <MorningBriefCard />
+
+        <SectionHeader className="mt-8" right={<DemoTag />}>Market Watch</SectionHeader>
         <Glass pad={false} className="overflow-hidden !p-1.5">
           {marketList.length === 0 && <div className="px-4 py-6 text-center text-[12px] text-[var(--text-muted)]">Loading markets…</div>}
           <div className="space-y-1">

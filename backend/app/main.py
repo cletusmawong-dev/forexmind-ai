@@ -97,6 +97,22 @@ async def replay_loop():
             await asyncio.sleep(2)
 
 
+_users_cache: list = []
+_users_cache_ts = 0.0
+
+
+def _users_cached():
+    """User id list, cached 10 min (avoids a Firestore read every loop tick)."""
+    global _users_cache, _users_cache_ts
+    if not _users_cache or time.time() - _users_cache_ts > 600:
+        try:
+            _users_cache[:] = [u["id"] for u in State.store.list("users", limit=50)]
+            _users_cache_ts = time.time()
+        except Exception:
+            pass
+    return _users_cache or ["demo-user"]
+
+
 async def warm_cache():
     """Pre-fetch the working set (respects provider rate limits) so the first
     UI request is served from cache."""
@@ -123,12 +139,37 @@ async def live_loop():
             for market in INITIAL_MARKETS:
                 State.tracker.update_market(market)
 
+            # news pre-alerts (Telegram) + daily morning brief — best effort
+            try:
+                from .market_data.calendar import pre_alerts, label as cal_label
+                from .notifications.service import notify as _notify
+                for ev in pre_alerts():
+                    for uid in _users_cached():
+                        _notify(uid, "NEWS_ALERT", "⚠️ High-impact news in ~15 min", cal_label(ev))
+            except Exception:
+                pass
+            try:
+                from .agent.brief import maybe_push_daily
+                for uid in _users_cached():
+                    maybe_push_daily(uid)
+            except Exception:
+                pass
+
             cur_15m = int(now // 900)
             if cur_15m != last_scan_15m:
                 last_scan_15m = cur_15m
-                user_ids = [u["id"] for u in State.store.list("users", limit=50)]
+                user_ids = _users_cached()
+                from .market_data.calendar import is_blackout
                 for market in INITIAL_MARKETS:
                     _current_task = f"Scanning {market}"
+                    try:
+                        blocked, ev = is_blackout(market)
+                    except Exception:
+                        blocked, ev = False, None
+                    if blocked:
+                        agent_core.log(f"News blackout — skipping {market} "
+                                       f"({ev['country']} {ev['title']})", kind="NEWS", market=market)
+                        continue
                     for uid in user_ids:
                         for tf in ("15M", "1H"):
                             State.engine.scan(uid, market, tf, log_activity=False)

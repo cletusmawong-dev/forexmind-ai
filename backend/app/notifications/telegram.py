@@ -26,7 +26,7 @@ def send_telegram(user_id: str, text: str) -> bool:
         return False
     store = get_store()
     u = store.get("users", user_id) or {}
-    chat_id = u.get("telegram_chat_id")
+    chat_id = u.get("telegram_chat_id") or settings.telegram_default_chat_id
     if not chat_id:
         return False
     try:
