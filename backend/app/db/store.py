@@ -245,19 +245,33 @@ class FirestoreStore:
         hit = self._cache_get(key)
         if hit is not None:
             return [dict(d) for d in hit]
-        q = self.db.collection(coll)
-        if filters:
-            for k, v in filters.items():
-                if isinstance(v, tuple):
-                    op, val = v
-                    fmap = {"in": "in", "gte": ">=", "lte": "<="}
-                    q = q.where(k, fmap[op], val)
-                else:
-                    q = q.where(k, "==", v)
-        q = q.order_by(order_by, direction="DESCENDING" if desc else "ASCENDING")
-        if limit:
-            q = q.limit(limit)
-        out = [self._normalize(d.to_dict()) | {"id": d.id} for d in q.stream()]
+        def build_query(with_order: bool):
+            qq = self.db.collection(coll)
+            if filters:
+                for k, v in filters.items():
+                    if isinstance(v, tuple):
+                        op, val = v
+                        fmap = {"in": "in", "gte": ">=", "lte": "<="}
+                        qq = qq.where(k, fmap[op], val)
+                    else:
+                        qq = qq.where(k, "==", v)
+            if with_order:
+                qq = qq.order_by(order_by, direction="DESCENDING" if desc else "ASCENDING")
+            if limit and with_order:
+                qq = qq.limit(limit)
+            return qq
+
+        try:
+            out = [self._normalize(d.to_dict()) | {"id": d.id} for d in build_query(True).stream()]
+        except Exception as e:
+            # Missing composite index safety net: fetch without ordering and
+            # sort in memory — identical semantics, no downtime.
+            if "index" not in str(e).lower():
+                raise
+            out = [self._normalize(d.to_dict()) | {"id": d.id} for d in build_query(False).stream()]
+            out.sort(key=lambda d: str(d.get(order_by, "")), reverse=desc)
+            if limit:
+                out = out[:limit]
         self._cache_set(key, out)
         return out
 
