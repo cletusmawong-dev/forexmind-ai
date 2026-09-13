@@ -26,7 +26,13 @@ def _deterministic_roll(key: str) -> float:
 
 def seed_if_empty() -> None:
     store = get_store()
-    if store.count("signals") > 0:
+    try:
+        empty = store.count("signals") == 0
+    except Exception:
+        # Quota gate up (or Firestore unavailable): never risk double-seeding.
+        print("[seed] cannot verify emptiness - skipping seed this boot")
+        return
+    if not empty:
         ensure_strategy_docs()
         _ensure_demo_user()
         return

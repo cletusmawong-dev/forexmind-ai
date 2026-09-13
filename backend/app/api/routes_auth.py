@@ -36,6 +36,8 @@ def login(body: LoginIn):
     store = get_store()
     u = store.list("users", filters={"email": body.email.lower()}, limit=1)
     if not u or hash_password(body.password, u[0]["salt"]) != u[0]["password_hash"]:
+        if getattr(store, "quota_mode", False):
+            raise HTTPException(503, "Database daily quota reached — service pauses until the daily reset. Data is safe.")
         raise HTTPException(401, "Invalid email or password")
     return {"token": issue_token(u[0]["id"]), "user": _public(u[0])}
 

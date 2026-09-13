@@ -147,7 +147,7 @@ class FirestoreStore:
     the Firestore free tier without changing any read semantics.
     """
 
-    CACHE_TTL = 5.0  # seconds
+    CACHE_TTL = 45.0  # seconds - keeps a polling UI well inside free quotas
 
     def __init__(self):
         from firebase_admin import firestore, credentials  # lazy import
@@ -167,6 +167,20 @@ class FirestoreStore:
         self.db = firestore.client()
         self._cache: Dict[str, tuple] = {}  # key -> (monotonic_ts, value)
         self._cache_lock = threading.RLock()
+        self.quota_mode = False  # True while Firestore daily quota is exhausted
+
+    class _QuotaExhausted(Exception):
+        pass
+
+    def _enter_quota_mode(self):
+        self.quota_mode = True
+
+    def _check_quota_gate(self):
+        """While Firestore's daily quota is exhausted, reads fail fast with a
+        typed exception instead of hammering the API (the app renders honest
+        'quota reached' states; writes still attempt normally)."""
+        if self.quota_mode:
+            raise self._QuotaExhausted()
 
     def _cache_get(self, key):
         import time as _t
@@ -220,7 +234,14 @@ class FirestoreStore:
         hit = self._cache_get(key)
         if hit is not None:
             return dict(hit) if hit else None
-        snap = self.db.collection(coll).document(doc_id).get()
+        self._check_quota_gate()
+        try:
+            snap = self.db.collection(coll).document(doc_id).get()
+        except Exception as e:
+            if "Quota exceeded" in str(e) or "ResourceExhausted" in type(e).__name__:
+                self._enter_quota_mode()
+                raise self._QuotaExhausted() from e
+            raise
         val = self._normalize(snap.to_dict()) if snap.exists else None
         self._cache_set(key, val)
         return val
@@ -261,9 +282,13 @@ class FirestoreStore:
                 qq = qq.limit(limit)
             return qq
 
+        self._check_quota_gate()
         try:
             out = [self._normalize(d.to_dict()) | {"id": d.id} for d in build_query(True).stream()]
         except Exception as e:
+            if "Quota exceeded" in str(e) or "ResourceExhausted" in type(e).__name__:
+                self._enter_quota_mode()
+                raise self._QuotaExhausted() from e
             # Missing composite index safety net: fetch without ordering and
             # sort in memory — identical semantics, no downtime.
             if "index" not in str(e).lower():
@@ -281,6 +306,7 @@ class FirestoreStore:
         hit = self._cache_get(key)
         if hit is not None:
             return hit
+        self._check_quota_gate()
         q = self.db.collection(coll)
         if filters:
             for k, v in filters.items():
@@ -294,7 +320,10 @@ class FirestoreStore:
             from google.cloud.firestore_v1.aggregation import AggregationQuery
             agg = AggregationQuery(q)
             val = int(agg.count(alias="n").get()[0][0].value)
-        except Exception:
+        except Exception as e:
+            if "Quota exceeded" in str(e) or "ResourceExhausted" in type(e).__name__:
+                self._enter_quota_mode()
+                raise self._QuotaExhausted() from e
             val = len(self.list(coll, filters, limit=10000))
         self._cache_set(key, val)
         return val
