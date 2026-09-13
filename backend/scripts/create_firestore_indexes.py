@@ -10,7 +10,6 @@ Idempotent — indexes that already exist are skipped (409).
 import json
 import os
 import sys
-import time
 
 import requests
 
@@ -51,8 +50,9 @@ def credentials():
 
 def access_token(sa: dict) -> str:
     from google.oauth2 import service_account
+    from google.auth.transport.requests import Request
     creds = service_account.Credentials.from_service_account_info(sa, scopes=[SCOPE])
-    creds.refresh(time.time())
+    creds.refresh(Request())
     return creds.token
 
 
