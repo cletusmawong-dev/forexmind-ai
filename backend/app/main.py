@@ -44,6 +44,7 @@ async def startup():
     agent_core.ensure_user_docs("demo-user")
     if not State.provider.is_demo:
         asyncio.create_task(live_loop())
+        asyncio.create_task(warm_cache())
     elif settings.replay_enabled:
         asyncio.create_task(replay_loop())
 
@@ -88,6 +89,17 @@ async def replay_loop():
         except Exception as e:  # never let the loop die
             agent_core.log(f"Agent loop warning: {e}", kind="WARN")
             await asyncio.sleep(2)
+
+
+async def warm_cache():
+    """Pre-fetch the working set (respects provider rate limits) so the first
+    UI request is served from cache."""
+    for market in INITIAL_MARKETS:
+        for tf in ("5M", "15M", "1H", "4H"):
+            try:
+                await asyncio.to_thread(State.provider.get_candles, market, tf, 400)
+            except Exception:
+                pass
 
 
 async def live_loop():

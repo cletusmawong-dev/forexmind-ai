@@ -124,7 +124,7 @@ class LiveProvider(MarketDataProvider):
             return None
 
     def _yahoo_symbol(self, market: str) -> str:
-        _, y, fb = SYMBOL_MAP.get(market, (None, market, None))
+        _, y, fb = SYMBOL_MAP.get(market, (None, market, None, None))
         return y or market
 
     # ------------------------------------------------------------------
