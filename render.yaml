@@ -1,0 +1,16 @@
+# Render Blueprint — deploys the ForexMind AI backend as a free web service.
+# Push this repo to GitHub -> Render "New +" -> Blueprint -> select the repo.
+services:
+  - type: web
+    name: forexmind-ai-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: REPLAY_ENABLED
+        value: "1"
+      # Optional integrations - add via Render dashboard when ready:
+      # XKIRO_API_KEY, FIREBASE_PROJECT_ID, GOOGLE_APPLICATION_CREDENTIALS

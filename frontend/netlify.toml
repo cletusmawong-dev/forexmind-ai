@@ -1,0 +1,33 @@
+# Netlify config for the ForexMind AI frontend (React PWA).
+#
+# ONE LINE TO EDIT: the backend URL in the first redirect below.
+# After your backend is live (e.g. https://forexmind-ai-api.onrender.com),
+# replace REPLACE-WITH-YOUR-BACKEND-HOST below with that host.
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# Proxy API calls to the always-on FastAPI backend (same origin, no CORS).
+[[redirects]]
+  from = "/api/*"
+  to = "https://REPLACE-WITH-YOUR-BACKEND-HOST/api/:splat"
+  status = 200
+  force = true
+
+# SPA fallback - client-side routes render index.html
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Content-Type = "application/manifest+json"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"

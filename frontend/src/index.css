@@ -1,0 +1,135 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-base text-txt-hi font-sans;
+  letter-spacing: -0.011em;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ---------- ambient lighting: the user should feel it, not notice it ---------- */
+.ambient {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(1000px 640px at 88% -12%, rgba(108, 158, 255, 0.09), transparent 62%),
+    radial-gradient(820px 540px at -16% 18%, rgba(167, 155, 247, 0.07), transparent 56%),
+    radial-gradient(760px 540px at 52% 118%, rgba(124, 213, 242, 0.045), transparent 60%),
+    #0b0d12;
+}
+.noise {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='180' height='180' filter='url(%23n)' opacity='0.55'/></svg>");
+}
+
+/* ---------- liquid glass levels ---------- */
+@layer components {
+  .glass {
+    @apply rounded-[24px] border border-white/[0.07];
+    background: rgba(151, 165, 189, 0.062);
+    backdrop-filter: blur(24px) saturate(150%);
+    -webkit-backdrop-filter: blur(24px) saturate(150%);
+    box-shadow: 0 14px 44px -16px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.055);
+  }
+  .glass-2 {
+    @apply rounded-[20px] border border-white/[0.05];
+    background: rgba(151, 165, 189, 0.038);
+    backdrop-filter: blur(16px) saturate(140%);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+    box-shadow: 0 8px 28px -14px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+  .glass-float {
+    @apply rounded-full border border-white/[0.1];
+    background: rgba(22, 27, 39, 0.6);
+    backdrop-filter: blur(40px) saturate(180%);
+    -webkit-backdrop-filter: blur(40px) saturate(180%);
+    box-shadow: 0 20px 60px -16px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+  .hairline {
+    border-color: rgba(255, 255, 255, 0.065);
+  }
+  .divider {
+    height: 1px;
+    background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.075), transparent);
+  }
+  .eyebrow {
+    @apply text-[11px] font-medium uppercase tracking-[0.16em] text-txt-low;
+  }
+  .num {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+  .input {
+    @apply w-full rounded-2xl border border-white/[0.08] bg-white/[0.035] px-4 py-3 text-[14px] text-txt-hi outline-none transition placeholder:text-txt-faint;
+    backdrop-filter: blur(12px);
+  }
+  .input:focus {
+    border-color: rgba(108, 158, 255, 0.45);
+    background: rgba(108, 158, 255, 0.05);
+    box-shadow: 0 0 0 4px rgba(108, 158, 255, 0.08);
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-[13px] font-semibold transition-all duration-300 active:scale-[0.97] disabled:opacity-40 disabled:pointer-events-none;
+  }
+  .btn-primary {
+    @apply btn text-base;
+    background: linear-gradient(120deg, #6c9eff, #7cd5f2);
+    box-shadow: 0 8px 28px -8px rgba(108, 158, 255, 0.5);
+  }
+  .btn-primary:hover {
+    filter: brightness(1.08);
+  }
+  .btn-ghost {
+    @apply btn border border-white/[0.09] bg-white/[0.04] text-txt-mid hover:bg-white/[0.08] hover:text-txt-hi;
+  }
+  .btn-approve {
+    @apply btn border border-pos/25 bg-pos/10 text-pos hover:bg-pos/[0.16];
+  }
+  .btn-reject {
+    @apply btn border border-neg/25 bg-neg/[0.08] text-neg hover:bg-neg/[0.14];
+  }
+  .tap {
+    @apply transition-all duration-300 active:scale-[0.98];
+  }
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 99px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::selection {
+  background: rgba(108, 158, 255, 0.3);
+}

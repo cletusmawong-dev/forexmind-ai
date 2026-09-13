@@ -1,0 +1,9 @@
+fastapi==0.141.1
+uvicorn[standard]==0.52.4
+python-dotenv>=1.0
+requests==2.33.0
+pandas==2.2.3
+numpy==2.3.5
+pytest>=8.0
+# Optional - activated only when Firebase credentials are configured:
+# firebase-admin>=6.0

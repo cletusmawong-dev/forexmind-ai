@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+
+# Node / build output
+node_modules/
+dist/
+deploy-netlify/
+
+# Local dev state (the deployed backend rebuilds/seeds its own store)
+backend/data/db.json
+backend/data/db.json.tmp
+
+# OS
+.DS_Store
+Thumbs.db
