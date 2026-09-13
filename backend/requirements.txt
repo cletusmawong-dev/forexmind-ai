@@ -5,5 +5,5 @@ requests==2.33.0
 pandas==2.2.3
 numpy==2.3.5
 pytest>=8.0
-# Optional - activated only when Firebase credentials are configured:
-# firebase-admin>=6.0
+# Activated only when Firebase credentials are configured:
+firebase-admin==6.5.0

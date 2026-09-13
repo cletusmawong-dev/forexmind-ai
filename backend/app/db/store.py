@@ -140,7 +140,14 @@ class LocalStore:
 
 
 class FirestoreStore:
-    """Real Firebase Firestore adapter (activated by env credentials)."""
+    """Real Firebase Firestore adapter (activated by env credentials).
+
+    Adds a short-TTL read cache (default 5s) with write-through invalidation.
+    The UI polls every 4-8s; the cache keeps a single user comfortably inside
+    the Firestore free tier without changing any read semantics.
+    """
+
+    CACHE_TTL = 5.0  # seconds
 
     def __init__(self):
         from firebase_admin import firestore, credentials  # lazy import
@@ -158,6 +165,27 @@ class FirestoreStore:
             firebase_admin.initialize_app(cred, {"projectId": settings.firebase_project_id}) if cred else \
                 firebase_admin.initialize_app(options={"projectId": settings.firebase_project_id})
         self.db = firestore.client()
+        self._cache: Dict[str, tuple] = {}  # key -> (monotonic_ts, value)
+        self._cache_lock = threading.RLock()
+
+    def _cache_get(self, key):
+        import time as _t
+        with self._cache_lock:
+            hit = self._cache.get(key)
+            if hit and (_t.monotonic() - hit[0]) < self.CACHE_TTL:
+                return hit[1]
+        return None
+
+    def _cache_set(self, key, value):
+        import time as _t
+        with self._cache_lock:
+            self._cache[key] = (_t.monotonic(), value)
+
+    def _invalidate(self, coll: str, doc_id: Optional[str] = None):
+        with self._cache_lock:
+            keys = [k for k in self._cache if k.startswith(f"L:{coll}|") or k == f"G:{coll}/{doc_id}"]
+            for k in keys:
+                self._cache.pop(k, None)
 
     def _now(self):
         from firebase_admin import firestore
@@ -168,11 +196,18 @@ class FirestoreStore:
         doc = dict(doc); doc["id"] = ref.id
         doc.setdefault("createdAt", self._now()); doc["updatedAt"] = self._now()
         ref.set(doc)
+        self._invalidate(coll, ref.id)
         return doc
 
     def get(self, coll, doc_id):
+        key = f"G:{coll}/{doc_id}"
+        hit = self._cache_get(key)
+        if hit is not None:
+            return dict(hit) if hit else None
         snap = self.db.collection(coll).document(doc_id).get()
-        return snap.to_dict() if snap.exists else None
+        val = snap.to_dict() if snap.exists else None
+        self._cache_set(key, val)
+        return val
 
     def update(self, coll, doc_id, patch):
         ref = self.db.collection(coll).document(doc_id)
@@ -180,13 +215,20 @@ class FirestoreStore:
             return None
         patch = dict(patch); patch["updatedAt"] = self._now()
         ref.update(patch)
+        self._invalidate(coll, doc_id)
         return self.get(coll, doc_id)
 
     def delete(self, coll, doc_id):
         self.db.collection(coll).document(doc_id).delete()
+        self._invalidate(coll, doc_id)
         return True
 
     def list(self, coll, filters=None, order_by="createdAt", desc=True, limit=0):
+        fkey = repr(sorted((filters or {}).items(), key=lambda kv: kv[0]))
+        key = f"L:{coll}|{fkey}|{order_by}|{desc}|{limit}"
+        hit = self._cache_get(key)
+        if hit is not None:
+            return [dict(d) for d in hit]
         q = self.db.collection(coll)
         if filters:
             for k, v in filters.items():
@@ -199,10 +241,33 @@ class FirestoreStore:
         q = q.order_by(order_by, direction="DESCENDING" if desc else "ASCENDING")
         if limit:
             q = q.limit(limit)
-        return [d.to_dict() | {"id": d.id} for d in q.stream()]
+        out = [d.to_dict() | {"id": d.id} for d in q.stream()]
+        self._cache_set(key, out)
+        return out
 
     def count(self, coll, filters=None):
-        return len(self.list(coll, filters, limit=10000))
+        """Server-side aggregation count (1 read) instead of N document reads."""
+        key = f"C:{coll}|{repr(sorted((filters or {}).items(), key=lambda kv: kv[0]))}"
+        hit = self._cache_get(key)
+        if hit is not None:
+            return hit
+        q = self.db.collection(coll)
+        if filters:
+            for k, v in filters.items():
+                if isinstance(v, tuple):
+                    op, val = v
+                    fmap = {"in": "in", "gte": ">=", "lte": "<="}
+                    q = q.where(k, fmap[op], val)
+                else:
+                    q = q.where(k, "==", v)
+        try:
+            from google.cloud.firestore_v1.aggregation import AggregationQuery
+            agg = AggregationQuery(q)
+            val = int(agg.count(alias="n").get()[0][0].value)
+        except Exception:
+            val = len(self.list(coll, filters, limit=10000))
+        self._cache_set(key, val)
+        return val
 
     def flush(self):
         pass
