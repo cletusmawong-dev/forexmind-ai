@@ -40,8 +40,13 @@ _current_task = "Initializing"
 @app.on_event("startup")
 async def startup():
     init_state()
-    seed_if_empty()
-    agent_core.ensure_user_docs("demo-user")
+    try:
+        seed_if_empty()
+        agent_core.ensure_user_docs("demo-user")
+    except Exception as e:
+        # Quota gate or transient DB issue: boot anyway so market-data and
+        # health endpoints stay up; DB-backed features degrade honestly.
+        print(f"[startup] database init degraded: {e}")
     if not State.provider.is_demo:
         asyncio.create_task(live_loop())
         asyncio.create_task(warm_cache())
