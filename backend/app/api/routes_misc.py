@@ -55,11 +55,12 @@ def patch_settings(body: RiskSettings, user_id: str = Depends(get_user_id)):
 # ---------------------------------------------------------------- system info
 @router.get("/calendar")
 def calendar():
-    """Upcoming high-impact economic events (next 48h)."""
-    from ..market_data.calendar import high_impact
+    """Upcoming high-impact economic events (next 48h) + honest feed status."""
+    from ..market_data.calendar import high_impact, feed_status
     evs = high_impact(hours=48)
     return {"events": [{"title": e["title"], "country": e["country"],
-                        "impact": e["impact"], "time": e["time"]} for e in evs[:12]]}
+                        "impact": e["impact"], "time": e["time"]} for e in evs[:12]],
+            "feed": feed_status()}
 
 
 @router.get("/agent/brief")

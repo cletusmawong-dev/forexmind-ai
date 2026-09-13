@@ -38,6 +38,8 @@ _lock = threading.RLock()
 _cache: List[dict] = []
 _cache_ts = 0.0
 _alerted: set = set()   # ids of events already pre-alerted this process
+_last_err: Optional[str] = None   # last feed error, for honest diagnostics
+_last_ok_ts = 0.0                 # monotonic ts of last successful fetch
 
 
 def _parse_dt(raw: str) -> Optional[datetime]:
@@ -56,10 +58,27 @@ def _fetch(force: bool = False) -> List[dict]:
         if not force and _cache and (time.monotonic() - _cache_ts) < 3600:
             return _cache
     try:
-        r = requests.get(FEED, headers=UA, timeout=15)
-        events = r.json() if r.status_code == 200 else []
-    except Exception:
+        global _last_err, _last_ok_ts
         events = []
+        err = None
+        for attempt in range(2):   # one retry — CDN occasionally hiccups
+            try:
+                r = requests.get(FEED, headers=UA, timeout=15)
+                events = r.json() if r.status_code == 200 else []
+                if events:
+                    err = None
+                    break
+                err = f"HTTP {r.status_code}"
+            except Exception as exc:
+                err = f"{type(exc).__name__}: {exc}"[:200]
+            if attempt == 0:
+                time.sleep(2)
+        _last_err = err if not events else None
+        if events:
+            _last_ok_ts = time.monotonic()
+    except Exception as exc:
+        events = []
+        _last_err = f"{type(exc).__name__}: {exc}"[:200]
     out = []
     for e in events:
         dt = _parse_dt(e.get("date", ""))
@@ -77,6 +96,17 @@ def _fetch(force: bool = False) -> List[dict]:
         if out:  # keep old cache on empty/failed fetch
             _cache, _cache_ts = out, time.monotonic()
         return _cache or out
+
+
+def feed_status() -> dict:
+    """Honest feed diagnostics — 'no events' must be distinguishable from 'feed down'."""
+    with _lock:
+        return {
+            "ok": bool(_cache) or _last_err is None,
+            "cached_events": len(_cache),
+            "cache_age_min": round((time.monotonic() - _cache_ts) / 60, 1) if _cache_ts else None,
+            "last_error": _last_err,
+        }
 
 
 def high_impact(market: Optional[str] = None, hours: float = 48) -> List[dict]:
