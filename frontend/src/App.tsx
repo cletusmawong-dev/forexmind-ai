@@ -85,7 +85,7 @@ export default function App() {
       <ErrorBoundary>
         <div className="mx-auto flex w-full max-w-[1180px]">
           <Sidebar />
-          <main className="min-h-screen flex-1 pb-32 lg:pb-12">
+          <main className="min-h-screen min-w-0 flex-1 pb-32 lg:pb-12">
             <div className="mx-auto w-full max-w-[560px] px-5 pt-5 lg:max-w-none lg:px-10 lg:pt-10">
               <Routes>
                 <Route path="/" element={<HomeScreen />} />

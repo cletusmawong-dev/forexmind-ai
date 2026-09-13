@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { Sparkles } from "lucide-react";
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
 import { DemoTag, Divider, Eyebrow, Glass, GlowDot, Pill, Spinner } from "../components/ui";
@@ -78,7 +79,9 @@ export function SettingsScreen() {
           <Field label="Daily %" value={daily} onChange={setDaily} />
           <Field label="Weekly %" value={weekly} onChange={setWeekly} />
         </div>
-        <button className="btn-primary mt-5 w-full" onClick={saveGoals}>Save objective</button>
+        <button className="btn-primary mt-5 w-full" onClick={saveGoals}>
+          <Sparkles size={14} /> Save objective
+        </button>
       </Glass>
 
       {/* ---- risk ---- */}
@@ -104,7 +107,9 @@ export function SettingsScreen() {
             <Pill key={mk} tone="neutral">{mk}</Pill>
           ))}
         </div>
-        <button className="btn-primary mt-5 w-full" onClick={saveRisk}>Save risk controls</button>
+        <button className="btn-primary mt-5 w-full" onClick={saveRisk}>
+          <Sparkles size={14} /> Save settings
+        </button>
       </Glass>
 
       {/* ---- system ---- */}

@@ -91,13 +91,14 @@ export function AgentScreen() {
               <div className="relative p-6">
                 <div className="flex items-start gap-4">
                   <div
-                    className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-full border border-[rgba(77,124,254,0.4)]"
+                    className="flex h-[76px] w-[76px] shrink-0 items-center justify-center rounded-full"
                     style={{
-                      background: "radial-gradient(circle at 32% 28%, rgba(62,123,250,0.45), rgba(12,18,38,0.9) 72%)",
-                      boxShadow: "0 0 34px rgba(62,124,250,0.4), inset 0 1px 0 rgba(255,255,255,0.15)",
+                      border: "1.5px solid rgba(47,217,138,0.35)",
+                      background: "radial-gradient(circle at 32% 28%, rgba(31,90,70,0.55), rgba(8,14,30,0.95) 74%)",
+                      boxShadow: "0 0 30px rgba(47,217,138,0.22), inset 0 1px 0 rgba(255,255,255,0.1)",
                     }}
                   >
-                    <LineChart size={26} className="text-[#a8c4ff]" strokeWidth={1.9} />
+                    <LineChart size={26} style={{ color: "#3ee6a0", filter: "drop-shadow(0 0 8px rgba(47,217,138,0.8))" }} strokeWidth={2.1} />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 text-[12px] text-[var(--text-secondary)]">
@@ -112,7 +113,7 @@ export function AgentScreen() {
               </div>
               <Divider />
               <div className="grid grid-cols-3 divide-x divide-white/[0.06]">
-                <MiniStat label="Signals today" value={st.signals_today} tone="text-[#a8c4ff]" />
+                <MiniStat label="Signals today" value={st.signals_today} />
                 <MiniStat label="Lessons" value={st.lessons} tone="text-[#b3a6ff]" />
                 <MiniStat label="Approvals" value={st.pending_approvals} tone={st.pending_approvals > 0 ? "text-[var(--accent-amber)]" : ""} />
               </div>
@@ -122,7 +123,7 @@ export function AgentScreen() {
             <SectionHeader className="mt-8">Current objective</SectionHeader>
             <Glass>
               <div className="flex items-end justify-between">
-                <AnimatedNumber value={p.daily_pl_pct} format={(v) => `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`} className="text-[38px] font-light leading-none" />
+                <AnimatedNumber value={p.daily_pl_pct} format={(v) => `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`} className="num text-[36px] font-extrabold leading-none tracking-[-0.03em]" />
                 <span className="num pb-1 text-[12px] text-[var(--text-secondary)]">
                   <span className="font-semibold">{fmtPct(p.daily_pl_pct)}</span> / +{p.objective_pct}%
                 </span>
@@ -146,7 +147,7 @@ export function AgentScreen() {
                     </div>
                     <div className="mt-0.5 text-[10.5px] text-[var(--text-muted)]">version {v}</div>
                   </div>
-                  <Pill tone="cyan">v{v}</Pill>
+                  <Pill tone="blue">v{v}</Pill>
                 </a>
               ))}
             </div>

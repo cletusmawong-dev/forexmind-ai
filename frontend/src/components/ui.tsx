@@ -21,9 +21,9 @@ export function LogoMark({ size = 34 }: { size?: number }) {
 
 export function Logo({ size = 34, subtitle }: { size?: number; subtitle?: string }) {
   return (
-    <div className="flex items-center gap-2.5">
+    <div className="flex shrink-0 items-center gap-2.5">
       <LogoMark size={size} />
-      <div className="leading-tight">
+      <div className="whitespace-nowrap leading-tight">
         <div className="text-[15px] font-bold tracking-[0.06em]">
           FOREXMIND <span className="text-grad-blue">AI</span>
         </div>
@@ -67,8 +67,8 @@ export function PageHeader({ title, sub, right }: { title: string; sub?: string;
 
 export function SectionHeader({ children, right, className = "" }: { children: React.ReactNode; right?: React.ReactNode; className?: string }) {
   return (
-    <div className={`mb-2.5 flex items-center justify-between px-1 ${className}`}>
-      <span className="eyebrow">{children}</span>
+    <div className={`mb-3 flex items-center justify-between px-1 ${className}`}>
+      <span className="text-[16.5px] font-bold tracking-tight text-white">{children}</span>
       {right}
     </div>
   );
@@ -152,16 +152,14 @@ export function Segmented({
   className?: string;
 }) {
   return (
-    <div className={`glass-2 flex rounded-full !p-1 ${className}`}>
+    <div className={`seg-track ${className}`} role="tablist">
       {options.map((o) => (
         <button
           key={o.key}
+          role="tab"
+          aria-selected={value === o.key}
           onClick={() => onChange(o.key)}
-          className={`flex-1 whitespace-nowrap rounded-full px-4 py-2.5 text-[12.5px] font-semibold transition-all duration-300 ${
-            value === o.key
-              ? "bg-gradient-to-b from-[rgba(77,124,254,0.4)] to-[rgba(77,124,254,0.18)] text-white glow-blue"
-              : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
-          }`}
+          className={`seg-btn ${value === o.key ? "seg-btn-active" : "hover:text-[var(--text-secondary)]"}`}
         >
           {o.label}
         </button>
@@ -172,14 +170,7 @@ export function Segmented({
 
 export function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
-    <button
-      onClick={onClick}
-      className={`shrink-0 rounded-full border px-3.5 py-2 text-[11.5px] font-semibold transition-all duration-300 ${
-        active
-          ? "border-[rgba(77,124,254,0.55)] bg-[rgba(77,124,254,0.16)] text-[#a8c4ff] glow-blue"
-          : "border-white/[0.08] bg-white/[0.03] text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
-      }`}
-    >
+    <button onClick={onClick} className={`chip ${active ? "chip-active" : "hover:text-[var(--text-secondary)]"}`} aria-pressed={active}>
       {children}
     </button>
   );
@@ -188,17 +179,17 @@ export function Chip({ active, onClick, children }: { active: boolean; onClick: 
 /* ================= progress ================= */
 export function ProgressBar({ pct, tone = "blue" }: { pct: number; tone?: "blue" | "green" }) {
   const p = Math.min(100, Math.max(2, pct));
-  const from = tone === "blue" ? "#3e7bfa" : "#2fd98a";
-  const to = tone === "blue" ? "#33d6f6" : "#33d6f6";
+  const from = tone === "blue" ? "#5b9bff" : "#2fd98a";
+  const to = tone === "blue" ? "#2b5fe3" : "#1fae67";
   return (
-    <div className="relative h-[7px] w-full rounded-full bg-white/[0.07]">
+    <div className="progress-track" role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100}>
       <div
-        className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-700 ease-out"
-        style={{ width: `${p}%`, background: `linear-gradient(to right, ${from}, ${to})`, boxShadow: `0 0 14px ${from}66` }}
+        className="progress-fill transition-[width] duration-700 ease-out"
+        style={{ width: `${p}%`, background: `linear-gradient(to right, ${from}, ${to})`, boxShadow: `0 0 12px ${from}88` }}
       />
       <div
-        className="absolute top-1/2 h-[13px] w-[13px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white transition-[left] duration-700 ease-out"
-        style={{ left: `${p}%`, boxShadow: `0 0 16px ${from}, 0 0 5px #fff` }}
+        className="progress-knob transition-[left] duration-700 ease-out"
+        style={{ left: `${p}%`, background: from, boxShadow: `0 0 14px ${from}, 0 0 4px rgba(255,255,255,0.8)` }}
       />
     </div>
   );
@@ -329,35 +320,51 @@ export function AnimatedNumber({
 /* ================= hero wave graphic ================= */
 export function WaveGraphic({ className = "" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 200 120" className={`pointer-events-none absolute ${className}`} aria-hidden="true">
+    <svg viewBox="0 0 220 160" preserveAspectRatio="xMaxYMid slice" className={`pointer-events-none absolute ${className}`} aria-hidden="true">
       <defs>
-        <linearGradient id="wv1" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#3e7bfa" stopOpacity="0.9" />
-          <stop offset="55%" stopColor="#7c5cff" stopOpacity="0.65" />
+        <linearGradient id="wv1" x1="0" y1="0" x2="0.6" y2="1">
+          <stop offset="0%" stopColor="#4d7cfe" stopOpacity="0.95" />
+          <stop offset="48%" stopColor="#8e7bff" stopOpacity="0.85" />
           <stop offset="100%" stopColor="#33d6f6" stopOpacity="0.8" />
         </linearGradient>
-        <linearGradient id="wv2" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="#33d6f6" stopOpacity="0.5" />
-          <stop offset="100%" stopColor="#8e7bff" stopOpacity="0.35" />
+        <linearGradient id="wv2" x1="0" y1="0" x2="0.4" y2="1">
+          <stop offset="0%" stopColor="#33d6f6" stopOpacity="0.75" />
+          <stop offset="100%" stopColor="#8e7bff" stopOpacity="0.45" />
         </linearGradient>
-        <filter id="wvblur" x="-40%" y="-40%" width="180%" height="180%">
-          <feGaussianBlur stdDeviation="3.2" />
+        <filter id="wvblur" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="5" />
         </filter>
+        <linearGradient id="wvfadex" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor="#fff" stopOpacity="0" />
+          <stop offset="0.42" stopColor="#fff" stopOpacity="0.95" />
+          <stop offset="1" stopColor="#fff" stopOpacity="1" />
+        </linearGradient>
+        <mask id="wvmask">
+          <rect x="0" y="-20" width="220" height="200" fill="url(#wvfadex)" />
+        </mask>
       </defs>
-      <g className="anim-wave" style={{ transformOrigin: "center" }}>
+      <g className="anim-wave" style={{ transformOrigin: "center" }} mask="url(#wvmask)">
         <path
-          d="M-10 78 C 30 18, 62 110, 104 52 S 168 8, 210 44 L 210 -10 L -10 -10 Z"
+          d="M168 -20 C 96 26, 208 62, 142 98 C 88 128, 176 146, 150 180"
           fill="url(#wv1)"
           filter="url(#wvblur)"
-          opacity="0.85"
+          opacity="0.42"
         />
         <path
-          d="M-10 92 C 36 40, 70 118, 112 66 S 176 26, 210 58"
+          d="M172 -20 C 100 30, 212 64, 148 100 C 96 130, 182 148, 158 180"
+          fill="none"
+          stroke="url(#wv1)"
+          strokeWidth="3.2"
+          strokeLinecap="round"
+          opacity="0.95"
+        />
+        <path
+          d="M196 -20 C 128 34, 224 70, 164 104 C 116 132, 198 152, 178 180"
           fill="none"
           stroke="url(#wv2)"
-          strokeWidth="2.4"
+          strokeWidth="2"
           strokeLinecap="round"
-          opacity="0.9"
+          opacity="0.8"
         />
       </g>
     </svg>

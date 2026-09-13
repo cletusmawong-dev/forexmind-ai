@@ -4,6 +4,7 @@ import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
 import type { Experiment, Hypothesis, Lesson, StrategyVersion } from "../lib/types";
 import { DemoTag, Divider, Eyebrow, Glass, GlowDot, Pill, Segmented, Spinner } from "../components/ui";
+import { ChevronDown } from "lucide-react";
 import { fmtDateTime } from "../lib/format";
 
 const FLOW = ["Trade", "Result", "Analysis", "Lesson", "Hypothesis", "1-Var Test", "Approval", "New version"];
@@ -50,6 +51,7 @@ export function LearningLabScreen() {
   };
 
   const pendingCount = (hyps.data?.hypotheses ?? []).filter((h) => h.status === "AWAITING_APPROVAL").length;
+  const [openLesson, setOpenLesson] = useState<string | null>(null);
 
   return (
     <div className="animate-fadeUp">
@@ -61,8 +63,8 @@ export function LearningLabScreen() {
         <DemoTag />
       </header>
 
-      {/* ---- the loop: thin lines, glowing nodes ---- */}
-      <Glass className="!py-5" pad={false}>
+      {/* ---- the loop: thin lines, glowing nodes (desktop) ---- */}
+      <Glass className="!py-5 max-lg:hidden" pad={false}>
         <div className="no-scrollbar overflow-x-auto px-6 lg:flex lg:justify-between lg:overflow-visible">
           <div className="flex flex-col items-start gap-0 lg:flex-row lg:items-center lg:gap-0 lg:w-full">
             {FLOW.map((step, i) => (
@@ -89,26 +91,17 @@ export function LearningLabScreen() {
       </Glass>
 
       {/* tabs */}
-      <div className="no-scrollbar -mx-5 mt-7 flex gap-2 overflow-x-auto px-5 lg:mx-0 lg:px-0">
-        {(TABS as readonly string[]).map((t) => {
-          const count =
-            t === "LESSONS" ? lessons.data?.lessons.length
-            : t === "HYPOTHESES" ? hyps.data?.hypotheses.length
-            : t === "EXPERIMENTS" ? exps.data?.experiments.length
-            : (versions1.data?.versions.length ?? 0) + (versions2.data?.versions.length ?? 0);
-          return (
-            <button
-              key={t}
-              onClick={() => setTab(t as any)}
-              className={`shrink-0 rounded-full border px-4 py-2 text-[11px] font-semibold tracking-[0.1em] transition-all duration-300 ${
-                tab === t ? "border-acc/30 bg-acc/[0.1] text-acc" : "border-white/[0.07] bg-white/[0.02] text-txt-low hover:text-txt-mid"
-              }`}
-            >
-              {t} {count !== undefined ? `· ${count}` : ""}
-            </button>
-          );
-        })}
-      </div>
+      <Segmented
+        className="mt-7"
+        value={tab}
+        onChange={(k) => setTab(k as any)}
+        options={[
+          { key: "LESSONS", label: "Lessons" },
+          { key: "HYPOTHESES", label: "Hypotheses" },
+          { key: "EXPERIMENTS", label: "Experiments" },
+          { key: "VERSIONS", label: "Versions" },
+        ]}
+      />
 
       {toast && (
         <div className="glass-2 mt-5 flex items-center gap-2.5 px-4 py-3 text-[12px] font-medium text-acc-cyan animate-fadeUp">
@@ -127,26 +120,46 @@ export function LearningLabScreen() {
               <p className="mt-1 text-[11.5px] text-txt-faint">Observations appear when enough completed signals support a pattern. Never conclusions without evidence.</p>
             </Glass>
           ) : (
-            lessons.data!.lessons.map((l) => (
-              <Glass key={l.id} className="animate-fadeUp" pad={false}>
+            lessons.data!.lessons.map((l, idx) => {
+              const expanded = openLesson ? openLesson === l.id : idx === 0;
+              return expanded ? (
+                <Glass key={l.id} className="animate-fadeUp" pad={false}>
                 <div className="flex items-center justify-between px-6 pt-5">
                   <span className="flex items-center gap-2.5">
                     <GlowDot tone="violet" size={6} pulse={false} />
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-acc-violet">Lesson {String(l.lesson_no).padStart(2, "0")}</span>
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#b3a6ff]">Lesson {String(l.lesson_no).padStart(2, "0")}</span>
                   </span>
                   <Pill tone="violet">{l.status}</Pill>
                 </div>
                 <div className="px-6 pb-1 pt-1 text-[11px] text-txt-faint">{l.strategy_name}</div>
-                <p className="px-6 pb-5 pt-2 text-[13.5px] font-normal leading-relaxed text-txt-mid">"{l.observation}"</p>
-                <Divider />
-                <div className="flex items-stretch divide-x divide-white/[0.05]">
-                  <Evidence label="Evidence" value={`${l.evidence}`} suffix="signals" />
-                  <Evidence label="Segment win rate" value={`${l.win_rate}%`} tone="text-txt-hi" />
-                  <Evidence label="Baseline" value={`${l.baseline_win_rate}%`} tone="text-txt-low" />
-                  <Evidence label="Deviation" value={`${l.delta_pp > 0 ? "+" : ""}${l.delta_pp}pp`} tone={l.delta_pp > 0 ? "text-pos" : "text-neg"} />
+                <p className="px-6 pb-5 pt-2 text-[13px] font-normal leading-relaxed text-txt-mid">"{l.observation}"</p>
+                <div className="mx-5 mb-5 grid grid-cols-3 rounded-2xl border border-white/[0.07] bg-[rgba(4,9,24,0.55)]">
+                  <EvCell label="Evidence" value={String(l.evidence)} suffix="signals" />
+                  <EvCell label="Segment win rate" value={`${l.win_rate}%`} mid />
+                  <EvCell label="Baseline" value={`${l.baseline_win_rate}%`} delta={`${l.delta_pp > 0 ? "+" : ""}${l.delta_pp}pp`} deltaTone={l.delta_pp > 0 ? "text-pos" : "text-neg"} />
                 </div>
-              </Glass>
-            ))
+                <button onClick={() => setOpenLesson(null)} className="tap w-full px-6 pb-4 text-left text-[10.5px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--text-secondary)]">
+                  Collapse
+                </button>
+                </Glass>
+              ) : (
+                <button
+                  key={l.id}
+                  onClick={() => setOpenLesson(l.id)}
+                  className="glass glass-hover tap flex w-full items-center gap-3.5 p-4 text-left"
+                >
+                  <span className="relative flex flex-col items-center self-stretch">
+                    <GlowDot tone={l.status === "HYPOTHESIS" ? "acc" : "violet"} size={8} pulse={false} />
+                    <span className="mt-1 w-px flex-1 bg-gradient-to-b from-[rgba(142,123,255,0.4)] to-transparent" />
+                  </span>
+                  <span className="flex-1 text-[12px] font-semibold uppercase tracking-[0.14em] text-[#b3a6ff]">
+                    Lesson {String(l.lesson_no).padStart(2, "0")}
+                  </span>
+                  <Pill tone="violet">{l.status}</Pill>
+                  <ChevronDown size={15} className="text-[var(--text-muted)] -rotate-90" />
+                </button>
+              );
+            })
           )}
         </div>
       )}
@@ -310,14 +323,26 @@ export function LearningLabScreen() {
   );
 }
 
-function Evidence({ label, value, sub, suffix, tone = "text-txt-hi" }: { label: string; value: string; sub?: string; suffix?: string; tone?: string }) {
+function Evidence({ label, value, sub, suffix, tone = "text-white" }: { label: string; value: string; sub?: string; suffix?: string; tone?: string }) {
   return (
     <div className="flex-1 px-4 py-4 text-center">
-      <div className="text-[8.5px] font-medium uppercase tracking-[0.12em] text-txt-faint">{label}</div>
-      <div className={`num mt-1 text-[15px] font-medium ${tone}`}>
-        {value} {suffix && <span className="text-[9px] text-txt-faint">{suffix}</span>}
+      <div className="text-[8px] font-semibold uppercase tracking-[0.13em] text-txt-faint">{label}</div>
+      <div className={`num mt-1.5 text-[14.5px] font-semibold ${tone}`}>
+        {value} {suffix && <span className="text-[8.5px] font-medium text-txt-faint">{suffix}</span>}
       </div>
-      {sub !== undefined && <div className="num mt-0.5 text-[10.5px] text-acc-cyan">{sub}</div>}
+      {sub !== undefined && <div className="num mt-0.5 text-[10.5px] font-semibold text-[var(--accent-cyan)]">{sub}</div>}
+    </div>
+  );
+}
+
+function EvCell({ label, value, suffix, delta, deltaTone, mid }: { label: string; value: string; suffix?: string; delta?: string; deltaTone?: string; mid?: boolean }) {
+  return (
+    <div className={`flex-1 px-3 py-4 text-center ${mid ? "border-x border-white/[0.06]" : ""}`}>
+      <div className="text-[8px] font-semibold uppercase tracking-[0.13em] text-txt-faint">{label}</div>
+      <div className="num mt-1.5 text-[15px] font-semibold text-white">
+        {value} {suffix && <span className="text-[8.5px] font-medium text-txt-faint">{suffix}</span>}
+      </div>
+      {delta && <div className={`num mt-0.5 text-[10.5px] font-semibold ${deltaTone}`}>{delta}</div>}
     </div>
   );
 }

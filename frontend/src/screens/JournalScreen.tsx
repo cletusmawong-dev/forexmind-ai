@@ -52,15 +52,18 @@ export function JournalScreen() {
             <section>
               <p className="eyebrow">This week</p>
               <div className="mt-2 flex items-baseline gap-3">
-                <span className={`num text-[40px] font-light leading-none lg:text-[46px] ${weekR >= 0 ? "text-pos" : "text-neg"}`}>
+                <span
+                  className={`num text-[42px] font-extrabold leading-none tracking-[-0.03em] lg:text-[48px] ${weekR >= 0 ? "text-pos" : "text-neg"}`}
+                  style={{ textShadow: weekR >= 0 ? "0 0 34px rgba(47,217,138,0.45)" : "0 0 34px rgba(251,77,106,0.4)" }}
+                >
                   {fmtR(weekR)}
                 </span>
               </div>
-              <p className="mt-2.5 text-[12px] text-txt-low">
-                <span className="num text-txt-hi">{j?.total_signals ?? 0}</span> signals ·{" "}
-                <span className="num text-txt-hi">{m.win_rate ?? 0}%</span> win rate ·{" "}
-                <span className="num text-txt-hi">{fmtR(m.avg_r)}</span> avg ·{" "}
-                <span className="num text-txt-hi">{m.profit_factor ?? "–"}</span> profit factor
+              <p className="mt-3 text-[12px] text-txt-low">
+                <span className="num font-bold text-txt-hi">{j?.total_signals ?? 0}</span> signals ·{" "}
+                <span className="num font-bold text-txt-hi">{m.win_rate ?? 0}%</span> win rate ·{" "}
+                <span className="num font-bold text-txt-hi">{fmtR(m.avg_r)}</span> avg ·{" "}
+                <span className="num font-bold text-txt-hi">{m.profit_factor ?? "–"}</span> profit factor
               </p>
             </section>
 
@@ -76,7 +79,7 @@ export function JournalScreen() {
                 <div key={name} className="flex items-center justify-between px-5 py-4">
                   <span className="text-[12.5px] text-txt-mid">{name}</span>
                   <span className="num text-[12px] text-txt-low">
-                    {v.signals} signals · <span className="font-medium text-txt-hi">{v.win_rate}%</span> · {fmtR(v.avg_r)}
+                    {v.signals} signals · <span className="font-bold text-txt-hi">{v.win_rate}%</span> · <span className="font-bold text-txt-hi">{fmtR(v.avg_r)}</span>
                   </span>
                 </div>
               ))}
@@ -164,13 +167,13 @@ function EquityChart({ curve }: { curve: { i: number; cum: number }[] }) {
     <div className="glass !p-4">
       <div className="flex items-baseline justify-between px-2 pb-1 pt-1">
         <span className="eyebrow">Cumulative R</span>
-        <span className="num text-[11px] text-txt-mid">{fmtR(curve[curve.length - 1].cum)}</span>
+        <span className="num text-[12px] font-bold text-pos">{fmtR(curve[curve.length - 1].cum)}</span>
       </div>
       <ResponsiveContainer width="100%" height={140}>
         <AreaChart data={curve} margin={{ top: 6, right: 6, bottom: 0, left: 0 }}>
           <defs>
             <linearGradient id="jrnl" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#6C9EFF" stopOpacity={0.28} />
+              <stop offset="0%" stopColor="#5b9bff" stopOpacity={0.32} />
               <stop offset="100%" stopColor="#6C9EFF" stopOpacity={0} />
             </linearGradient>
           </defs>
@@ -180,7 +183,7 @@ function EquityChart({ curve }: { curve: { i: number; cum: number }[] }) {
             formatter={(v: any) => [fmtR(v), "Cumulative"]}
             labelFormatter={() => ""}
           />
-          <Area type="monotone" dataKey="cum" stroke="#6C9EFF" strokeWidth={1.6} fill="url(#jrnl)" dot={false} />
+          <Area type="monotone" dataKey="cum" stroke="#6ea2ff" strokeWidth={2} fill="url(#jrnl)" dot={false} activeDot={{ r: 4, fill: "#fff", stroke: "#5b9bff", strokeWidth: 2 }} />
         </AreaChart>
       </ResponsiveContainer>
     </div>

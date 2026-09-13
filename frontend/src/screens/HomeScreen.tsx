@@ -65,7 +65,7 @@ export function HomeScreen() {
         <header className="mb-6 flex items-center justify-between gap-2">
           <Logo size={36} />
           <div className="flex items-center gap-2.5">
-            <div className="hidden sm:block">
+            <div className="sm:block">
               <DemoTag />
             </div>
             <Link
@@ -85,13 +85,14 @@ export function HomeScreen() {
         <Glass className="relative overflow-hidden" pad={false}>
           <WaveGraphic className="right-0 top-0 h-full w-[62%] opacity-80" />
           <div className="relative p-6">
-            <p className="text-[13px] text-[var(--text-secondary)]">
-              {greeting()} <span className="font-semibold text-[var(--text-primary)]">Traders</span> 👋
+            <p className="text-[13px] font-medium text-[var(--text-secondary)]">{greeting()}</p>
+            <p className="mt-0.5 text-[19px] font-bold tracking-tight">
+              Traders <span className="ml-0.5">👋</span>
             </p>
             <AnimatedNumber
               value={balance}
               format={(v) => `$${v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-              className="mt-2 block text-[44px] font-light leading-none lg:text-[54px]"
+              className="num mt-2.5 block text-[40px] font-extrabold leading-none tracking-[-0.03em] lg:text-[52px]"
             />
             <div className="mt-3.5 flex items-center gap-2">
               <span
@@ -105,7 +106,7 @@ export function HomeScreen() {
                 {up ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
                 {fmtPct(p.daily_pl_pct)} today
               </span>
-              <span className="hidden items-center gap-1.5 text-[11px] text-[var(--text-muted)] sm:flex">
+              <span className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)]">
                 <Shield size={11} /> From {p.risk_per_trade_pct}% risk per signal
               </span>
             </div>
@@ -116,8 +117,11 @@ export function HomeScreen() {
         <Glass level={2} className="mt-4" pad={false}>
           <div className="flex items-center justify-between px-5 pb-4 pt-5">
             <div className="flex items-center gap-2.5">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full border border-[rgba(77,124,254,0.35)] bg-[rgba(77,124,254,0.12)] glow-blue">
-                <Target size={14} className="text-[#8fb4ff]" />
+              <span
+                className="flex h-9 w-9 items-center justify-center rounded-[13px] border border-[rgba(77,124,254,0.4)]"
+                style={{ background: "linear-gradient(145deg, rgba(77,124,254,0.3), rgba(77,124,254,0.08))", boxShadow: "0 0 18px rgba(77,124,254,0.35), inset 0 1px 0 rgba(255,255,255,0.2)" }}
+              >
+                <Target size={15} className="text-[#a8c4ff]" />
               </span>
               <span className="text-[13.5px] font-semibold">Today's Goal</span>
             </div>
@@ -132,7 +136,7 @@ export function HomeScreen() {
 
         {/* ---- AI active ---- */}
         <Link to="/agent" className="glass glass-hover tap mt-4 flex items-center gap-3.5 p-4">
-          <StatusDot tone="green" />
+          <StatusDot tone="green" size={9} />
           <div className="min-w-0 flex-1">
             <div className="text-[13.5px] font-semibold">
               AI Active <span className="font-normal text-[var(--text-secondary)]">— monitoring {marketList.length || 5} markets</span>
@@ -150,7 +154,7 @@ export function HomeScreen() {
           {signals.data && signals.data.signals.length > 0 ? (
             signals.data.signals.map((s, i) => (
               <div key={s.id} className="anim-fadeUp" style={{ animationDelay: `${i * 60}ms` }}>
-                <SignalRow signal={s} onClick={() => navigate(`/signals/${s.id}`)} />
+                <SignalRow signal={s} variant="home" onClick={() => navigate(`/signals/${s.id}`)} />
               </div>
             ))
           ) : (
