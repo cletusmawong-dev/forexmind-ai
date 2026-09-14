@@ -144,23 +144,42 @@ def build(user_id: str) -> str:
     return text
 
 
-def maybe_push_daily(user_id: str) -> bool:
-    """Called by the live loop each minute; pushes once per day at ~07:05 GMT."""
-    now = datetime.now(timezone.utc)
-    if now.hour == 7:   # any tick in the 07:00 hour (free tier may wake late)
-        key = f"pushed:{today_key()}"
-        store = get_store()
-        try:
-            goals = store.get("agent_goals", user_id) or {}
-            if goals.get(key):
-                return False
-            text = build(user_id)
-            notify(user_id, "MORNING_BRIEF", "📰 Morning Brief", text)
-            store.update("agent_goals", user_id, {key: True})
-            return True
-        except Exception:
+_pushed_today: set = set()   # (user_id, day) — process-level guard, never double-push
+
+
+def maybe_push_daily(user_id: str, now: Optional[datetime] = None) -> bool:
+    """Called by the live loop each minute; pushes at most ONCE per user per day.
+
+    The persisted flag lives on the user's agent_goals doc (looked up by
+    userId — the doc id is NOT the user id), plus an in-process guard so
+    even a failed flag write can never cause a second push."""
+    now = now or datetime.now(timezone.utc)
+    day = today_key()
+    if now.hour != 7:   # push window: the 07:00 hour (free tier may wake late)
+        return False
+    if (user_id, day) in _pushed_today:
+        return False
+    key = f"pushed:{day}"
+    store = get_store()
+    try:
+        docs = store.list("agent_goals", filters={"userId": user_id}, limit=1)
+        goals = docs[0] if docs else {}
+        if goals.get(key):
+            _pushed_today.add((user_id, day))
             return False
-    return False
+        text = build(user_id)
+        notify(user_id, "MORNING_BRIEF", "📰 Morning Brief", text)
+        try:   # persist the flag; a failed write must not cause a re-push
+            if docs:
+                store.update("agent_goals", docs[0]["id"], {key: True})
+            else:
+                store.create("agent_goals", {"userId": user_id, key: True})
+        except Exception:
+            pass
+        _pushed_today.add((user_id, day))
+        return True
+    except Exception:
+        return False
 
 
 def today_key() -> str:
