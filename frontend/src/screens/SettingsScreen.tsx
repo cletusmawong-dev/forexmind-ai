@@ -162,7 +162,8 @@ export function SettingsScreen() {
       <Eyebrow className="mt-9">System</Eyebrow>
       <Glass className="mt-2 !py-1" pad={false}>
         <div className="px-5">
-          <Row label="Market data" value={info.data?.market_data?.demo ? "Demo · historical replay" : "Live"} tone="text-warn" dot="warn" />
+          <Row label="Market data" value={info.data?.market_data?.demo ? "Demo · historical replay" : "Live · Twelve Data"} tone={info.data?.market_data?.demo ? "text-warn" : "text-pos"} dot={info.data?.market_data?.demo ? "warn" : "pos"} />
+          <StoredHistoryRow />
           <Divider />
           <Row label="AI provider" value={info.data?.ai?.provider === "xkiro" ? "XKiro" : "Grounded analyst"} dot="acc" />
           <Divider />
@@ -204,5 +205,28 @@ function Row({ label, value, tone = "text-txt-mid", dot }: { label: string; valu
         {value}
       </span>
     </div>
+  );
+}
+
+/** Real recorded 15M candle history per market (from the candle store). */
+function StoredHistoryRow() {
+  const [st, setSt] = useState<any>(null);
+  useEffect(() => {
+    let alive = true;
+    api.get("/api/candles").then((d: any) => alive && setSt(d)).catch(() => {});
+    const id = setInterval(() => api.get("/api/candles").then((d: any) => alive && setSt(d)).catch(() => {}), 60000);
+    return () => { alive = false; clearInterval(id); };
+  }, []);
+  const markets = st?.markets ? Object.values(st.markets) : [];
+  const active = markets.filter((m: any) => m?.count > 0).length;
+  return (
+    <>
+      <Divider />
+      <Row
+        label="Candle history"
+        value={st ? `${(st.total ?? 0).toLocaleString()} candles · ${active}/${markets.length} markets` : "…"}
+        dot="acc"
+      />
+    </>
   );
 }

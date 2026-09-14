@@ -142,9 +142,18 @@ export function DemoTag() {
       } catch { /* keep last state */ }
     };
     ping();
-    const id = setInterval(ping, 60000);
+    const id = setInterval(ping, 30000);
     return () => { alive = false; clearInterval(id); };
   }, []);
+  if (live === null) {
+    // health not answered yet (e.g. backend waking up) — never claim demo, just say connecting
+    return (
+      <Pill tone="neutral" className="!px-3 !py-1.5 whitespace-nowrap">
+        <span className="h-1.5 w-1.5 rounded-full bg-[var(--text-faint)]" />
+        CONNECTING…
+      </Pill>
+    );
+  }
   if (live) {
     return (
       <Pill tone="green" className="!px-3 !py-1.5 whitespace-nowrap">
@@ -156,7 +165,7 @@ export function DemoTag() {
   return (
     <Pill tone="amber" className="!px-3 !py-1.5 whitespace-nowrap">
       <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-amber)]" style={{ boxShadow: "0 0 8px rgba(245,184,77,0.8)" }} />
-      {live === false ? "DEMO · HISTORICAL" : "DEMO · HISTORICAL"}
+      DEMO · HISTORICAL
     </Pill>
   );
 }

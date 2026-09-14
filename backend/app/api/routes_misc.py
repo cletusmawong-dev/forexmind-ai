@@ -63,6 +63,26 @@ def calendar():
             "feed": feed_status()}
 
 
+@router.get("/candles")
+def candles_storage(user_id: str = Depends(get_user_id)):
+    """Candle storage stats (real recorded history per market)."""
+    from ..market_data import candle_store
+    return candle_store.stats()
+
+
+@router.get("/candles/{market}")
+def candles_history(market: str, user_id: str = Depends(get_user_id),
+                    limit: int = Query(300, le=600)):
+    """Stored 15M candle history (oldest -> newest)."""
+    from ..market_data import candle_store
+    m = market.upper()
+    if m not in candle_store.MARKETS:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail=f"Unknown market {m}")
+    return {"market": m, "tf": candle_store.TF,
+            "candles": candle_store.history(m, limit=limit)}
+
+
 @router.get("/agent/brief")
 def morning_brief(user_id: str = Depends(get_user_id)):
     """Today's AI morning brief (built once, cached per day)."""

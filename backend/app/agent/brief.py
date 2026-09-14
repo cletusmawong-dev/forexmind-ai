@@ -147,7 +147,7 @@ def build(user_id: str) -> str:
 def maybe_push_daily(user_id: str) -> bool:
     """Called by the live loop each minute; pushes once per day at ~07:05 GMT."""
     now = datetime.now(timezone.utc)
-    if now.hour == 7 and 0 <= now.minute <= 4:
+    if now.hour == 7:   # any tick in the 07:00 hour (free tier may wake late)
         key = f"pushed:{today_key()}"
         store = get_store()
         try:

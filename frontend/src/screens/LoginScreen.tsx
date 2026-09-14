@@ -3,8 +3,8 @@ import { api, endpoints, setToken } from "../lib/api";
 
 export function LoginScreen({ onAuthed }: { onAuthed: () => void }) {
   const [mode, setMode] = useState<"login" | "register">("login");
-  const [email, setEmail] = useState("demo@forexmind.ai");
-  const [password, setPassword] = useState("demo1234");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -88,17 +88,6 @@ export function LoginScreen({ onAuthed }: { onAuthed: () => void }) {
             {busy ? "Connecting…" : mode === "login" ? "Sign in" : "Create account"}
           </button>
         </div>
-
-        <button className="tap mt-3 w-full rounded-full border border-white/[0.07] bg-white/[0.02] py-3 text-[12.5px] font-medium text-txt-mid transition hover:bg-white/[0.05]" disabled={busy}
-          onClick={() => {
-            setMode("login");
-            setEmail("demo@forexmind.ai");
-            setPassword("demo1234");
-            setTimeout(submit, 30);
-          }}
-        >
-          Explore with the demo account
-        </button>
 
         <p className="mt-8 text-center text-[10px] leading-relaxed text-txt-faint">
           Research & signals only — ForexMind AI never executes trades.

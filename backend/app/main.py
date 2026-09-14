@@ -77,7 +77,7 @@ async def replay_loop():
                     _current_task = f"Scanning {market}"
                     for uid in user_ids:
                         for tf in ("15M", "1H"):
-                            State.engine.scan(uid, market, tf, log_activity=False)
+                            await asyncio.to_thread(State.engine.scan, uid, market, tf, log_activity=False)
                     agent_core.log_scanning([market], "15M")
 
             # 3) periodic learning pass over newly completed signals
@@ -110,7 +110,7 @@ def _users_cached():
             _users_cache_ts = time.time()
         except Exception:
             pass
-    return _users_cache or ["demo-user"]
+    return _users_cache or []   # no users -> nothing to scan (never invent demo data)
 
 
 async def warm_cache():
@@ -137,21 +137,27 @@ async def live_loop():
             now = time.time()
             _current_task = "Tracking active signals"
             for market in INITIAL_MARKETS:
-                State.tracker.update_market(market)
+                await asyncio.to_thread(State.tracker.update_market, market)
 
-            # news pre-alerts (Telegram) + daily morning brief — best effort
-            try:
+            # news pre-alerts (Telegram) + daily morning brief — best effort, off the event loop
+            def _news_job():
                 from .market_data.calendar import pre_alerts, label as cal_label
                 from .notifications.service import notify as _notify
                 for ev in pre_alerts():
                     for uid in _users_cached():
                         _notify(uid, "NEWS_ALERT", "⚠️ High-impact news in ~15 min", cal_label(ev))
-            except Exception:
-                pass
-            try:
+
+            def _brief_job():
                 from .agent.brief import maybe_push_daily
                 for uid in _users_cached():
                     maybe_push_daily(uid)
+
+            try:
+                await asyncio.to_thread(_news_job)
+            except Exception:
+                pass
+            try:
+                await asyncio.to_thread(_brief_job)
             except Exception:
                 pass
 
@@ -162,6 +168,12 @@ async def live_loop():
                 from .market_data.calendar import is_blackout
                 for market in INITIAL_MARKETS:
                     _current_task = f"Scanning {market}"
+                    try:  # candle storage — runs even in blackout, warms provider cache for scans
+                        from .market_data import candle_store
+                        df15 = await asyncio.to_thread(State.provider.get_candles, market, "15M", candle_store.KEEP)
+                        await asyncio.to_thread(candle_store.record, market, df15)
+                    except Exception:
+                        pass
                     try:
                         blocked, ev = is_blackout(market)
                     except Exception:
@@ -172,7 +184,7 @@ async def live_loop():
                         continue
                     for uid in user_ids:
                         for tf in ("15M", "1H"):
-                            State.engine.scan(uid, market, tf, log_activity=False)
+                            await asyncio.to_thread(State.engine.scan, uid, market, tf, log_activity=False)
                     agent_core.log_scanning([market], "15M")
                 _current_task = "Monitoring markets"
 

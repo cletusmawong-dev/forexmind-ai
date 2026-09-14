@@ -32,7 +32,7 @@ DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.a
 COLLECTIONS = [
     "users", "markets", "signals", "trades", "strategies", "strategy_versions",
     "agent_goals", "agent_activity", "lessons", "hypotheses", "experiments",
-    "notifications", "performance", "settings", "backtests",
+    "notifications", "performance", "settings", "backtests", "candles",
 ]
 
 
