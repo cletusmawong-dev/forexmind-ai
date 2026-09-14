@@ -96,3 +96,29 @@ def test_manual_analyze_honest_no_setup(client):
     assert "qualified" in resp
     if not resp["qualified"]:
         assert "No qualifying setup" in resp.get("message", "")
+
+
+def test_activity_works_with_live_provider(client):
+    """Regression: /api/agent/activity 500'd in live mode because replay_progress
+    only exists on the demo provider (Agent Pulse was silently broken)."""
+    from app import state
+    from app.market_data.base import MarketDataProvider
+
+    class LiveLike(MarketDataProvider):  # no replay_progress, like the real live provider
+        is_demo = False
+
+        def get_candles(self, market, timeframe, limit=600):
+            return None
+
+        def latest_price(self, market):
+            return None
+
+    orig = state.State.provider
+    state.State.provider = LiveLike()
+    try:
+        r = client.get("/api/agent/activity?limit=5")
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert "activity" in body and body["replay"] == {"demo": False, "progress": None}
+    finally:
+        state.State.provider = orig

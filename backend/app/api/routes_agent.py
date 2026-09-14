@@ -29,9 +29,13 @@ def activity(user_id: str = Depends(get_user_id), limit: int = Query(40, le=200)
     def sort_key(d):
         return d.get("ts_override") or d.get("createdAt") or ""
     docs.sort(key=sort_key, reverse=True)
+    try:  # replay progress only exists on the demo provider - live mode reports None
+        progress = State.provider.replay_progress("XAUUSD")
+    except AttributeError:
+        progress = None
     return {"activity": docs[:limit],
-            "replay": {"demo": State.provider.is_demo,
-                       "progress": State.provider.replay_progress("XAUUSD")}}
+            "replay": {"demo": getattr(State.provider, "is_demo", False),
+                       "progress": progress}}
 
 
 @router.post("/agent/scan")
