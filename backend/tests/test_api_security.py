@@ -116,7 +116,9 @@ def test_activity_works_with_live_provider(client):
     orig = state.State.provider
     state.State.provider = LiveLike()
     try:
-        r = client.get("/api/agent/activity?limit=5")
+        tok = client.post("/api/auth/login", json={"email": "demo@forexmind.ai",
+                                                   "password": "demo1234"}).json()["token"]
+        r = client.get("/api/agent/activity?limit=5", headers={"Authorization": f"Bearer {tok}"})
         assert r.status_code == 200, r.text
         body = r.json()
         assert "activity" in body and body["replay"] == {"demo": False, "progress": None}
