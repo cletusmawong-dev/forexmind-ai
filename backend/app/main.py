@@ -40,6 +40,11 @@ _current_task = "Initializing"
 
 @app.on_event("startup")
 async def startup():
+    try:
+        from .keep_warm import start as keep_warm_start
+        keep_warm_start()
+    except Exception:
+        pass
     init_state()
     try:
         seed_if_empty()
