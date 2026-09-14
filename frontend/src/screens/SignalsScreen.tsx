@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Crosshair } from "lucide-react";
+import {Crosshair, Radio} from "lucide-react";
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
 import type { Signal } from "../lib/types";
@@ -27,7 +27,7 @@ export function SignalsScreen() {
 
   return (
     <div className="anim-fadeUp">
-      <PageHeader title="Signals" sub="Every setup explained. You decide." right={<DemoTag />} />
+      <PageHeader title="Signals" icon={<Radio size={20} />} tone="cyan" sub="Every setup explained. You decide." right={<DemoTag />} />
 
       <Segmented
         className="mb-4"

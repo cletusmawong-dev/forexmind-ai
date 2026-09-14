@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { Brain, ChevronDown, Crown } from "lucide-react";
 import { GraduationCap } from "lucide-react";
 
 /* ================= brand ================= */
@@ -14,7 +14,7 @@ export function LogoMark({ size = 34 }: { size?: number }) {
         boxShadow: "0 6px 20px rgba(62,124,250,0.3), inset 0 1px 0 rgba(255,255,255,0.15)",
       }}
     >
-      <GraduationCap size={size * 0.6} className="text-[#8fb4ff]" strokeWidth={2} />
+      <Brain size={size * 0.62} className="text-[#9fc4ff]" strokeWidth={2} />
     </div>
   );
 }
@@ -53,12 +53,16 @@ export function Divider({ className = "" }: { className?: string }) {
   return <div className={`divider ${className}`} />;
 }
 
-export function PageHeader({ title, sub, right }: { title: string; sub?: string; right?: React.ReactNode }) {
+export function PageHeader({ title, sub, right, icon, tone = "blue" }: { title: string; sub?: string; right?: React.ReactNode; icon?: React.ReactNode; tone?: "blue" | "cyan" | "violet" }) {
+  const chip = tone === "cyan" ? "icon-chip icon-chip-cyan" : tone === "violet" ? "icon-chip icon-chip-violet" : "icon-chip";
   return (
     <header className="mb-6 flex items-start justify-between gap-3">
-      <div>
-        <h1 className="text-[27px] font-bold leading-tight tracking-[-0.02em]">{title}</h1>
-        {sub && <p className="mt-1 text-[12.5px] text-[var(--text-secondary)]">{sub}</p>}
+      <div className="flex items-center gap-3.5">
+        {icon && <span className={chip} aria-hidden="true">{icon}</span>}
+        <div>
+          <h1 className="text-[27px] font-bold leading-tight tracking-[-0.02em]">{title}</h1>
+          {sub && <p className="mt-1 text-[12.5px] text-[var(--text-secondary)]">{sub}</p>}
+        </div>
       </div>
       {right}
     </header>
@@ -122,9 +126,9 @@ const pillTones: Record<string, string> = {
 };
 export type PillTone = keyof typeof pillTones;
 
-export function Pill({ tone = "neutral", children, className = "" }: { tone?: PillTone; children: React.ReactNode; className?: string }) {
+export function Pill({ tone = "neutral", children, className = "", style }: { tone?: PillTone; children: React.ReactNode; className?: string; style?: React.CSSProperties }) {
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-semibold tracking-wide ${pillTones[tone]} ${className}`}>
+    <span style={style} className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-semibold tracking-wide ${pillTones[tone]} ${className}`}>
       {children}
     </span>
   );
@@ -163,8 +167,12 @@ export function DemoTag() {
     );
   }
   return (
-    <Pill tone="amber" className="!px-3 !py-1.5 whitespace-nowrap">
-      <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-amber)]" style={{ boxShadow: "0 0 8px rgba(245,184,77,0.8)" }} />
+    <Pill tone="amber" className="!px-3 !py-1.5 whitespace-nowrap" style={{
+      background: "linear-gradient(115deg, rgba(245,184,77,0.2), rgba(225,78,202,0.14))",
+      borderColor: "rgba(245,184,77,0.5)",
+      boxShadow: "0 0 18px rgba(245,184,77,0.28), inset 0 1px 0 rgba(255,220,150,0.25)",
+    }}>
+      <Crown size={11} className="text-[var(--accent-gold)]" />
       DEMO - HISTORICAL
     </Pill>
   );
@@ -442,5 +450,45 @@ export function GlowDot({ tone = "blue", size = 7, pulse = true }: { tone?: stri
         style={{ width: size, height: size, background: t.bg, boxShadow: `0 0 ${size * 1.7}px ${t.shadow}` }}
       />
     </span>
+  );
+}
+
+export function HeroArt({ className = "" }: { className?: string }) {
+  const candles = [
+    [12, 96, 30, 74], [30, 88, 22, 60], [48, 92, 30, 56], [66, 78, 18, 52],
+    [84, 70, 10, 44], [102, 64, 8, 38], [120, 58, 2, 30], [138, 48, 0, 26],
+  ];
+  return (
+    <svg viewBox="0 0 220 160" preserveAspectRatio="xMaxYMid slice" className={`pointer-events-none absolute ${className}`} aria-hidden="true">
+      <defs>
+        <linearGradient id="hx1" x1="0" y1="0" x2="0.7" y2="1">
+          <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.9" />
+          <stop offset="55%" stopColor="#8e7bff" stopOpacity="0.75" />
+          <stop offset="100%" stopColor="#22d3ee" stopOpacity="0.65" />
+        </linearGradient>
+        <linearGradient id="hx2" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#22d3ee" stopOpacity="0" />
+          <stop offset="60%" stopColor="#22d3ee" stopOpacity="0.85" />
+          <stop offset="100%" stopColor="#e14eca" stopOpacity="0.9" />
+        </linearGradient>
+        <radialGradient id="hx3" cx="0.7" cy="0.25" r="0.8">
+          <stop offset="0%" stopColor="#8e7bff" stopOpacity="0.5" />
+          <stop offset="100%" stopColor="#8e7bff" stopOpacity="0" />
+        </radialGradient>
+      </defs>
+      <rect x="0" y="0" width="220" height="160" fill="url(#hx3)" />
+      {candles.map(([x, hi, lo, top], i) => {
+        const bh = 34 - i * 2;
+        const by = top + 8;
+        return (
+          <g key={i} opacity={0.85}>
+            <line x1={x + 5} y1={lo + 10} x2={x + 5} y2={hi} stroke="url(#hx2)" strokeWidth="1.4" />
+            <rect x={x} y={by} width="10" height={bh} rx="2" fill="url(#hx1)" opacity={0.9 - i * 0.05} />
+          </g>
+        );
+      })}
+      <path d="M0 128 C 40 118, 70 134, 105 118 S 170 84, 220 96" fill="none" stroke="url(#hx2)" strokeWidth="2.4" strokeLinecap="round" style={{ filter: "drop-shadow(0 0 6px rgba(34,211,238,0.8))" }} />
+      <path d="M0 140 C 46 132, 84 146, 122 130 S 182 104, 220 112" fill="none" stroke="url(#hx1)" strokeWidth="1.6" opacity="0.5" />
+    </svg>
   );
 }

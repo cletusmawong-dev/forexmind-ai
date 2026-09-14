@@ -4,7 +4,7 @@ import { Bell, ChevronRight, Shield, Target, TrendingUp, TrendingDown } from "lu
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
 import type { ActivityItem, AgentStatus, MarketCard, Signal } from "../lib/types";
-import { AnimatedNumber, DemoTag, Divider, Glass, Logo, ProgressBar, SectionHeader, Spinner, StatusDot, WaveGraphic, ConnectionState } from "../components/ui";
+import { AnimatedNumber, DemoTag, Divider, Glass, Logo, ProgressBar, SectionHeader, Spinner, StatusDot, WaveGraphic, HeroArt, ConnectionState } from "../components/ui";
 import { fmtPct, fmtPrice, fmtTime, greeting, shortAgo } from "../lib/format";
 import { SignalRow } from "../components/SignalRow";
 import { AgentPulse } from "../components/AgentPulse";
@@ -85,7 +85,8 @@ export function HomeScreen() {
 
         {/* ---- hero ---- */}
         <Glass className="relative overflow-hidden" pad={false}>
-          <WaveGraphic className="right-0 top-0 h-full w-[62%] opacity-80" />
+          <HeroArt className="right-0 top-0 h-full w-[64%] opacity-90" />
+          <WaveGraphic className="right-0 top-0 h-full w-[52%] opacity-60" />
           <div className="relative p-6">
             <p className="text-[13px] font-medium text-[var(--text-secondary)]">{greeting()}</p>
             <p className="mt-0.5 text-[19px] font-bold tracking-tight">

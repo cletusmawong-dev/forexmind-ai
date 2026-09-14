@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { LineChart, Send } from "lucide-react";
+import {LineChart, Send, Bot} from "lucide-react";
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
 import type { ActivityItem, AgentStatus } from "../lib/types";
@@ -67,7 +67,7 @@ export function AgentScreen() {
 
   return (
     <div className="anim-fadeUp">
-      <PageHeader title="Agent" right={<DemoTag />} />
+      <PageHeader title="Agent" icon={<Bot size={20} />} tone="violet" right={<DemoTag />} />
 
       <Segmented
         className="mb-7"

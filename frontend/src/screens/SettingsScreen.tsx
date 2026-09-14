@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Sparkles, Send } from "lucide-react";
+import {Sparkles, Send, Brain} from "lucide-react";
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
 import { DemoTag, Divider, Eyebrow, Glass, GlowDot, Pill, Segmented, Spinner } from "../components/ui";
@@ -65,7 +65,13 @@ export function SettingsScreen() {
   return (
     <div className="animate-fadeUp">
       <header className="mb-7 flex items-center justify-between">
-        <Logo size={30} />
+        <div className="flex items-center gap-3">
+          <span className="icon-chip icon-chip-violet" aria-hidden="true"><Brain size={20} /></span>
+          <div>
+            <h1 className="text-[22px] font-semibold tracking-tight">ForexMind</h1>
+            <p className="text-[10.5px] text-txt-faint">Agent objective - never a command to trade.</p>
+          </div>
+        </div>
         <DemoTag />
       </header>
 

@@ -5,9 +5,9 @@ export default {
     extend: {
       colors: {
         /* palette mirrors the CSS custom-property tokens in index.css */
-        base: { DEFAULT: "#070a12", 2: "#0b101d", 3: "#131a2e" },
+        base: { DEFAULT: "#020817", 2: "#050b24", 3: "#03112b" },
         txt: { hi: "#eef3ff", mid: "#bcc9e6", low: "#8394b6", faint: "#5f6f92" },
-        acc: { DEFAULT: "#4d7cfe", cyan: "#33d6f6", violet: "#8e7bff" },
+        acc: { DEFAULT: "#3b82f6", cyan: "#22d3ee", violet: "#8e7bff", magenta: "#e14eca" },
         pos: "#2fd98a",
         neg: "#fb4d6a",
         warn: "#f5b84d",

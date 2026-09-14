@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowDown, ArrowRight, FlaskConical } from "lucide-react";
+import {ArrowDown, ArrowRight, FlaskConical, GraduationCap} from "lucide-react";
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
 import type { Experiment, Hypothesis, Lesson, StrategyVersion } from "../lib/types";
@@ -56,9 +56,12 @@ export function LearningLabScreen() {
   return (
     <div className="animate-fadeUp">
       <header className="mb-7 flex items-start justify-between">
-        <div>
-          <h1 className="text-[22px] font-semibold tracking-tight">Learning Lab</h1>
+        <div className="flex items-center gap-3.5">
+          <span className="icon-chip" aria-hidden="true"><GraduationCap size={20} /></span>
+          <div>
+            <h1 className="text-[22px] font-semibold tracking-tight">Learning Lab</h1>
           <p className="mt-1 text-[12.5px] text-txt-low">Learning from every completed signal.</p>
+          </div>
         </div>
         <DemoTag />
       </header>
