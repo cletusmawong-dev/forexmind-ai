@@ -39,7 +39,7 @@ export function HomeScreen() {
   }, [pulling, refresh]);
 
   if (!status.data) {
-    if (status.loading) return <Spinner label="Connecting to your agent…" />;
+    if (status.loading) return <Spinner label="Connecting to your agent..." />;
     return (
       <div className="pt-10">
         <ConnectionState onRetry={refresh} label="Can't reach your agent" />
@@ -141,7 +141,7 @@ export function HomeScreen() {
           <StatusDot tone="green" size={9} />
           <div className="min-w-0 flex-1">
             <div className="text-[13.5px] font-semibold">
-              AI Active <span className="font-normal text-[var(--text-secondary)]">— monitoring {marketList.length || 5} markets</span>
+              AI Active <span className="font-normal text-[var(--text-secondary)]">- monitoring {marketList.length || 5} markets</span>
             </div>
             <div className="mt-0.5 truncate text-[11px] text-[var(--text-muted)]">{st.current_task}</div>
           </div>
@@ -167,7 +167,7 @@ export function HomeScreen() {
           ) : (
             <Glass level={2} className="px-5 py-6 text-center">
               <p className="text-[13px] font-semibold text-[var(--text-secondary)]">No qualifying setup.</p>
-              <p className="mt-1 text-[11.5px] text-[var(--text-muted)]">Capital protected — the agent waits for real conditions.</p>
+              <p className="mt-1 text-[11.5px] text-[var(--text-muted)]">Capital protected - the agent waits for real conditions.</p>
             </Glass>
           )}
         </div>
@@ -179,7 +179,7 @@ export function HomeScreen() {
 
         <SectionHeader className="mt-8" right={<DemoTag />}>Market Watch</SectionHeader>
         <Glass pad={false} className="overflow-hidden !p-1.5">
-          {marketList.length === 0 && <div className="px-4 py-6 text-center text-[12px] text-[var(--text-muted)]">Loading markets…</div>}
+          {marketList.length === 0 && <div className="px-4 py-6 text-center text-[12px] text-[var(--text-muted)]">Loading markets...</div>}
           <div className="space-y-1">
             {marketList.map((m) => (
               <div key={m.symbol} className="tap flex items-center gap-3 rounded-2xl px-3.5 py-3 transition hover:bg-white/[0.03]">
@@ -230,7 +230,7 @@ export function HomeScreen() {
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-[12px] leading-snug text-[var(--text-secondary)]">{a.message}</div>
                   <div className="mt-0.5 text-[9.5px] text-[var(--text-muted)]">
-                    {fmtTime(a.ts_override || a.createdAt)} · {shortAgo(a.ts_override || a.createdAt)}
+                    {fmtTime(a.ts_override || a.createdAt)} - {shortAgo(a.ts_override || a.createdAt)}
                   </div>
                 </div>
               </div>

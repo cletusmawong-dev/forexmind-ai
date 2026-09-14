@@ -44,7 +44,7 @@ function ConnBanner() {
     <div className="pointer-events-none fixed left-1/2 top-4 z-[60] -translate-x-1/2 animate-fadeUp px-4">
       <div className="glass-float flex items-center gap-2.5 whitespace-nowrap px-4 py-2.5 text-[11px] font-medium text-warn">
         <span className="h-1.5 w-1.5 animate-pulseSoft rounded-full bg-warn" />
-        Reconnecting to ForexMind services…
+        Reconnecting to ForexMind services...
       </div>
     </div>
   );
@@ -60,7 +60,7 @@ export default function App() {
     return () => clearTimeout(t);
   }, []);
 
-  // verify stored token on boot — only clear it on a definitive 401.
+  // verify stored token on boot - only clear it on a definitive 401.
   // A network failure (backend waking up) keeps the session and the screens
   // degrade gracefully into "reconnecting" states.
   useEffect(() => {

@@ -29,7 +29,7 @@ export function AgentScreen() {
   const [messages, setMessages] = useState<ChatMsg[]>([
     {
       role: "agent",
-      text: "I'm your ForexMind research agent. I answer only from stored data — I never invent results. Ask me why a signal qualified, what I've learned, or what I'm suggesting.",
+      text: "I'm your ForexMind research agent. I answer only from stored data - I never invent results. Ask me why a signal qualified, what I've learned, or what I'm suggesting.",
     },
   ]);
   const [input, setInput] = useState("");
@@ -45,15 +45,15 @@ export function AgentScreen() {
       const res = await api.post<{ reply: string }>(endpoints.chat, { message: msg });
       setMessages((m) => [...m, { role: "agent", text: res.reply }]);
     } catch (e: any) {
-      setMessages((m) => [...m, { role: "agent", text: `Sorry — ${e.message || "I could not process that."}` }]);
+      setMessages((m) => [...m, { role: "agent", text: `Sorry - ${e.message || "I could not process that."}` }]);
     } finally {
       setThinking(false);
     }
   };
 
   if (!status.data) {
-    if (status.loading) return <Spinner label="Waking your agent…" />;
-    return <div className="pt-10"><Spinner label="…" /></div>;
+    if (status.loading) return <Spinner label="Waking your agent..." />;
+    return <div className="pt-10"><Spinner label="..." /></div>;
   }
   const st = status.data;
   const p = st.progress;
@@ -107,7 +107,7 @@ export function AgentScreen() {
                     </div>
                     <p className="mt-2 text-[15px] font-medium leading-snug">"{line}"</p>
                     <p className="mt-1.5 text-[11px] text-[var(--text-muted)]">
-                      {st.ai.provider === "xkiro" ? "XKiro reasoning · server-side" : "Grounded analyst · no external AI configured"}
+                      {st.ai.provider === "xkiro" ? "XKiro reasoning - server-side" : "Grounded analyst - no external AI configured"}
                     </p>
                   </div>
                 </div>
@@ -138,7 +138,7 @@ export function AgentScreen() {
                 <ProgressBar pct={Math.max(0, (p.daily_pl_pct / Math.max(p.objective_pct, 0.01)) * 100)} tone={p.daily_pl_pct >= 0 ? "green" : "blue"} />
               </div>
               <p className="mt-3 text-[10.5px] text-[var(--text-muted)]">
-                Weekly {fmtPct(p.weekly_pl_pct)} · an objective guides my research — it never forces signals.
+                Weekly {fmtPct(p.weekly_pl_pct)} - an objective guides my research - it never forces signals.
               </p>
             </Glass>
 
@@ -149,7 +149,7 @@ export function AgentScreen() {
                 <a key={sid} href="/strategies" className="glass glass-hover tap flex items-center justify-between p-4">
                   <div>
                     <div className="text-[13px] font-semibold">
-                      Strategy {i + 1} · {sid === "strategy_1_zero_lag" ? "Zero Lag Trend" : "9/21 EMA Smart TP/SL"}
+                      Strategy {i + 1} - {sid === "strategy_1_zero_lag" ? "Zero Lag Trend" : "9/21 EMA Smart TP/SL"}
                     </div>
                     <div className="mt-0.5 text-[10.5px] text-[var(--text-muted)]">version {v}</div>
                   </div>
@@ -177,11 +177,11 @@ export function AgentScreen() {
               Market data:{" "}
               {st.market_data?.demo === false ? (
                 <>
-                  <span className="font-semibold text-[var(--accent-green)]">LIVE · REAL-TIME feed</span> — signals from live prices.
+                  <span className="font-semibold text-[var(--accent-green)]">LIVE - REAL-TIME feed</span> - signals from live prices.
                 </>
               ) : (
                 <>
-                  <span className="font-semibold text-[var(--accent-amber)]">DEMO · HISTORICAL replay</span> — never presented as live.
+                  <span className="font-semibold text-[var(--accent-amber)]">DEMO - HISTORICAL replay</span> - never presented as live.
                 </>
               )}
             </div>
@@ -238,7 +238,7 @@ export function AgentScreen() {
               ))}
             </div>
             <div className="flex gap-2.5 px-1">
-              <input className="input" placeholder="Ask your agent…" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} aria-label="Message the agent" />
+              <input className="input" placeholder="Ask your agent..." value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} aria-label="Message the agent" />
               <button className="btn-primary !px-4" onClick={() => send()} disabled={thinking} aria-label="Send">
                 <Send size={15} />
               </button>

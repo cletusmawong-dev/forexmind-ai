@@ -48,8 +48,8 @@ export function Sidebar() {
           <StatusDot tone="green" /> Agent active
         </div>
         <p className="text-[10px] leading-relaxed text-[var(--text-muted)]">
-          Research & signals only — never executes trades.
-          <br />v0.1.0 · Trade · Learn · Grow
+          Research & signals only - never executes trades.
+          <br />v0.1.0 - Trade - Learn - Grow
         </p>
       </div>
     </aside>

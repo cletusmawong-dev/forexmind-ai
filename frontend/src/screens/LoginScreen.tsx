@@ -23,7 +23,7 @@ export function LoginScreen({ onAuthed }: { onAuthed: () => void }) {
       setError(
         e?.status
           ? e.message || "Login failed"
-          : "Can't reach the server right now — it may be waking up. Try again in a few seconds."
+          : "Can't reach the server right now - it may be waking up. Try again in a few seconds."
       );
     } finally {
       setBusy(false);
@@ -85,12 +85,12 @@ export function LoginScreen({ onAuthed }: { onAuthed: () => void }) {
           {error && <div className="mt-4 rounded-2xl border border-neg/20 bg-neg/[0.06] px-4 py-2.5 text-[11.5px] text-neg">{error}</div>}
 
           <button className="btn-primary mt-5 w-full" disabled={busy} onClick={submit}>
-            {busy ? "Connecting…" : mode === "login" ? "Sign in" : "Create account"}
+            {busy ? "Connecting..." : mode === "login" ? "Sign in" : "Create account"}
           </button>
         </div>
 
         <p className="mt-8 text-center text-[10px] leading-relaxed text-txt-faint">
-          Research & signals only — ForexMind AI never executes trades.
+          Research & signals only - ForexMind AI never executes trades.
           <br />
           You stay in control of every decision.
         </p>

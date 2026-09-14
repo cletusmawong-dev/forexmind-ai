@@ -38,7 +38,7 @@ export function Splash() {
           <div className="h-full w-1/2 animate-shimmerX rounded-full bg-gradient-to-r from-transparent via-acc to-transparent bg-[length:200%_100%]" />
         </div>
       </div>
-      <div className="absolute bottom-9 text-[9px] uppercase tracking-[0.28em] text-txt-faint">Trade · Learn · Grow</div>
+      <div className="absolute bottom-9 text-[9px] uppercase tracking-[0.28em] text-txt-faint">Trade - Learn - Grow</div>
     </div>
   );
 }

@@ -4,7 +4,7 @@ High-impact releases (NFP, CPI, FOMC...) are the #1 cause of stop-hunts and
 fake signals. The agent therefore:
 
   * skips signal generation for a market while a high-impact event for its
-    currencies is within ±30 minutes,
+    currencies is within +/-30 minutes,
   * sends a Telegram pre-alert 15 minutes before such an event.
 
 The feed is free (nfs.faireconomy.media), cached for an hour, and every
@@ -23,7 +23,7 @@ FEED = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
 MIRROR = "https://raw.githubusercontent.com/Hero988/ff-news-mirror/main/ff_calendar_thisweek.json"
 UA = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36"}
 
-# Tried in order — origin rate-limits some datacenter IPs (HTTP 429 on Render);
+# Tried in order - origin rate-limits some datacenter IPs (HTTP 429 on Render);
 # the GitHub mirror above exists precisely for that case (hourly Actions relay).
 FEEDS = [(FEED, UA, "origin"), (MIRROR, UA, "mirror")]
 
@@ -103,7 +103,7 @@ def _fetch(force: bool = False) -> List[dict]:
 
 
 def feed_status() -> dict:
-    """Honest feed diagnostics — 'no events' must be distinguishable from 'feed down'."""
+    """Honest feed diagnostics - 'no events' must be distinguishable from 'feed down'."""
     with _lock:
         return {
             "ok": bool(_cache) or _last_err is None,
@@ -156,4 +156,4 @@ def pre_alerts(window_min: int = PRE_ALERT_MIN) -> List[dict]:
 def label(e: dict) -> str:
     mins = int((e["ts"] - datetime.now(timezone.utc)).total_seconds() / 60)
     when = f"in {mins}m" if mins >= 0 else f"{-mins}m ago"
-    return f'{e["country"]} {e["title"]} · {when}'
+    return f'{e["country"]} {e["title"]} - {when}'

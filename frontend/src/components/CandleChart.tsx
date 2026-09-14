@@ -169,7 +169,7 @@ export function CandleChart({
             <rect x={W - axisW + 2} y={y(l.price) - 8} width={axisW - 4} height={16} rx={8} fill="#131826" fillOpacity={0.92} stroke="#ffffff" strokeOpacity={0.07} />
             <circle cx={W - axisW + 11} cy={y(l.price)} r={2} fill={l.color} />
             <text x={W - axisW + 18} y={y(l.price) + 3.2} fontSize={8.8} fontWeight={600} fill="#A9B1C2" style={{ letterSpacing: "0.02em" }}>
-              {l.label} · {fmtTag(l.price)}
+              {l.label} - {fmtTag(l.price)}
             </text>
           </g>
         );

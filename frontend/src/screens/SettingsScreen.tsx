@@ -60,7 +60,7 @@ export function SettingsScreen() {
     flash("Risk controls updated.");
   };
 
-  if (!goals.data || !risk.data) return <Spinner label="Loading settings…" />;
+  if (!goals.data || !risk.data) return <Spinner label="Loading settings..." />;
 
   return (
     <div className="animate-fadeUp">
@@ -73,7 +73,7 @@ export function SettingsScreen() {
 
       {/* ---- objective ---- */}
       <Eyebrow>Agent objective</Eyebrow>
-      <p className="mb-3 mt-1 px-1 text-[11px] text-txt-faint">Guides the research focus — never a command to trade.</p>
+      <p className="mb-3 mt-1 px-1 text-[11px] text-txt-faint">Guides the research focus - never a command to trade.</p>
       <Glass>
         <div className="grid grid-cols-3 gap-4">
           <Field label="Balance $" value={balance} onChange={setBalance} />
@@ -87,7 +87,7 @@ export function SettingsScreen() {
 
       {/* ---- risk ---- */}
       <Eyebrow className="mt-9">Risk management</Eyebrow>
-      <p className="mb-3 mt-1 px-1 text-[11px] text-txt-faint">Signal filtering and guidance — the app never executes.</p>
+      <p className="mb-3 mt-1 px-1 text-[11px] text-txt-faint">Signal filtering and guidance - the app never executes.</p>
       <Glass>
         <div className="grid grid-cols-2 gap-4">
           <Field label="Risk / trade %" value={riskPct} onChange={setRiskPct} />
@@ -114,7 +114,7 @@ export function SettingsScreen() {
       </Glass>
 
       {/* ---- telegram phone alerts ---- */}
-      <Eyebrow className="mt-9">Phone alerts · Telegram</Eyebrow>
+      <Eyebrow className="mt-9">Phone alerts - Telegram</Eyebrow>
       <p className="mb-3 mt-1 px-1 text-[11px] text-txt-faint">Signals, TP/SL hits and approvals delivered even when the app is closed.</p>
       <Glass>
         {(() => {
@@ -122,13 +122,13 @@ export function SettingsScreen() {
           const linked = !!me.data?.telegram_linked;
           const email = me.data?.email || "";
           if (!tg?.configured) {
-            return <p className="text-[12px] text-txt-mid">Telegram bot not configured yet — add the bot token to enable phone alerts.</p>;
+            return <p className="text-[12px] text-txt-mid">Telegram bot not configured yet - add the bot token to enable phone alerts.</p>;
           }
           return (
             <>
               {linked ? (
                 <div className="flex items-center gap-2.5 text-[12.5px] font-semibold text-pos">
-                  <GlowDot tone="pos" size={7} pulse={false} /> Connected — alerts will arrive in your Telegram.
+                  <GlowDot tone="pos" size={7} pulse={false} /> Connected - alerts will arrive in your Telegram.
                 </div>
               ) : (
                 <ol className="space-y-2.5 text-[12px] leading-relaxed text-txt-mid">
@@ -146,7 +146,7 @@ export function SettingsScreen() {
                   onClick={async () => {
                     try {
                       const r = await api.post<{ sent: boolean }>(endpoints.notificationTest, {});
-                      flash(r.sent ? "Test alert sent — check your Telegram 📲" : "Not linked yet — follow the steps above.");
+                      flash(r.sent ? "Test alert sent - check your Telegram 📲" : "Not linked yet - follow the steps above.");
                     } catch (e: any) { flash(e.message || "Failed"); }
                   }}
                 >
@@ -162,14 +162,14 @@ export function SettingsScreen() {
       <Eyebrow className="mt-9">System</Eyebrow>
       <Glass className="mt-2 !py-1" pad={false}>
         <div className="px-5">
-          <Row label="Market data" value={info.data?.market_data?.demo ? "Demo · historical replay" : "Live · Twelve Data"} tone={info.data?.market_data?.demo ? "text-warn" : "text-pos"} dot={info.data?.market_data?.demo ? "warn" : "pos"} />
+          <Row label="Market data" value={info.data?.market_data?.demo ? "Demo - historical replay" : "Live - Twelve Data"} tone={info.data?.market_data?.demo ? "text-warn" : "text-pos"} dot={info.data?.market_data?.demo ? "warn" : "pos"} />
           <StoredHistoryRow />
           <Divider />
           <Row label="AI provider" value={info.data?.ai?.provider === "xkiro" ? "XKiro" : "Grounded analyst"} dot="acc" />
           <Divider />
-          <Row label="Database" value={info.data?.database?.firestore_active ? "Firestore (live)" : "Local · Firebase-ready"} dot="acc" />
+          <Row label="Database" value={info.data?.database?.firestore_active ? "Firestore (live)" : "Local - Firebase-ready"} dot="acc" />
           <Divider />
-          <Row label="Order execution" value="Disabled · by design" tone="text-pos" dot="pos" />
+          <Row label="Order execution" value="Disabled - by design" tone="text-pos" dot="pos" />
         </div>
       </Glass>
 
@@ -181,7 +181,7 @@ export function SettingsScreen() {
       <p className="mt-8 pb-4 text-center text-[10px] leading-relaxed text-txt-faint">
         ForexMind AI is a research & signal agent. It analyzes markets, explains setups and tracks outcomes.<br />
         You manually enter trades on MT5. It never places orders and never guarantees profits.<br />
-        <span className="text-txt-faint/60">v0.1.0 · Trade · Learn · Grow</span>
+        <span className="text-txt-faint/60">v0.1.0 - Trade - Learn - Grow</span>
       </p>
     </div>
   );
@@ -224,7 +224,7 @@ function StoredHistoryRow() {
       <Divider />
       <Row
         label="Candle history"
-        value={st ? `${(st.total ?? 0).toLocaleString()} candles · ${active}/${markets.length} markets` : "…"}
+        value={st ? `${(st.total ?? 0).toLocaleString()} candles - ${active}/${markets.length} markets` : "..."}
         dot="acc"
       />
     </>

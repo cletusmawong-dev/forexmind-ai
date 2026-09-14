@@ -28,7 +28,7 @@ export function NotificationsScreen() {
     if (data && data.unread > 0) api.post(endpoints.notificationsRead, {}).catch(() => {});
   }, [data?.unread]);
 
-  if (loading && !data) return <Spinner label="Loading notifications…" />;
+  if (loading && !data) return <Spinner label="Loading notifications..." />;
 
   return (
     <div className="animate-fadeUp">

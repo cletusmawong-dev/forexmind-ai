@@ -146,11 +146,11 @@ export function DemoTag() {
     return () => { alive = false; clearInterval(id); };
   }, []);
   if (live === null) {
-    // health not answered yet (e.g. backend waking up) — never claim demo, just say connecting
+    // health not answered yet (e.g. backend waking up) - never claim demo, just say connecting
     return (
       <Pill tone="neutral" className="!px-3 !py-1.5 whitespace-nowrap">
         <span className="h-1.5 w-1.5 rounded-full bg-[var(--text-faint)]" />
-        CONNECTING…
+        CONNECTING...
       </Pill>
     );
   }
@@ -158,14 +158,14 @@ export function DemoTag() {
     return (
       <Pill tone="green" className="!px-3 !py-1.5 whitespace-nowrap">
         <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-green)] anim-pulse" style={{ boxShadow: "0 0 8px rgba(47,217,138,0.9)" }} />
-        LIVE · REAL-TIME
+        LIVE - REAL-TIME
       </Pill>
     );
   }
   return (
     <Pill tone="amber" className="!px-3 !py-1.5 whitespace-nowrap">
       <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-amber)]" style={{ boxShadow: "0 0 8px rgba(245,184,77,0.8)" }} />
-      DEMO · HISTORICAL
+      DEMO - HISTORICAL
     </Pill>
   );
 }
@@ -302,7 +302,7 @@ export function ConnectionState({ onRetry, label = "Can't reach your agent" }: {
       </div>
       <div className="text-[14px] font-semibold">{label}</div>
       <p className="mx-auto mt-1.5 max-w-[260px] text-[11.5px] leading-relaxed text-[var(--text-muted)]">
-        The server may be waking up or restarting. Retrying automatically — your research data is safe.
+        The server may be waking up or restarting. Retrying automatically - your research data is safe.
       </p>
       {onRetry && (
         <button className="btn-ghost mt-5" onClick={onRetry}>
@@ -412,7 +412,7 @@ export function ChevronSection({ open }: { open: boolean }) {
 
 /* ================= shared primitives (v2) ================= */
 
-/** Small uppercase label — the standard micro-heading. */
+/** Small uppercase label - the standard micro-heading. */
 export function Eyebrow({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return <div className={`eyebrow ${className}`}>{children}</div>;
 }

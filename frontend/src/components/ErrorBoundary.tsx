@@ -19,7 +19,7 @@ export class ErrorBoundary extends React.Component<{ children: React.ReactNode }
             <div className="mx-auto mb-5 flex h-10 w-10 items-center justify-center rounded-full border border-warn/30 bg-warn/[0.08] text-[15px] text-warn">!</div>
             <h1 className="text-[17px] font-semibold tracking-tight">Something went wrong</h1>
             <p className="mt-2 text-[12px] leading-relaxed text-txt-low">
-              The interface hit an unexpected error. Your data is safe — the server keeps researching while you reload.
+              The interface hit an unexpected error. Your data is safe - the server keeps researching while you reload.
             </p>
             <pre className="mt-4 max-h-24 overflow-auto rounded-2xl border border-white/[0.06] bg-white/[0.03] p-3 text-left text-[10px] leading-relaxed text-txt-faint">
               {String(this.state.error?.message || this.state.error || "Unknown error")}

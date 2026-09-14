@@ -78,7 +78,7 @@ export function PositionSizeCard({ signal: s }: { signal: Signal }) {
 
       <Divider className="my-3.5" />
       <p className="text-[10px] text-[var(--text-muted)]">
-        Entry <span className="num">{fmtPrice(s.entry)}</span> · SL <span className="num">{fmtPrice(s.sl)}</span> · sizing from your own risk rules.
+        Entry <span className="num">{fmtPrice(s.entry)}</span> - SL <span className="num">{fmtPrice(s.sl)}</span> - sizing from your own risk rules.
       </p>
     </Glass>
   );

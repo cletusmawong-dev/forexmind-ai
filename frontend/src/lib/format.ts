@@ -1,17 +1,17 @@
 export function fmtPrice(v: number | null | undefined, market?: string): string {
-  if (v === null || v === undefined) return "–";
+  if (v === null || v === undefined) return "-";
   const abs = Math.abs(v);
   const digits = abs < 10 ? (abs < 1 ? 5 : 4) : abs > 5000 ? 1 : 2;
   return v.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
 
 export function fmtPct(v: number | null | undefined, sign = true): string {
-  if (v === null || v === undefined) return "–";
+  if (v === null || v === undefined) return "-";
   return `${sign && v > 0 ? "+" : ""}${v.toFixed(2)}%`;
 }
 
 export function fmtR(v: number | null | undefined): string {
-  if (v === null || v === undefined) return "–";
+  if (v === null || v === undefined) return "-";
   return `${v > 0 ? "+" : ""}${v.toFixed(1)}R`;
 }
 

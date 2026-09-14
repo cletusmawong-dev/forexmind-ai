@@ -30,17 +30,17 @@ export function AnalyticsScreen() {
         <DemoTag />
       </header>
 
-      {/* hero numbers — typography only */}
+      {/* hero numbers - typography only */}
       <section className="flex flex-wrap items-end gap-x-10 gap-y-5 px-1">
         <HeroNum label="Total" value={fmtR(m.total_r)} tone={m.total_r >= 0 ? "text-pos" : "text-neg"} />
         <HeroNum label="Win rate" value={`${m.win_rate ?? 0}%`} />
-        <HeroNum label="Profit factor" value={String(m.profit_factor ?? "–")} />
+        <HeroNum label="Profit factor" value={String(m.profit_factor ?? "-")} />
         <HeroNum label="Max drawdown" value={`${m.max_drawdown_r ?? 0}R`} tone="text-neg" />
       </section>
 
       {/* equity */}
       <Glass className="mt-8 !p-5">
-        <div className="eyebrow mb-3 px-1">Equity curve · cumulative R</div>
+        <div className="eyebrow mb-3 px-1">Equity curve - cumulative R</div>
         <ResponsiveContainer width="100%" height={190}>
           <AreaChart data={curve} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
             <defs>
@@ -60,7 +60,7 @@ export function AnalyticsScreen() {
         </ResponsiveContainer>
       </Glass>
 
-      {/* TP performance — quiet rows */}
+      {/* TP performance - quiet rows */}
       <Glass className="mt-4 !py-2" pad={false}>
         <div className="px-5">
           {[

@@ -54,17 +54,17 @@ export function SignalsScreen() {
       {filter === "closed" && wins + losses > 0 && (
         <p className="mb-4 px-1 text-[12px] text-[var(--text-secondary)]">
           <span className="num font-semibold text-[var(--accent-green)]">{Math.round((wins / (wins + losses)) * 100)}%</span> win rate
-          <span className="text-[var(--text-muted)]"> · {wins}W / {losses}L in view</span>
+          <span className="text-[var(--text-muted)]"> - {wins}W / {losses}L in view</span>
         </p>
       )}
 
       {loading && !data ? (
-        <Spinner label="Loading signals…" />
+        <Spinner label="Loading signals..." />
       ) : signals.length === 0 ? (
         <Empty
           icon={<Crosshair size={20} strokeWidth={1.6} />}
           title={filter === "open" ? "No active signals" : "Nothing here yet"}
-          sub={filter === "open" ? "No qualifying setup. Capital protected — the agent is watching for real conditions." : "Completed signals appear here with their outcomes."}
+          sub={filter === "open" ? "No qualifying setup. Capital protected - the agent is watching for real conditions." : "Completed signals appear here with their outcomes."}
         />
       ) : (
         <div className="space-y-3">

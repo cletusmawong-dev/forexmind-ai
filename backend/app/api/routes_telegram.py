@@ -22,7 +22,7 @@ async def telegram_webhook(secret: str, request: Request):
     try:
         return handle_webhook(payload)
     except Exception:
-        # e.g. Firestore daily quota reached — still answer the user honestly
+        # e.g. Firestore daily quota reached - still answer the user honestly
         try:
             import requests as _rq
             msg = payload.get("message") or {}
@@ -32,7 +32,7 @@ async def telegram_webhook(secret: str, request: Request):
                     f"https://api.telegram.org/bot{settings.telegram_bot_token}/sendMessage",
                     json={"chat_id": chat_id,
                           "text": "⏳ ForexMind is in its daily maintenance window (database quota resets ~07:00 GMT). "
-                                  "Alerts resume automatically after that — nothing is lost."},
+                                  "Alerts resume automatically after that - nothing is lost."},
                     timeout=10,
                 )
         except Exception:
@@ -42,7 +42,7 @@ async def telegram_webhook(secret: str, request: Request):
 
 @router.post("/notifications/test")
 def test_notification(user_id: str = Depends(get_user_id)):
-    sent = send_telegram(user_id, "✅ ForexMind AI test — if you see this on your phone, alerts are live.")
+    sent = send_telegram(user_id, "✅ ForexMind AI test - if you see this on your phone, alerts are live.")
     if not sent:
         notify(user_id, "TELEGRAM_TEST", "Telegram not linked yet",
                "Open Settings in the app and follow the two steps to link your Telegram.")

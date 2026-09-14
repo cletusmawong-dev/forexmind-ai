@@ -3,11 +3,11 @@
 Keeps a rolling window of closed 15M candles per market in the same
 DataStore used for everything else (Firestore in prod, local JSON in dev):
 
-  * charts/API get history instantly after a cold start — fewer
+  * charts/API get history instantly after a cold start - fewer
     TwelveData calls (free tier is 800/day),
   * real data survives provider hiccups and feeds future backtests,
   * writes happen only when a NEW closed 15M candle appears
-    (max ~96/market/day) — well inside the Firestore free tier.
+    (max ~96/market/day) - well inside the Firestore free tier.
 
 Every failure degrades to memory-only; storage never blocks scanning.
 """
@@ -24,7 +24,7 @@ from ..db.store import get_store
 
 COLL = "candles"
 TF = "15M"
-KEEP = 600                      # rolling window per market (≈ 6 days of 15M)
+KEEP = 600                      # rolling window per market (~ 6 days of 15M)
 
 MARKETS = ["EURUSD", "GBPUSD", "USDJPY", "XAUUSD", "NAS100"]
 
@@ -35,7 +35,7 @@ _persist_errors = 0
 
 
 def _encode(rows: List[List[float]]) -> List[str]:
-    """Firestore forbids nested arrays — serialize each row as "ts,o,h,l,c"."""
+    """Firestore forbids nested arrays - serialize each row as "ts,o,h,l,c"."""
     return [",".join(str(x) for x in r) for r in rows]
 
 
@@ -95,7 +95,7 @@ def _persist(market: str) -> None:
             store.create(COLL, doc, doc_id=market)
         _persist_errors = 0
     except Exception:
-        _persist_errors += 1   # quota pause / hiccup — memory keeps working
+        _persist_errors += 1   # quota pause / hiccup - memory keeps working
 
 
 def record(market: str, df: Optional[pd.DataFrame]) -> int:

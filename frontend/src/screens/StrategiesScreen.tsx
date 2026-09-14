@@ -51,7 +51,7 @@ export function StrategiesScreen() {
     setBusy("");
   };
 
-  if (loading && !data) return <Spinner label="Loading strategies…" />;
+  if (loading && !data) return <Spinner label="Loading strategies..." />;
 
   return (
     <div className="animate-fadeUp">
@@ -73,7 +73,7 @@ export function StrategiesScreen() {
               <div className="min-w-0 flex-1">
                 <div className="text-[14.5px] font-medium tracking-tight text-txt-hi">{s.short_name}</div>
                 <div className="mt-0.5 text-[11px] text-txt-faint">
-                  Strategy {idx + 1} · <span className="font-mono">v{s.active_version}</span> · {s.status.toLowerCase()}
+                  Strategy {idx + 1} - <span className="font-mono">v{s.active_version}</span> - {s.status.toLowerCase()}
                 </div>
               </div>
               <ChevronDown size={16} className={`shrink-0 text-txt-faint transition-transform duration-500 ${openId === s.id ? "rotate-180" : ""}`} />
@@ -84,7 +84,7 @@ export function StrategiesScreen() {
                 <div className="px-5 pb-6">
                   <p className="text-[12px] leading-relaxed text-txt-low">{s.description}</p>
 
-                  {/* parameters — quiet two-column */}
+                  {/* parameters - quiet two-column */}
                   <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 rounded-2xl border border-white/[0.05] bg-white/[0.02] p-4">
                     {Object.entries(s.active_params ?? {})
                       .filter(([k]) => k !== "expire_bars")
@@ -140,12 +140,12 @@ export function StrategiesScreen() {
         ))}
       </Glass>
 
-      {/* add strategy — part of the interface */}
+      {/* add strategy - part of the interface */}
       <button className="tap mt-4 flex w-full items-center gap-4 rounded-[24px] border border-dashed border-white/[0.1] px-5 py-5 text-left text-txt-low transition hover:border-white/[0.18] hover:text-txt-mid">
-        <span className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-[15px] font-light">＋</span>
+        <span className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-[15px] font-light">+</span>
         <span>
           <span className="text-[13px] font-medium">Add a strategy</span>
-          <span className="mt-0.5 block text-[10.5px] text-txt-faint">Register a module under backend/app/strategies — it appears everywhere automatically. The AI can never invent strategies.</span>
+          <span className="mt-0.5 block text-[10.5px] text-txt-faint">Register a module under backend/app/strategies - it appears everywhere automatically. The AI can never invent strategies.</span>
         </span>
       </button>
     </div>

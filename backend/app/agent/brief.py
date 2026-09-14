@@ -80,7 +80,7 @@ def _news_line() -> str:
 
 
 def _prices_line(budget_s: float = 20.0) -> str:
-    """Best-effort prices within a time budget — never blocks the brief."""
+    """Best-effort prices within a time budget - never blocks the brief."""
     import time as _time
 
     parts = []
@@ -99,16 +99,16 @@ def _prices_line(budget_s: float = 20.0) -> str:
 
 def _template(ctx: dict, objective: str, news: str, prices: str) -> str:
     w, l = ctx["yesterday_wins"], ctx["yesterday_losses"]
-    wr = f"{(100 * w / (w + l)):.0f}%" if (w + l) else "–"
+    wr = f"{(100 * w / (w + l)):.0f}%" if (w + l) else "-"
     open_by = ", ".join(f"{k} {v}" for k, v in list(ctx["open_by_market"].items())[:4]) or "none"
     return (
-        "☀️ Morning Brief — ForexMind AI\n"
-        f"• Last 24h: {w}W/{l}L ({wr}) · {ctx['yesterday_r']:+.2f}R\n"
+        "☀️ Morning Brief - ForexMind AI\n"
+        f"• Last 24h: {w}W/{l}L ({wr}) - {ctx['yesterday_r']:+.2f}R\n"
         f"• Open signals: {ctx['open_signals']} ({open_by})\n"
         f"• {objective}\n"
         f"• {news}\n"
         f"• {prices}\n"
-        "Signals fire only on valid setups — the objective guides, never forces."
+        "Signals fire only on valid setups - the objective guides, never forces."
     )
 
 
@@ -129,7 +129,7 @@ def build(user_id: str) -> str:
         context = {"PERFORMANCE_24H": ctx, "OBJECTIVE": objective, "NEWS": news, "PRICES": prices}
         try:
             text = get_ai_provider().complete(
-                "Write a concise morning trading briefing for the user. Maximum 6 short "
+                "Write a concise morning trading briefing for the user in plain English. Maximum 6 short "
                 "lines, warm but professional, use the exact numbers provided, end with "
                 "one practical focus for the day. Never invent data.",
                 context,
@@ -144,14 +144,14 @@ def build(user_id: str) -> str:
     return text
 
 
-_pushed_today: set = set()   # (user_id, day) — process-level guard, never double-push
+_pushed_today: set = set()   # (user_id, day) - process-level guard, never double-push
 
 
 def maybe_push_daily(user_id: str, now: Optional[datetime] = None) -> bool:
     """Called by the live loop each minute; pushes at most ONCE per user per day.
 
     The persisted flag lives on the user's agent_goals doc (looked up by
-    userId — the doc id is NOT the user id), plus an in-process guard so
+    userId - the doc id is NOT the user id), plus an in-process guard so
     even a failed flag write can never cause a second push."""
     now = now or datetime.now(timezone.utc)
     day = today_key()

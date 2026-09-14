@@ -15,7 +15,7 @@ export function JournalScreen() {
   const navigate = useNavigate();
 
   if (!stats.data) {
-    if (stats.loading) return <Spinner label="Opening the journal…" />;
+    if (stats.loading) return <Spinner label="Opening the journal..." />;
     return <ConnectionState onRetry={stats.refresh} label="Can't load the journal" />;
   }
   const j = stats.data;
@@ -60,10 +60,10 @@ export function JournalScreen() {
                 </span>
               </div>
               <p className="mt-3 text-[12px] text-txt-low">
-                <span className="num font-bold text-txt-hi">{j?.total_signals ?? 0}</span> signals ·{" "}
-                <span className="num font-bold text-txt-hi">{m.win_rate ?? 0}%</span> win rate ·{" "}
-                <span className="num font-bold text-txt-hi">{fmtR(m.avg_r)}</span> avg ·{" "}
-                <span className="num font-bold text-txt-hi">{m.profit_factor ?? "–"}</span> profit factor
+                <span className="num font-bold text-txt-hi">{j?.total_signals ?? 0}</span> signals -{" "}
+                <span className="num font-bold text-txt-hi">{m.win_rate ?? 0}%</span> win rate -{" "}
+                <span className="num font-bold text-txt-hi">{fmtR(m.avg_r)}</span> avg -{" "}
+                <span className="num font-bold text-txt-hi">{m.profit_factor ?? "-"}</span> profit factor
               </p>
             </section>
 
@@ -72,14 +72,14 @@ export function JournalScreen() {
               <EquityChart curve={(j?.metrics && j?.daily && buildCurve(daily)) ?? []} />
             </div>
 
-            {/* strategy performance — quiet rows */}
+            {/* strategy performance - quiet rows */}
             <Eyebrow className="mb-1 mt-9">By strategy</Eyebrow>
             <Glass pad={false} className="mt-2 divide-y divide-white/[0.05] !p-0">
               {Object.entries(j?.by_strategy ?? {}).map(([name, v]: [string, any]) => (
                 <div key={name} className="flex items-center justify-between px-5 py-4">
                   <span className="text-[12.5px] text-txt-mid">{name}</span>
                   <span className="num text-[12px] text-txt-low">
-                    {v.signals} signals · <span className="font-bold text-txt-hi">{v.win_rate}%</span> · <span className="font-bold text-txt-hi">{fmtR(v.avg_r)}</span>
+                    {v.signals} signals - <span className="font-bold text-txt-hi">{v.win_rate}%</span> - <span className="font-bold text-txt-hi">{fmtR(v.avg_r)}</span>
                   </span>
                 </div>
               ))}
@@ -87,7 +87,7 @@ export function JournalScreen() {
           </div>
 
           <div className="mt-10 lg:col-span-5 lg:mt-0 lg:border-l lg:border-white/[0.05] lg:pl-10">
-            <Eyebrow className="mb-3">Daily R · last 14 days</Eyebrow>
+            <Eyebrow className="mb-3">Daily R - last 14 days</Eyebrow>
             <Glass pad={false} className="!p-5">
               <div className="flex h-24 items-end gap-[5px]">
                 {daily.slice(-14).map((d: any) => (
@@ -138,7 +138,7 @@ export function JournalScreen() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-[11px] text-txt-low">{s.strategy_name}</div>
-                  <div className="text-[9px] text-txt-faint">{fmtDateTime(s.candle_time)} · {(s.market_conditions as any)?.session}</div>
+                  <div className="text-[9px] text-txt-faint">{fmtDateTime(s.candle_time)} - {(s.market_conditions as any)?.session}</div>
                 </div>
                 {s.user_action && <Pill tone={s.user_action === "entered" ? "cyan" : "neutral"}>{s.user_action === "entered" ? "taken" : "skipped"}</Pill>}
                 <span className={`num w-12 shrink-0 text-right text-[13px] font-semibold ${s.r_multiple > 0 ? "text-pos" : s.r_multiple < 0 ? "text-neg" : "text-txt-low"}`}>

@@ -46,7 +46,7 @@ export function MorningBriefCard() {
       {events.length > 0 && (
         <div className="mt-4 space-y-2 border-t border-white/[0.06] pt-3.5">
           <div className="text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">
-            High-impact news · next 48h
+            High-impact news - next 48h
           </div>
           {events.slice(0, 4).map((e, i) => {
             const m = minsUntil(e.time);
@@ -63,7 +63,7 @@ export function MorningBriefCard() {
             );
           })}
           <p className="pt-1 text-[9.5px] text-[var(--text-muted)]">
-            The agent pauses signal generation ±30 min around these.
+            The agent pauses signal generation +/-30 min around these.
           </p>
         </div>
       )}

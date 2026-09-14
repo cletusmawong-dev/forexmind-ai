@@ -139,7 +139,7 @@ async def live_loop():
             for market in INITIAL_MARKETS:
                 await asyncio.to_thread(State.tracker.update_market, market)
 
-            # news pre-alerts (Telegram) + daily morning brief — best effort, off the event loop
+            # news pre-alerts (Telegram) + daily morning brief - best effort, off the event loop
             def _news_job():
                 from .market_data.calendar import pre_alerts, label as cal_label
                 from .notifications.service import notify as _notify
@@ -168,7 +168,7 @@ async def live_loop():
                 from .market_data.calendar import is_blackout
                 for market in INITIAL_MARKETS:
                     _current_task = f"Scanning {market}"
-                    try:  # candle storage — runs even in blackout, warms provider cache for scans
+                    try:  # candle storage - runs even in blackout, warms provider cache for scans
                         from .market_data import candle_store
                         df15 = await asyncio.to_thread(State.provider.get_candles, market, "15M", candle_store.KEEP)
                         await asyncio.to_thread(candle_store.record, market, df15)
@@ -179,7 +179,7 @@ async def live_loop():
                     except Exception:
                         blocked, ev = False, None
                     if blocked:
-                        agent_core.log(f"News blackout — skipping {market} "
+                        agent_core.log(f"News blackout - skipping {market} "
                                        f"({ev['country']} {ev['title']})", kind="NEWS", market=market)
                         continue
                     for uid in user_ids:
@@ -218,7 +218,7 @@ if _QE is not None:
     async def quota_exhausted_handler(request, exc):
         return JSONResponse(
             status_code=503,
-            content={"detail": "Database daily quota reached — the app pauses until the daily reset. All data is safe."},
+            content={"detail": "Database daily quota reached - the app pauses until the daily reset. All data is safe."},
         )
 
 

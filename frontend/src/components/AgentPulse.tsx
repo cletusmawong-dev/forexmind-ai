@@ -44,7 +44,7 @@ export function AgentPulse() {
 
   const hourLabel = (i: number) => {
     const d = new Date(Date.now() - (23 - i) * 3_600_000);
-    return `${String(d.getHours()).padStart(2, "0")}:00 · ${buckets[i]} event${buckets[i] === 1 ? "" : "s"}`;
+    return `${String(d.getHours()).padStart(2, "0")}:00 - ${buckets[i]} event${buckets[i] === 1 ? "" : "s"}`;
   };
 
   return (
@@ -96,13 +96,13 @@ export function AgentPulse() {
       <Divider className="my-4" />
 
       <div className="grid grid-cols-3 divide-x divide-white/[0.06]">
-        <PulseStat label="Events · 24h" value={total24} tone="text-[#a8c4ff]" />
-        <PulseStat label="Signals today" value={status.data?.signals_today ?? "–"} />
-        <PulseStat label="Lessons" value={status.data?.lessons ?? "–"} tone="text-[#b3a6ff]" />
+        <PulseStat label="Events - 24h" value={total24} tone="text-[#a8c4ff]" />
+        <PulseStat label="Signals today" value={status.data?.signals_today ?? "-"} />
+        <PulseStat label="Lessons" value={status.data?.lessons ?? "-"} tone="text-[#b3a6ff]" />
       </div>
 
       <p className="mt-3 text-[10.5px] text-[var(--text-muted)]">
-        Last activity: <span className="font-semibold text-[var(--text-secondary)]">{lastTs ? ago(lastTs) : "waiting for first scan…"}</span>
+        Last activity: <span className="font-semibold text-[var(--text-secondary)]">{lastTs ? ago(lastTs) : "waiting for first scan..."}</span>
       </p>
     </Glass>
   );

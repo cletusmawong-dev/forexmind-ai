@@ -290,7 +290,7 @@ class FirestoreStore:
                 self._enter_quota_mode()
                 raise self._QuotaExhausted() from e
             # Missing composite index safety net: fetch without ordering and
-            # sort in memory — identical semantics, no downtime.
+            # sort in memory - identical semantics, no downtime.
             if "index" not in str(e).lower():
                 raise
             out = [self._normalize(d.to_dict()) | {"id": d.id} for d in build_query(False).stream()]

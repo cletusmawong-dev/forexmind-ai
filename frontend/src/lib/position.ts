@@ -1,5 +1,5 @@
 /** MT5 position sizing from signal levels + account risk.
- *  lot = risk$ / (SL distance in pips × pip value per lot). */
+ *  lot = risk$ / (SL distance in pips x pip value per lot). */
 
 interface Spec {
   pipSize: number;
@@ -54,9 +54,9 @@ export function calcLot(
     riskUSD: Math.round(riskUSD * 100) / 100,
     contract: spec.contract,
     note: rawLots < 0.01
-      ? "Risk budget is below one 0.01 lot — trade the minimum or skip; never exceed your risk %."
+      ? "Risk budget is below one 0.01 lot - trade the minimum or skip; never exceed your risk %."
       : spec.verify
-      ? "Verify this contract size with your MT5 broker — gold/index specs vary."
+      ? "Verify this contract size with your MT5 broker - gold/index specs vary."
       : undefined,
   };
 }

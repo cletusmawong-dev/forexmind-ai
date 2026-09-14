@@ -28,7 +28,7 @@ export function SignalDetailScreen() {
     [s?.market, s?.timeframe]
   );
 
-  if (!s) return <Spinner label="Loading signal…" />;
+  if (!s) return <Spinner label="Loading signal..." />;
   const buy = s.direction === "BUY";
 
   const lines: ChartLine[] = [
@@ -87,7 +87,7 @@ export function SignalDetailScreen() {
             </span>
           </div>
           <p className="mt-2 text-[12px] text-[var(--text-secondary)]">
-            {s.strategy_name} <span className="text-[var(--text-muted)]">· v{s.strategy_version} · {s.timeframe} · {fmtDateTime(s.candle_time)}</span>
+            {s.strategy_name} <span className="text-[var(--text-muted)]">- v{s.strategy_version} - {s.timeframe} - {fmtDateTime(s.candle_time)}</span>
           </p>
         </div>
         <div className="text-right">
@@ -104,7 +104,7 @@ export function SignalDetailScreen() {
       {/* ---- levels ladder ---- */}
       <Glass className="mt-4 !py-1" pad={false}>
         <div className="px-5">
-          <LadderRow label="Entry" value={fmtPrice(s.entry)} tone="text-[#8fb4ff]" note={s.entry_zone && s.entry_zone[0] !== s.entry_zone[1] ? `zone ${fmtPrice(s.entry_zone[0])}–${fmtPrice(s.entry_zone[1])}` : undefined} />
+          <LadderRow label="Entry" value={fmtPrice(s.entry)} tone="text-[#8fb4ff]" note={s.entry_zone && s.entry_zone[0] !== s.entry_zone[1] ? `zone ${fmtPrice(s.entry_zone[0])}-${fmtPrice(s.entry_zone[1])}` : undefined} />
           <Divider />
           <LadderRow label="Stop loss" value={fmtPrice(s.sl)} tone="text-[var(--accent-red)]" note={`risk ${fmtPrice(s.risk)}`} />
           <Divider />
@@ -132,7 +132,7 @@ export function SignalDetailScreen() {
                 v === 1 ? "text-[var(--accent-green)]" : v === -1 ? "text-[var(--accent-red)]" : "text-[var(--text-muted)]"
               }`}
             >
-              {tf} <span className="font-bold">{TREND_LABEL[v]?.slice(0, 4) ?? "–"}</span>
+              {tf} <span className="font-bold">{TREND_LABEL[v]?.slice(0, 4) ?? "-"}</span>
             </span>
           ))}
         </div>
@@ -201,7 +201,7 @@ export function SignalDetailScreen() {
         )}
         {mode === "entered" && (
           <div className="space-y-2.5 anim-fadeUp">
-            <input className="input" placeholder={`Entry price — default ${fmtPrice(s.entry)}`} inputMode="decimal" value={entryPrice} onChange={(e) => setEntryPrice(e.target.value)} />
+            <input className="input" placeholder={`Entry price - default ${fmtPrice(s.entry)}`} inputMode="decimal" value={entryPrice} onChange={(e) => setEntryPrice(e.target.value)} />
             <input className="input" placeholder="Notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} />
             <div className="flex gap-2.5">
               <button className="btn-primary flex-1" disabled={busy} onClick={() => act("entered")}>
@@ -230,12 +230,12 @@ export function SignalDetailScreen() {
           <div className="flex flex-wrap items-center gap-2 text-[12.5px] text-[var(--accent-cyan)]">
             <StatusDot tone="cyan" size={6} pulse={false} />
             Entered at <span className="num font-semibold">{fmtPrice(s.user_entry_price ?? s.entry)}</span>
-            <span className="text-[var(--text-muted)]">— your result is tracked separately from the signal's.</span>
+            <span className="text-[var(--text-muted)]">- your result is tracked separately from the signal's.</span>
           </div>
         )}
         {s.user_action === "skipped" && (
           <div className="flex items-center gap-2.5 text-[12.5px] text-[var(--text-secondary)]">
-            <CircleSlash size={13} /> Skipped — the agent still follows this signal to learn from it.
+            <CircleSlash size={13} /> Skipped - the agent still follows this signal to learn from it.
           </div>
         )}
         {error && <div className="mt-3 text-[11.5px] text-[var(--accent-red)]">{error}</div>}
@@ -256,7 +256,7 @@ export function SignalDetailScreen() {
                 <p className="text-[12.5px] leading-relaxed text-[var(--text-secondary)]">{s.result_analysis.what_happened}</p>
                 <div className="mt-3 space-y-1">
                   {(s.result_analysis.setup_conditions ?? []).map((c: string, i: number) => (
-                    <div key={i} className="text-[11px] text-[var(--text-muted)]">· {c}</div>
+                    <div key={i} className="text-[11px] text-[var(--text-muted)]">- {c}</div>
                   ))}
                 </div>
                 <Divider className="my-4" />

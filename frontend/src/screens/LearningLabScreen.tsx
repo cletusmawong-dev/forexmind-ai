@@ -30,7 +30,7 @@ export function LearningLabScreen() {
     setBusy(id);
     try {
       await api.post(endpoints[decision](id));
-      flash(decision === "approve" ? "Approved — a new strategy version was created." : "Rejected — the change was not applied.");
+      flash(decision === "approve" ? "Approved - a new strategy version was created." : "Rejected - the change was not applied.");
     } catch (e: any) {
       flash(e.message);
     } finally {
@@ -172,7 +172,7 @@ export function LearningLabScreen() {
           ) : (hyps.data?.hypotheses.length ?? 0) === 0 ? (
             <Glass level={2} className="text-center">
               <p className="text-[13px] text-txt-mid">No hypotheses yet.</p>
-              <p className="mt-1 text-[11.5px] text-txt-faint">Hypotheses grow from evidence-backed lessons — exactly one variable at a time.</p>
+              <p className="mt-1 text-[11.5px] text-txt-faint">Hypotheses grow from evidence-backed lessons - exactly one variable at a time.</p>
             </Glass>
           ) : (
             hyps.data!.hypotheses.map((h) => {
@@ -195,7 +195,7 @@ export function LearningLabScreen() {
 
                     {pending && (
                       <p className="mt-4 text-[12px] font-medium leading-relaxed text-warn/90">
-                        AI discovered a possible improvement — awaiting your review.
+                        AI discovered a possible improvement - awaiting your review.
                       </p>
                     )}
 
@@ -212,19 +212,19 @@ export function LearningLabScreen() {
                       </div>
                     </div>
                     <p className="mt-3 text-center text-[10.5px] text-txt-faint">
-                      <span className="font-mono text-txt-low">{h.variable}</span> · only one variable changes · everything else stays identical
+                      <span className="font-mono text-txt-low">{h.variable}</span> - only one variable changes - everything else stays identical
                     </p>
 
                     <p className="mt-4 text-[12px] leading-relaxed text-txt-low">
-                      <span className="text-txt-mid">Reason — </span>{h.reason}
+                      <span className="text-txt-mid">Reason - </span>{h.reason}
                     </p>
 
                     {h.result && (
                       <>
                         <Divider className="my-5" />
                         <div className="flex items-stretch justify-between gap-3 text-center">
-                          <ResultStat label="Original" value={`${h.old_metrics?.win_rate ?? "–"}%`} sub={`${h.old_metrics?.trades ?? "–"} trades`} />
-                          <ResultStat label="Experimental" value={`${h.new_metrics?.win_rate ?? "–"}%`} sub={`${h.new_metrics?.trades ?? "–"} trades`} tone="text-acc-cyan" />
+                          <ResultStat label="Original" value={`${h.old_metrics?.win_rate ?? "-"}%`} sub={`${h.old_metrics?.trades ?? "-"} trades`} />
+                          <ResultStat label="Experimental" value={`${h.new_metrics?.win_rate ?? "-"}%`} sub={`${h.new_metrics?.trades ?? "-"} trades`} tone="text-acc-cyan" />
                           <ResultStat
                             label="Verdict"
                             value={h.result === "INSUFFICIENT_DATA" ? "Insuff." : h.result.charAt(0) + h.result.slice(1).toLowerCase().replace(/_/g, " ")}
@@ -263,7 +263,7 @@ export function LearningLabScreen() {
           ) : (exps.data?.experiments.length ?? 0) === 0 ? (
             <Glass level={2} className="text-center">
               <p className="text-[13px] text-txt-mid">No experiments yet.</p>
-              <p className="mt-1 text-[11.5px] text-txt-faint">Each experiment compares original vs experimental on the same dataset — results are never fabricated.</p>
+              <p className="mt-1 text-[11.5px] text-txt-faint">Each experiment compares original vs experimental on the same dataset - results are never fabricated.</p>
             </Glass>
           ) : (
             exps.data!.experiments.map((e) => (
@@ -275,16 +275,16 @@ export function LearningLabScreen() {
                   </Pill>
                 </div>
                 <p className="px-6 pt-1 text-[11px] text-txt-faint">
-                  {e.strategy_id === "strategy_1_zero_lag" ? "Zero Lag Trend" : "9/21 EMA Smart TP/SL"} · <span className="font-mono">{e.variable}</span> {String(e.old_value)} → {String(e.new_value)} · {e.market} {e.timeframe}
+                  {e.strategy_id === "strategy_1_zero_lag" ? "Zero Lag Trend" : "9/21 EMA Smart TP/SL"} - <span className="font-mono">{e.variable}</span> {String(e.old_value)} → {String(e.new_value)} - {e.market} {e.timeframe}
                 </p>
                 <div className="mt-4 flex items-stretch divide-x divide-white/[0.05]">
-                  <Evidence label="Win rate" value={`${e.original_metrics?.win_rate ?? "–"}%`} sub={`${e.experimental_metrics?.win_rate ?? "–"}%`} />
-                  <Evidence label="Expectancy" value={`${e.original_metrics?.expectancy ?? "–"}R`} sub={`${e.experimental_metrics?.expectancy ?? "–"}R`} />
-                  <Evidence label="Profit factor" value={e.original_metrics?.profit_factor ?? "–"} sub={e.experimental_metrics?.profit_factor ?? "–"} />
-                  <Evidence label="Trades" value={e.original_metrics?.trades ?? "–"} sub={e.experimental_metrics?.trades ?? "–"} />
+                  <Evidence label="Win rate" value={`${e.original_metrics?.win_rate ?? "-"}%`} sub={`${e.experimental_metrics?.win_rate ?? "-"}%`} />
+                  <Evidence label="Expectancy" value={`${e.original_metrics?.expectancy ?? "-"}R`} sub={`${e.experimental_metrics?.expectancy ?? "-"}R`} />
+                  <Evidence label="Profit factor" value={e.original_metrics?.profit_factor ?? "-"} sub={e.experimental_metrics?.profit_factor ?? "-"} />
+                  <Evidence label="Trades" value={e.original_metrics?.trades ?? "-"} sub={e.experimental_metrics?.trades ?? "-"} />
                 </div>
                 <p className="px-6 pb-4 pt-4 text-[11.5px] leading-relaxed text-txt-low">{e.conclusion}</p>
-                <div className="px-6 pb-5 text-[9.5px] text-txt-faint">Same dataset for both versions · {fmtDateTime(e.createdAt)}</div>
+                <div className="px-6 pb-5 text-[9.5px] text-txt-faint">Same dataset for both versions - {fmtDateTime(e.createdAt)}</div>
               </Glass>
             ))
           )}
@@ -295,8 +295,8 @@ export function LearningLabScreen() {
       {tab === "VERSIONS" && (
         <div className="mt-5 space-y-8">
           {[
-            { title: "Strategy 1 · Zero Lag Trend", data: versions1.data?.versions },
-            { title: "Strategy 2 · 9/21 EMA Smart TP/SL", data: versions2.data?.versions },
+            { title: "Strategy 1 - Zero Lag Trend", data: versions1.data?.versions },
+            { title: "Strategy 2 - 9/21 EMA Smart TP/SL", data: versions2.data?.versions },
           ].map((group) => (
             <div key={group.title}>
               <Eyebrow className="mb-2">{group.title}</Eyebrow>

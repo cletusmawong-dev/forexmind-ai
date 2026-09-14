@@ -89,5 +89,5 @@ def handle_webhook(payload: dict) -> dict:
         u = store.list("users", filters={"telegram_chat_id": chat_id}, limit=1)
         reply("✅ Linked to ForexMind AI." if u else "Not linked yet. Send:  /start your-account-email")
     else:
-        reply("ForexMind AI bot 🤖\n/start <email> — link your account\n/status — check link")
+        reply("ForexMind AI bot 🤖\n/start <email> - link your account\n/status - check link")
     return {"ok": True}
