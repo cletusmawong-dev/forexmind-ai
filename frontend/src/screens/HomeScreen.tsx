@@ -5,6 +5,7 @@ import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
 import type { ActivityItem, AgentStatus, MarketCard, Signal } from "../lib/types";
 import { AnimatedNumber, DemoTag, Divider, Glass, Logo, ProgressBar, SectionHeader, Spinner, StatusDot, WaveGraphic, HeroArt, ConnectionState } from "../components/ui";
+import heroBull from "../assets/hero-bull.webp";
 import { fmtPct, fmtPrice, fmtTime, greeting, shortAgo } from "../lib/format";
 import { SignalRow } from "../components/SignalRow";
 import { AgentPulse } from "../components/AgentPulse";
@@ -80,13 +81,26 @@ export function HomeScreen() {
                 <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-[var(--bg-primary)] bg-[var(--accent-blue)]" style={{ boxShadow: "0 0 10px rgba(77,124,254,0.9)" }} />
               )}
             </Link>
+            <div className="flex items-center gap-2">
+              <div className="hidden min-[380px]:block text-right leading-tight">
+                <div className="text-[9.5px] text-[var(--text-muted)]">Welcome Back</div>
+                <div className="flex items-center justify-end gap-1 text-[11.5px] font-bold text-txt-hi">
+                  Trader <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-green)] anim-pulse" style={{ boxShadow: "0 0 8px rgba(47,217,138,0.9)" }} />
+                </div>
+              </div>
+              <div className="flex h-9 w-9 items-center justify-center rounded-full border border-[rgba(94,160,255,0.45)] text-[12px] font-bold text-[#cfe4ff]"
+                   style={{ background: "linear-gradient(145deg, rgba(37,99,235,0.5), rgba(14,42,104,0.7))", boxShadow: "0 0 16px rgba(59,130,246,0.35)" }}
+                   aria-hidden="true">T</div>
+            </div>
           </div>
         </header>
 
         {/* ---- hero ---- */}
         <Glass className="relative overflow-hidden" pad={false}>
-          <HeroArt className="right-0 top-0 h-full w-[64%] opacity-90" />
-          <WaveGraphic className="right-0 top-0 h-full w-[52%] opacity-60" />
+          <img src={heroBull} alt="" aria-hidden="true"
+               className="pointer-events-none absolute right-0 top-0 h-full w-[74%] object-cover object-right opacity-80"
+               style={{ mixBlendMode: "screen", maskImage: "linear-gradient(to right, transparent 8%, black 52%)", WebkitMaskImage: "linear-gradient(to right, transparent 8%, black 52%)" }} />
+          <HeroArt className="right-0 top-0 h-full w-[46%] opacity-60" />
           <div className="relative p-6">
             <p className="text-[13px] font-medium text-[var(--text-secondary)]">{greeting()}</p>
             <p className="mt-0.5 text-[19px] font-bold tracking-tight">
