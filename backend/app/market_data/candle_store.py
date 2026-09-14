@@ -34,6 +34,22 @@ _hydrated: set = set()
 _persist_errors = 0
 
 
+def _encode(rows: List[List[float]]) -> List[str]:
+    """Firestore forbids nested arrays — serialize each row as "ts,o,h,l,c"."""
+    return [",".join(str(x) for x in r) for r in rows]
+
+
+def _decode(items: Optional[List[str]]) -> List[List[float]]:
+    out: List[List[float]] = []
+    for it in items or []:
+        try:
+            p = it.split(",")
+            out.append([int(float(p[0]))] + [float(x) for x in p[1:]])
+        except Exception:
+            continue
+    return out
+
+
 def _rows_from_df(df: pd.DataFrame) -> List[List[float]]:
     """Provider df (DatetimeIndex, open/high/low/close) -> compact rows."""
     rows: List[List[float]] = []
@@ -57,11 +73,10 @@ def _hydrate(market: str) -> None:
             return
     try:
         doc = get_store().get(COLL, market)
-        rows = (doc or {}).get("rows") or []
-        if isinstance(rows, list) and rows:
-            clean = [r for r in rows if isinstance(r, list) and len(r) == 5]
+        rows = _decode((doc or {}).get("rows"))
+        if rows:
             with _lock:
-                _mem[market] = sorted(clean, key=lambda r: r[0])[-KEEP:]
+                _mem[market] = sorted(rows, key=lambda r: r[0])[-KEEP:]
     except Exception:
         pass
 
@@ -72,7 +87,7 @@ def _persist(market: str) -> None:
         store = get_store()
         with _lock:
             rows = list(_mem.get(market) or [])
-        doc = {"tf": TF, "rows": rows, "count": len(rows),
+        doc = {"tf": TF, "rows": _encode(rows), "count": len(rows),
                "lastTs": rows[-1][0] if rows else 0}
         if store.get(COLL, market):
             store.update(COLL, market, doc)

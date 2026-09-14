@@ -54,3 +54,28 @@ def test_stats_shape():
     assert st["total"] == 2 and st["markets"]["GBPUSD"]["count"] == 2
     assert st["markets"]["EURUSD"]["count"] == 0
     assert st["tf"] == "15M"
+
+
+class FirestoreLikeStore(LocalStore):
+    """Mimics Firestore's hard rule: nested arrays are rejected."""
+    def create(self, coll, doc, doc_id=None):
+        self._reject_nested(doc); return super().create(coll, doc, doc_id)
+    def update(self, coll, doc_id, patch):
+        self._reject_nested(patch); return super().update(coll, doc_id, patch)
+    @staticmethod
+    def _reject_nested(doc):
+        for v in (doc or {}).values():
+            if isinstance(v, list) and any(isinstance(x, (list, dict)) for x in v):
+                raise ValueError("Nested arrays are not allowed")
+
+
+def test_persist_roundtrip_flat_format(tmp_path, monkeypatch):
+    candle_store._mem.clear(); candle_store._hydrated.clear()
+    tmp = os.path.join(tempfile.mkdtemp(), "db.json")
+    fake = FirestoreLikeStore(path=tmp)
+    monkeypatch.setattr(candle_store, "get_store", lambda: fake)
+    t = 1700000000 - (1700000000 % 900)
+    assert candle_store.record("USDJPY", _df([t, t + 900], base=150.0)) == 2
+    candle_store._mem.clear(); candle_store._hydrated.clear()   # simulate restart
+    h = candle_store.history("USDJPY", limit=10)
+    assert len(h) == 2 and h[0]["ts"] == t and h[-1]["close"] == 150.0005
