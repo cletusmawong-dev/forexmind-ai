@@ -1,7 +1,9 @@
 """Notifications, settings/goals, system info routes (SPEC §14, §30, §35-§37, §45)."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query
+from typing import Optional
+
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 
 from ..agent import core as agent_core
 from ..agent.ai_provider import ai_status
@@ -77,7 +79,6 @@ def candles_history(market: str, user_id: str = Depends(get_user_id),
     from ..market_data import candle_store
     m = market.upper()
     if m not in candle_store.MARKETS:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail=f"Unknown market {m}")
     return {"market": m, "tf": candle_store.TF,
             "candles": candle_store.history(m, limit=limit)}
@@ -88,6 +89,64 @@ def execution_status(user_id: str = Depends(get_user_id)):
     """Honest MT5 execution status (bridge, account, kill switch, counters)."""
     from ..execution.mt5 import status
     return status(user_id)
+
+
+@router.post("/execution/mode")
+def execution_mode(body: dict, user_id: str = Depends(get_user_id)):
+    """Choose how orders are placed: off | manual (your MT5 PC) | vps bridge."""
+    from ..execution.mt5 import set_mode, user_mode
+    try:
+        set_mode(user_id, str(body.get("mode", "off")))
+    except PermissionError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return {"mode": user_mode(user_id)}
+
+
+def _connector_user(x_pairing: Optional[str] = None) -> str:
+    from ..execution.mt5 import user_for_pairing
+    uid = user_for_pairing(x_pairing or "")
+    if not uid:
+        raise HTTPException(status_code=401, detail="unknown pairing code")
+    return uid
+
+
+@router.post("/execution/connector/hello")
+def connector_hello(body: dict, x_pairing: Optional[str] = Header(None)):
+    """Connector announces itself (PC on, MT5 running)."""
+    from ..execution.mt5 import _touch_connector
+    uid = _connector_user(x_pairing)
+    _touch_connector(uid, machine=body.get("machine"), account=body.get("account"))
+    return {"ok": True, "poll_seconds": 20}
+
+
+@router.get("/execution/connector/pull")
+def connector_pull(x_pairing: Optional[str] = Header(None)):
+    """Connector heartbeat + pick up queued orders."""
+    from ..execution.mt5 import _touch_connector, pull_commands
+    uid = _connector_user(x_pairing)
+    _touch_connector(uid)
+    return {"commands": pull_commands(uid)}
+
+
+@router.post("/execution/connector/ack")
+def connector_ack(body: dict, x_pairing: Optional[str] = Header(None)):
+    """Connector reports an order result."""
+    from ..execution.mt5 import ack_command
+    uid = _connector_user(x_pairing)
+    cmd = ack_command(uid, str(body.get("command_id") or ""), bool(body.get("ok")), body)
+    if cmd is None:
+        raise HTTPException(status_code=404, detail="unknown command")
+    return {"ok": True}
+
+
+@router.post("/execution/connector/deals")
+def connector_deals(body: dict, x_pairing: Optional[str] = Header(None)):
+    """Connector pushes fresh MT5 deal history for real W/L confirmation."""
+    from ..execution.mt5 import connector_push_deals
+    uid = _connector_user(x_pairing)
+    return {"confirmed": connector_push_deals(uid, body.get("deals") or [])}
 
 
 @router.post("/execution/toggle")

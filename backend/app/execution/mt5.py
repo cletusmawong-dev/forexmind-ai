@@ -1,11 +1,20 @@
-"""Bridge client + execution policy + real deal sync.
+"""Execution routing: off | manual (user's PC connector) | vps bridge.
 
-All requests carry X-Bridge-Token. Nothing here can ever block or break
-signal generation: every entrypoint fails soft with an honest activity log.
+Two execution transports, one policy:
+  * vps    - cloud calls the user's Windows-VPS bridge over HTTP (MT5_BRIDGE_URL).
+  * manual - the user runs the ForexMind connector on ANY Windows PC where the
+             MT5 terminal is open. The connector DIALS OUT to the cloud
+             (no router ports needed), picks up queued orders, executes them
+             through MT5 and pushes fills + deal history back. A pairing code
+             (Settings) binds the connector to the account.
+
+Shared safety rails: kill switch, daily cap, risk cap, TP level. Every
+failure degrades to "signal only" with an honest activity log.
 """
 from __future__ import annotations
 
 import math
+import secrets
 import threading
 import time
 from datetime import datetime, timezone
@@ -16,12 +25,14 @@ import requests
 from ..config import settings
 from ..db.store import get_store
 
-MAGIC = 20260914   # identifies ForexMind trades on the MT5 account
+MAGIC = 20260914          # identifies ForexMind trades on the MT5 account
+CONNECTOR_TIMEOUT_S = 90  # connector considered offline after this many seconds
+COMMAND_TTL_S = 900       # queued manual orders expire after 15 min offline
 
-# $ value per pip per 1.00 lot (mirrors frontend/src/lib/position.ts)
 PIP_SIZE = {"EURUSD": 0.0001, "GBPUSD": 0.0001, "USDJPY": 0.01, "XAUUSD": 0.1, "NAS100": 1.0}
-PIP_VALUE = {"EURUSD": 10.0, "GBPUSD": 10.0, "XAUUSD": 10.0}   # USD per pip per lot
+PIP_VALUE = {"EURUSD": 10.0, "GBPUSD": 10.0, "XAUUSD": 10.0}   # USD per pip per 1.0 lot
 LOT_STEP = 0.01
+MODES = ("off", "manual", "vps")
 
 _lock = threading.Lock()
 
@@ -35,48 +46,115 @@ def calc_lot(market: str, entry: float, sl: float, balance: float, risk_pct: flo
         return LOT_STEP
     pip_value = PIP_VALUE.get(market)
     if pip_value is None and market == "USDJPY":
-        pip_value = 1000.0 / entry          # JPY quote conversion
+        pip_value = 1000.0 / entry
     if not pip_value:
         return LOT_STEP
     pips = abs(entry - sl) / pip
     if pips <= 0:
         return LOT_STEP
-    risk_amount = balance * risk_pct / 100.0
-    raw = risk_amount / (pips * pip_value)
+    raw = (balance * risk_pct / 100.0) / (pips * pip_value)
     # epsilon guards the float edge (0.049999... must floor to 0.05, not 0.04)
     return max(LOT_STEP, math.floor(raw * 100 + 1e-9) / 100)
 
 
 # ---------------------------------------------------------------------------
-# kill switch + counters (stored on the user's agent_goals doc)
+# goals doc + kill switch + mode
 # ---------------------------------------------------------------------------
 def _goals_doc(user_id: str) -> Optional[dict]:
     docs = get_store().list("agent_goals", filters={"userId": user_id}, limit=1)
     return docs[0] if docs else None
 
 
-def execution_enabled(user_id: str) -> bool:
-    doc = _goals_doc(user_id)
-    return bool((doc or {}).get("execution_enabled", True))
-
-
-def set_execution_enabled(user_id: str, enabled: bool) -> None:
+def _goals_update(user_id: str, patch: dict) -> None:
     store = get_store()
     doc = _goals_doc(user_id)
     if doc:
-        store.update("agent_goals", doc["id"], {"execution_enabled": enabled})
+        store.update("agent_goals", doc["id"], patch)
     else:
-        store.create("agent_goals", {"userId": user_id, "execution_enabled": enabled})
+        store.create("agent_goals", {"userId": user_id, **patch})
 
 
-def _executed_today(user_id: str) -> int:
-    day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    docs = get_store().list("signals", filters={"userId": user_id, "day": day}, limit=200)
-    return sum(1 for d in docs if d.get("mt5_ticket"))
+def execution_enabled(user_id: str) -> bool:
+    return bool((_goals_doc(user_id) or {}).get("execution_enabled", True))
+
+
+def set_execution_enabled(user_id: str, enabled: bool) -> None:
+    _goals_update(user_id, {"execution_enabled": enabled})
+
+
+def user_mode(user_id: str) -> str:
+    mode = (_goals_doc(user_id) or {}).get("execution_mode")
+    if mode == "mt5_bridge":        # legacy env name
+        return "vps"
+    if mode in MODES:
+        return mode
+    return "vps" if settings.execution_mode == "mt5_bridge" else "off"   # env default
+
+
+def set_mode(user_id: str, mode: str) -> str:
+    if mode not in MODES:
+        raise ValueError(f"unknown mode {mode}")
+    if mode == "vps" and not (settings.execution_mode == "mt5_bridge" and settings.bridge_url):
+        raise PermissionError("VPS bridge not configured yet - finish the VPS setup first")
+    _goals_update(user_id, {"execution_mode": mode})
+    return mode
 
 
 # ---------------------------------------------------------------------------
-# bridge HTTP
+# pairing (manual connector)
+# ---------------------------------------------------------------------------
+def ensure_pairing_code(user_id: str) -> str:
+    doc = _goals_doc(user_id) or {}
+    code = doc.get("mt5_pairing_code")
+    if code:
+        return code
+    code = f"FXM-{secrets.token_hex(2).upper()}-{secrets.token_hex(2).upper()}"
+    _goals_update(user_id, {"mt5_pairing_code": code})
+    return code
+
+
+def user_for_pairing(code: str) -> Optional[str]:
+    if not code:
+        return None
+    docs = get_store().list("agent_goals", filters={"mt5_pairing_code": code}, limit=1)
+    return docs[0].get("userId") if docs else None
+
+
+def _connector_seen(user_id: str) -> Optional[float]:
+    return (_goals_doc(user_id) or {}).get("mt5_connector_seen")
+
+
+def connector_online(user_id: str) -> bool:
+    seen = _connector_seen(user_id)
+    return bool(seen and (time.time() - seen) < CONNECTOR_TIMEOUT_S)
+
+
+def _touch_connector(user_id: str, machine: Optional[str] = None,
+                     account: Optional[dict] = None) -> None:
+    patch: Dict[str, Any] = {"mt5_connector_seen": time.time()}
+    if machine:
+        patch["mt5_connector_machine"] = machine[:80]
+    if account:
+        patch["mt5_account"] = account
+    _goals_update(user_id, patch)
+
+
+# ---------------------------------------------------------------------------
+# caps
+# ---------------------------------------------------------------------------
+def _executed_today(user_id: str) -> int:
+    day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    docs = get_store().list("signals", filters={"userId": user_id, "day": day}, limit=200)
+    return sum(1 for d in docs if d.get("mt5_ticket") or d.get("mt5_command_id"))
+
+
+def _log(msg: str, market: Optional[str] = None, kind: str = "EXEC") -> None:
+    get_store().create("agent_activity", {"userId": None, "kind": kind,
+                                          "message": msg, "market": market})
+
+
+# ---------------------------------------------------------------------------
+# bridge transport (vps mode)
 # ---------------------------------------------------------------------------
 def _headers() -> Dict[str, str]:
     return {"X-Bridge-Token": settings.bridge_token, "Content-Type": "application/json"}
@@ -107,88 +185,162 @@ def bridge_post(path: str, payload: dict, timeout: int = 15) -> Optional[dict]:
 
 
 # ---------------------------------------------------------------------------
-# execution
+# execution entry point (called by the signal engine)
 # ---------------------------------------------------------------------------
 def execute_signal(signal: dict, user_id: str) -> None:
-    """Fire a market order at the bridge the moment a signal qualifies.
+    """Route a qualifying signal to the active execution transport.
 
-    Called from the signal engine right after the NEW_SIGNAL notification.
     Never raises; writes execution_status back onto the signal doc."""
-    if settings.execution_mode != "mt5_bridge" or not settings.bridge_url:
-        return   # execution off - signals stay advisory (honest default)
+    mode = user_mode(user_id)
+    if mode == "off":
+        return   # advisory signals - honest default
 
     store = get_store()
-    log = lambda msg, kind="EXEC": store.create("agent_activity", {
-        "userId": None, "kind": kind, "message": msg, "market": signal.get("market")})
+    market = signal.get("market")
 
     if not execution_enabled(user_id):
-        log("Execution skipped - kill switch is ON (Settings). Signal is advisory only.")
+        _log("Execution skipped - kill switch is ON (Settings). Signal is advisory only.", market)
         return
     if _executed_today(user_id) >= settings.execution_max_trades_per_day:
-        log(f"Execution skipped - daily cap reached ({settings.execution_max_trades_per_day}/day).")
+        _log(f"Execution skipped - daily cap reached ({settings.execution_max_trades_per_day}/day).", market)
         return
 
     try:
-        acct = bridge_get("/account")
-        if not acct or "balance" not in acct:
-            log("Execution skipped - MT5 bridge offline (signal NOT sent to broker).", kind="EXEC_WARN")
-            store.update("signals", signal["id"], {"execution_status": "SKIPPED_BRIDGE_OFFLINE"})
-            return
-        balance = float(acct["balance"]) or 0.0
-
         entry, sl = float(signal["entry"]), float(signal["sl"])
         risk_pct = min(float(((_goals_doc(user_id) or {}).get("risk_per_trade_pct", 1.0)) or 1.0),
                        settings.execution_risk_pct_cap)
-        lots = calc_lot(signal["market"], entry, sl, balance, risk_pct)
-
         tp = signal.get(f"tp{max(1, min(3, settings.execution_tp_level))}") or signal.get("tp1")
-        res = bridge_post("/execute", {
-            "signal_id": signal["signal_id"], "symbol": signal["market"],
-            "direction": signal["direction"], "lots": lots,
-            "sl": sl, "tp": tp, "magic": MAGIC,
-        })
-        if res and res.get("ok"):
-            store.update("signals", signal["id"], {
-                "execution_status": "SUBMITTED", "mt5_ticket": res.get("ticket"),
-                "mt5_position_id": res.get("position_id"), "mt5_volume": res.get("volume"),
-                "mt5_open_price": res.get("price"), "mt5_tp_used": tp,
-                "mt5_executed_at": datetime.now(timezone.utc).isoformat(),
-            })
-            log(f"MT5 EXECUTED {signal['market']} {signal['direction']} "
-                f"{res.get('volume')} lots @ {res.get('price')} (ticket {res.get('ticket')}).")
-        else:
-            err = (res or {}).get("error") or (res or {}).get("detail") or f"HTTP {(res or {}).get('http_status')}"
-            store.update("signals", signal["id"], {"execution_status": "FAILED", "mt5_error": str(err)[:200]})
-            log(f"Execution FAILED on bridge - {err}", kind="EXEC_WARN")
+
+        if mode == "vps":
+            acct = bridge_get("/account")
+            if not acct or "balance" not in acct:
+                store.update("signals", signal["id"], {"execution_status": "SKIPPED_BRIDGE_OFFLINE"})
+                _log("Execution skipped - VPS bridge offline (signal NOT sent to broker).",
+                     market, kind="EXEC_WARN")
+                return
+            lots = calc_lot(market, entry, sl, float(acct["balance"]) or 0.0, risk_pct)
+            res = bridge_post("/execute", {
+                "signal_id": signal["signal_id"], "symbol": market,
+                "direction": signal["direction"], "lots": lots, "sl": sl, "tp": tp,
+                "magic": MAGIC})
+            if res and res.get("ok"):
+                _apply_fill(store, signal, res, lots)
+                _log(f"MT5 EXECUTED {market} {signal['direction']} {res.get('volume')} lots "
+                     f"@ {res.get('price')} (ticket {res.get('ticket')}).", market)
+            else:
+                err = (res or {}).get("error") or (res or {}).get("detail") or \
+                      f"HTTP {(res or {}).get('http_status')}"
+                store.update("signals", signal["id"],
+                             {"execution_status": "FAILED", "mt5_error": str(err)[:200]})
+                _log(f"Execution FAILED on bridge - {err}", market, kind="EXEC_WARN")
+
+        else:   # manual: queue for the PC connector
+            if not connector_online(user_id) and not _connector_seen(user_id):
+                store.update("signals", signal["id"], {"execution_status": "SKIPPED_PC_NEVER_CONNECTED"})
+                _log("Execution skipped - no MT5 PC has ever connected (pair it in Settings).",
+                     market, kind="EXEC_WARN")
+                return
+            bal = (float(((_goals_doc(user_id) or {}).get("mt5_account") or {}).get("balance") or 0)
+                   or float(((_goals_doc(user_id) or {}).get("account_balance")) or 0))
+            if bal <= 0:
+                store.update("signals", signal["id"], {"execution_status": "SKIPPED_NO_BALANCE"})
+                _log("Execution skipped - no MT5 account balance known yet (connect the PC once).",
+                     market, kind="EXEC_WARN")
+                return
+            lots = calc_lot(market, entry, sl, bal, risk_pct)
+            cmd = store.create("exec_commands", {
+                "userId": user_id, "signal_doc_id": signal["id"],
+                "signal_id": signal["signal_id"], "status": "PENDING",
+                "payload": {"signal_id": signal["signal_id"], "symbol": market,
+                            "direction": signal["direction"], "lots": lots,
+                            "sl": sl, "tp": tp, "magic": MAGIC},
+                "createdAt": datetime.now(timezone.utc).isoformat()})
+            store.update("signals", signal["id"],
+                         {"execution_status": "QUEUED_PC", "mt5_command_id": cmd["id"],
+                          "mt5_volume": lots})
+            _log(f"Order queued for your MT5 PC ({market} {signal['direction']} {lots} lots).",
+                 market)
     except Exception as exc:
         try:
             store.update("signals", signal["id"], {"execution_status": "FAILED",
-                                                   "mt5_error": f"{type(exc).__name__}"[:200]})
+                                                   "mt5_error": type(exc).__name__[:200]})
         except Exception:
             pass
-        log(f"Execution error - {type(exc).__name__}", kind="EXEC_WARN")
+        _log(f"Execution error - {type(exc).__name__}", market, kind="EXEC_WARN")
+
+
+def _apply_fill(store, signal: dict, res: dict, lots: float) -> None:
+    store.update("signals", signal["id"], {
+        "execution_status": "SUBMITTED", "mt5_ticket": res.get("ticket"),
+        "mt5_position_id": res.get("position_id"), "mt5_volume": res.get("volume") or lots,
+        "mt5_open_price": res.get("price"), "mt5_executed_at": datetime.now(timezone.utc).isoformat()})
 
 
 # ---------------------------------------------------------------------------
-# real W/L sync from broker deal history
+# connector command lifecycle (manual mode)
 # ---------------------------------------------------------------------------
-def sync_deals(user_id: str) -> int:
-    """Pull MT5 deal history since the last sync; confirm closed trades.
-
-    Returns how many signals were updated with broker-confirmed results."""
-    if settings.execution_mode != "mt5_bridge" or not settings.bridge_url:
-        return 0
+def pull_commands(user_id: str) -> List[dict]:
+    """Hand the connector its pending orders (oldest first) and mark them SENT."""
     store = get_store()
-    doc = _goals_doc(user_id) or {}
-    since = int(doc.get("mt5_deal_sync_ts") or (time.time() - 7 * 86400))
-    data = bridge_get(f"/deals?since={since}", timeout=20)
-    if not data:
-        return 0
-    deals: List[dict] = data.get("deals") or []
+    docs = store.list("exec_commands", filters={"userId": user_id, "status": "PENDING"}, limit=5)
+    now = datetime.now(timezone.utc).isoformat()
+    out = []
+    for c in docs:
+        store.update("exec_commands", c["id"], {"status": "SENT", "sentAt": now})
+        out.append({"command_id": c["id"], **(c.get("payload") or {})})
+    return out
 
-    # group by position: entry deal gives the comment (signal_id), exits give P/L
+
+def ack_command(user_id: str, command_id: str, ok: bool, res: dict) -> Optional[dict]:
+    store = get_store()
+    cmd = store.get("exec_commands", command_id)
+    if not cmd or cmd.get("userId") != user_id:
+        return None
+    store.update("exec_commands", command_id, {
+        "status": "DONE" if ok else "FAILED",
+        "result": {k: res.get(k) for k in ("ticket", "position_id", "volume", "price", "error")},
+        "ackedAt": datetime.now(timezone.utc).isoformat()})
+    sig = store.get("signals", cmd.get("signal_doc_id") or "")
+    if sig and sig.get("userId") == user_id:
+        if ok:
+            _apply_fill(store, sig, res, (cmd.get("payload") or {}).get("lots", 0))
+            _log(f"MT5 PC EXECUTED {sig.get('market')} {sig.get('direction')} "
+                 f"{res.get('volume')} lots @ {res.get('price')} (ticket {res.get('ticket')}).",
+                 sig.get("market"))
+        else:
+            store.update("signals", sig["id"], {"execution_status": "FAILED",
+                                                "mt5_error": str(res.get("error"))[:200]})
+            _log(f"MT5 PC order FAILED - {res.get('error')}", sig.get("market"), kind="EXEC_WARN")
+    return cmd
+
+
+def expire_stale_commands() -> int:
+    """Honest expiry: orders queued while the PC was away are marked expired."""
+    store = get_store()
+    cutoff = (datetime.now(timezone.utc).timestamp() - COMMAND_TTL_S) * 1
+    n = 0
+    for c in store.list("exec_commands", filters={"status": "PENDING"}, limit=50):
+        try:
+            ts = datetime.fromisoformat(str(c.get("createdAt", "")).replace("Z", "+00:00")).timestamp()
+        except Exception:
+            continue
+        if ts < cutoff:
+            store.update("exec_commands", c["id"], {"status": "EXPIRED_OFFLINE"})
+            sig = store.get("signals", c.get("signal_doc_id") or "")
+            if sig and sig.get("userId") == c.get("userId"):
+                store.update("signals", sig["id"], {"execution_status": "EXPIRED_PC_OFFLINE"})
+            n += 1
+    return n
+
+
+# ---------------------------------------------------------------------------
+# real W/L confirmation from MT5 deal history (shared by both transports)
+# ---------------------------------------------------------------------------
+def apply_deals(user_id: str, deals: List[dict]) -> int:
+    """Confirm closed trades from broker deals (entry deal comment = signal_id)."""
+    store = get_store()
     positions: Dict[Any, Dict[str, Any]] = {}
-    for d in deals:
+    for d in deals or []:
         if int(d.get("magic") or 0) != MAGIC:
             continue
         pos = positions.setdefault(d.get("position_id"), {"entry": None, "exits": []})
@@ -198,7 +350,6 @@ def sync_deals(user_id: str) -> int:
             pos["exits"].append(d)
 
     updated = 0
-    now_ts = int(time.time())
     for pos_id, p in positions.items():
         if not p["exits"] or not p["entry"]:
             continue
@@ -212,45 +363,67 @@ def sync_deals(user_id: str) -> int:
         pl = round(sum(float(e.get("profit") or 0) + float(e.get("commission") or 0)
                        + float(e.get("swap") or 0) for e in [p["entry"]] + p["exits"]), 2)
         vol = sum(float(e.get("volume") or 0) for e in p["exits"])
-        close_price = p["exits"][-1].get("price")
         store.update("signals", docs[0]["id"], {
             "completed": True, "status": "CLOSED_MT5",
             "outcome": "WIN" if pl > 0 else ("LOSS" if pl < 0 else "BREAK_EVEN"),
-            "mt5_confirmed": True, "mt5_pl": pl, "mt5_close_price": close_price,
-            "mt5_closed_at": datetime.now(timezone.utc).isoformat(),
-        })
+            "mt5_confirmed": True, "mt5_pl": pl,
+            "mt5_close_price": p["exits"][-1].get("price"),
+            "mt5_closed_at": datetime.now(timezone.utc).isoformat()})
         updated += 1
         store.create("notifications", {
             "userId": user_id, "type": "TRADE_COMPLETED",
             "title": f"{'WIN' if pl > 0 else 'LOSS'} - {sig_id} (MT5)",
             "body": f"Broker-confirmed result: {pl:+.2f} USD on {vol} lots.",
             "signal_id": docs[0]["id"], "meta": {"mt5_pl": pl, "position_id": pos_id},
-            "read": False,
-        })
-
-    gdoc = _goals_doc(user_id)
-    if gdoc:
-        store.update("agent_goals", gdoc["id"], {"mt5_deal_sync_ts": now_ts})
+            "read": False})
     return updated
 
 
+def sync_deals(user_id: str) -> int:
+    """VPS mode: pull deals since the last sync from the bridge."""
+    if user_mode(user_id) != "vps" or not settings.bridge_url:
+        return 0
+    since = int((_goals_doc(user_id) or {}).get("mt5_deal_sync_ts") or (time.time() - 7 * 86400))
+    data = bridge_get(f"/deals?since={since}", timeout=20)
+    if not data:
+        return 0
+    n = apply_deals(user_id, data.get("deals") or [])
+    _goals_update(user_id, {"mt5_deal_sync_ts": int(time.time())})
+    return n
+
+
+def connector_push_deals(user_id: str, deals: List[dict]) -> int:
+    """Manual mode: the connector pushes fresh deals."""
+    n = apply_deals(user_id, deals or [])
+    _goals_update(user_id, {"mt5_deal_sync_ts": int(time.time())})
+    return n
+
+
+# ---------------------------------------------------------------------------
+# honest status for Settings
+# ---------------------------------------------------------------------------
 def status(user_id: str) -> dict:
-    """Honest execution status for Settings."""
     goals = _goals_doc(user_id) or {}
-    mode_on = settings.execution_mode == "mt5_bridge" and bool(settings.bridge_url)
-    acct = bridge_get("/account") if mode_on else None
+    mode = user_mode(user_id)
+    acct = goals.get("mt5_account")
+    if mode == "vps":
+        acct = bridge_get("/account") or acct
     return {
-        "mode": settings.execution_mode,
+        "mode": mode,
         "enabled": execution_enabled(user_id),
-        "bridge_configured": mode_on,
-        "bridge_online": bool(acct),
-        "account": {k: acct.get(k) for k in ("login", "server", "currency", "balance",
-                                             "equity", "leverage")} if acct else None,
-        "trades_today": _executed_today(user_id) if mode_on else 0,
+        "pairing_code": ensure_pairing_code(user_id) if mode == "manual" else (goals.get("mt5_pairing_code")),
+        "connector_online": connector_online(user_id),
+        "connector_last_seen": goals.get("mt5_connector_seen"),
+        "connector_machine": goals.get("mt5_connector_machine"),
+        "account": acct,
+        "trades_today": _executed_today(user_id) if mode != "off" else 0,
         "max_per_day": settings.execution_max_trades_per_day,
         "risk_cap_pct": settings.execution_risk_pct_cap,
         "tp_level": settings.execution_tp_level,
         "last_deal_sync": goals.get("mt5_deal_sync_ts"),
-        "note": "Demo-account execution via your VPS bridge. Real fills, real W/L."
-                if mode_on else "Execution off - signals are advisory only.",
+        "note": {
+            "off": "Execution off - signals are advisory only.",
+            "manual": "Your MT5 PC executes queued orders via the ForexMind connector.",
+            "vps": "Demo-account execution via your VPS bridge. Real fills, real W/L.",
+        }[mode],
     }

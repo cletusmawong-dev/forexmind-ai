@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Sparkles, Send } from "lucide-react";
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
-import { DemoTag, Divider, Eyebrow, Glass, GlowDot, Pill, Spinner } from "../components/ui";
+import { DemoTag, Divider, Eyebrow, Glass, GlowDot, Pill, Segmented, Spinner } from "../components/ui";
 import { Logo } from "../components/Logo";
 
 export function SettingsScreen() {
@@ -232,73 +232,137 @@ function StoredHistoryRow() {
   );
 }
 
-/** MT5 auto-execution status + kill switch (VPS bridge). */
+/** MT5 execution: mode chooser (off / manual PC / vps later) + kill switch. */
 function ExecutionCard() {
-  const st = usePolling<any>(() => api.get("/api/execution/status"), 30000);
+  const st = usePolling<any>(() => api.get("/api/execution/status"), 20000);
   const [busy, setBusy] = useState(false);
-  const [toast, setToastLocal] = useState("");
+  const [msg, setMsg] = useState("");
+  const [copied, setCopied] = useState(false);
   const s = st.data;
+  const mode = s?.mode ?? "off";
+
+  const setMode = async (m: string) => {
+    if (busy || !s || m === mode) return;
+    setBusy(true); setMsg("");
+    try {
+      await api.post("/api/execution/mode", { mode: m });
+      setMsg(m === "manual" ? "Manual mode on - pair your PC below." :
+             m === "off" ? "Execution off - signals are advisory only." : "VPS mode on.");
+      st.refresh?.();
+    } catch (e: any) {
+      setMsg(e?.response?.data?.detail || "Could not switch mode - try again.");
+    }
+    setBusy(false);
+  };
+
   const toggle = async () => {
     if (busy || !s) return;
     setBusy(true);
     try {
       await api.post("/api/execution/toggle", { enabled: !s.enabled });
-      setToastLocal(!s.enabled ? "Auto-execution ENABLED" : "Kill switch ON - no new trades");
       st.refresh?.();
     } catch { /* keep */ }
     setBusy(false);
-    setTimeout(() => setToastLocal(""), 4000);
   };
+
+  const code = s?.pairing_code || "";
+  const online = !!s?.connector_online;
+  const seen = s?.connector_last_seen ? new Date(s.connector_last_seen * 1000).toLocaleTimeString() : null;
+
   return (
     <>
       <Eyebrow className="mt-9">Order execution - MT5</Eyebrow>
       <Glass className="mt-2">
-        {!s || !s.bridge_configured ? (
-          <p className="text-[12px] leading-relaxed text-txt-mid">
-            Execution is <span className="font-semibold text-txt-hi">off</span> - signals are advisory only.
-            Connect your VPS bridge (MT5 demo) to let the agent place trades for you.
-          </p>
-        ) : (
-          <>
-            <div className="flex items-center justify-between">
+        <Segmented options={[{key:"off",label:"Off"},{key:"manual",label:"Manual PC"},{key:"vps",label:"VPS"}]} value={mode} onChange={setMode} />
+
+        {mode === "manual" && (
+          <div className="mt-4">
+            <div className={`flex items-center justify-between rounded-2xl border px-4 py-3 ${online ? "border-[rgba(47,217,138,0.3)] bg-[rgba(47,217,138,0.07)]" : "border-white/[0.07] bg-white/[0.02]"}`}>
               <div className="flex items-center gap-2">
-                <GlowDot tone={s.bridge_online ? "pos" : "warn"} size={7} pulse={s.bridge_online} />
-                <span className="text-[12.5px] font-semibold text-txt-hi">
-                  {s.bridge_online ? "Bridge online" : "Bridge offline"}
-                </span>
-                <span className="text-[11px] text-txt-faint">
-                  {s.account ? `#${s.account.login} - ${s.account.server}` : ""}
-                </span>
+                <GlowDot tone={online ? "pos" : "warn"} size={7} pulse={online} />
+                <div>
+                  <div className="text-[12.5px] font-semibold text-txt-hi">
+                    {online ? "PC connected" : seen ? "PC offline" : "Waiting for your PC"}
+                  </div>
+                  <div className="text-[10.5px] text-txt-faint">
+                    {s?.connector_machine || "Run the connector on the PC with MT5"}
+                    {seen ? ` - last seen ${seen}` : ""}
+                  </div>
+                </div>
               </div>
-              <Pill tone={s.enabled ? "green" : "red"}>{s.enabled ? "AUTO" : "KILL SWITCH"}</Pill>
-            </div>
-            {s.account && (
-              <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] py-2">
-                  <div className="text-[9px] uppercase tracking-wide text-txt-faint">Balance</div>
+              {s?.account && (
+                <div className="text-right">
                   <div className="num text-[13px] font-bold text-txt-hi">{s.account.balance}</div>
+                  <div className="text-[9px] text-txt-faint">{s.account.currency} balance</div>
                 </div>
-                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] py-2">
-                  <div className="text-[9px] uppercase tracking-wide text-txt-faint">Equity</div>
-                  <div className="num text-[13px] font-bold text-txt-hi">{s.account.equity}</div>
-                </div>
-                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] py-2">
-                  <div className="text-[9px] uppercase tracking-wide text-txt-faint">Today</div>
-                  <div className="num text-[13px] font-bold text-txt-hi">{s.trades_today}/{s.max_per_day}</div>
-                </div>
+              )}
+            </div>
+
+            <div className="mt-3 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
+              <div className="text-[10px] uppercase tracking-wide text-txt-faint">Pairing code</div>
+              <div className="mt-1 flex items-center justify-between">
+                <span className="num text-[18px] font-bold tracking-wider text-txt-hi">{code || "..."}</span>
+                <button className="tap rounded-full border border-white/[0.1] px-3 py-1.5 text-[11px] text-txt-mid"
+                  onClick={() => { try { navigator.clipboard.writeText(code); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* */ } }}>
+                  {copied ? "Copied" : "Copy"}
+                </button>
               </div>
-            )}
-            <p className="mt-3 text-[10.5px] leading-relaxed text-txt-faint">
-              Demo account first. Risk cap {s.risk_cap_pct}% per trade, max {s.max_per_day} trades/day.
-              Results are confirmed from real broker fills.
-            </p>
-            <button className="btn-ghost mt-3 w-full" disabled={busy} onClick={toggle}>
-              {s.enabled ? "STOP auto-trading (kill switch)" : "RESUME auto-trading"}
+              <ol className="mt-3 space-y-1.5 text-[11px] leading-relaxed text-txt-mid">
+                <li>1. On the PC: open MT5 and log in (demo account).</li>
+                <li>2. Download the ForexMind connector folder (mt5-connector) to that PC.</li>
+                <li>3. Run: <span className="num">pip install -r requirements.txt</span></li>
+                <li>4. Set <span className="num">PAIRING_CODE={code || "your code"}</span> and run <span className="num">python connector.py</span></li>
+              </ol>
+              <p className="mt-2 text-[10px] leading-relaxed text-txt-faint">
+                The connector dials out to the cloud - no router changes needed. Orders expire safely if the PC is off.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {mode === "vps" && s?.bridge_configured && (
+          <div className="mt-4 flex items-center justify-between rounded-2xl border border-white/[0.07] bg-white/[0.02] px-4 py-3">
+            <div className="flex items-center gap-2">
+              <GlowDot tone={s.bridge_online ? "pos" : "warn"} size={7} pulse={s.bridge_online} />
+              <span className="text-[12.5px] font-semibold text-txt-hi">{s.bridge_online ? "Bridge online" : "Bridge offline"}</span>
+            </div>
+            {s.account && <span className="num text-[13px] font-bold text-txt-hi">{s.account.balance} {s.account.currency}</span>}
+          </div>
+        )}
+
+        {mode === "off" && (
+          <p className="mt-4 text-[12px] leading-relaxed text-txt-mid">
+            Signals are advisory only - nothing is placed. Pick <span className="font-semibold text-txt-hi">Manual (this PC)</span> to let a running MT5 execute them for you, or <span className="font-semibold text-txt-hi">VPS bridge</span> after the VPS setup.
+          </p>
+        )}
+
+        {mode !== "off" && (
+          <>
+            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+              <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] py-2">
+                <div className="text-[9px] uppercase tracking-wide text-txt-faint">Today</div>
+                <div className="num text-[13px] font-bold text-txt-hi">{s?.trades_today ?? 0}/{s?.max_per_day ?? 6}</div>
+              </div>
+              <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] py-2">
+                <div className="text-[9px] uppercase tracking-wide text-txt-faint">Risk cap</div>
+                <div className="num text-[13px] font-bold text-txt-hi">{s?.risk_cap_pct ?? 1}%</div>
+              </div>
+              <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] py-2">
+                <div className="text-[9px] uppercase tracking-wide text-txt-faint">TP level</div>
+                <div className="num text-[13px] font-bold text-txt-hi">TP{s?.tp_level ?? 2}</div>
+              </div>
+            </div>
+            <button className={`mt-3 w-full ${s?.enabled ? "btn-ghost" : "btn-primary"}`} disabled={busy} onClick={toggle}>
+              {s?.enabled ? "STOP auto-trading (kill switch)" : "RESUME auto-trading"}
             </button>
+            <p className="mt-2 text-center text-[10px] text-txt-faint">
+              {s?.enabled ? "Kill switch stops new orders instantly - open MT5 positions stay managed by their SL/TP." : "Auto-trading is currently stopped."}
+            </p>
           </>
         )}
-        {toast && <p className="mt-2 text-[11px] font-semibold text-[var(--accent-green)]">{toast}</p>}
+        {msg && <p className="mt-2 text-center text-[11px] font-semibold text-[var(--accent-green)]">{msg}</p>}
       </Glass>
     </>
   );
 }
+
