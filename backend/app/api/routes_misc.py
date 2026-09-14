@@ -83,6 +83,22 @@ def candles_history(market: str, user_id: str = Depends(get_user_id),
             "candles": candle_store.history(m, limit=limit)}
 
 
+@router.get("/execution/status")
+def execution_status(user_id: str = Depends(get_user_id)):
+    """Honest MT5 execution status (bridge, account, kill switch, counters)."""
+    from ..execution.mt5 import status
+    return status(user_id)
+
+
+@router.post("/execution/toggle")
+def execution_toggle(body: dict, user_id: str = Depends(get_user_id)):
+    """Kill switch: enable/disable auto-execution for this account."""
+    from ..execution.mt5 import set_execution_enabled, execution_enabled
+    enabled = bool(body.get("enabled"))
+    set_execution_enabled(user_id, enabled)
+    return {"enabled": execution_enabled(user_id)}
+
+
 @router.get("/agent/brief")
 def morning_brief(user_id: str = Depends(get_user_id)):
     """Today's AI morning brief (built once, cached per day)."""

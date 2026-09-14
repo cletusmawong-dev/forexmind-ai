@@ -48,6 +48,16 @@ class Settings:
     # Single-owner failsafe: alerts use this chat when a user has no linked chat.
     telegram_default_chat_id: str = os.getenv("TELEGRAM_DEFAULT_CHAT_ID", "")
 
+    # --- MT5 execution (VPS bridge, demo account first) ----------------------
+    # "off" = signals advisory only; "mt5_bridge" = auto-execute qualifying
+    # signals through the user's Windows-VPS bridge next to the MT5 terminal.
+    execution_mode: str = os.getenv("EXECUTION_MODE", "off")
+    bridge_url: str = os.getenv("MT5_BRIDGE_URL", "")
+    bridge_token: str = os.getenv("MT5_BRIDGE_TOKEN", "")
+    execution_max_trades_per_day: int = int(os.getenv("EXECUTION_MAX_TRADES_PER_DAY", "6"))
+    execution_risk_pct_cap: float = float(os.getenv("EXECUTION_RISK_PCT_CAP", "1.0"))
+    execution_tp_level: int = int(os.getenv("EXECUTION_TP_LEVEL", "2"))   # take-profit level used on the order
+
     # --- Auth -------------------------------------------------------------------
     jwt_secret: str = os.getenv("FOREXMIND_JWT_SECRET", "dev-only-secret-change-me")
     token_ttl_hours: int = 24 * 30

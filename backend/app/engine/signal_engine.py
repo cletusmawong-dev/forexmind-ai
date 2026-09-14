@@ -169,6 +169,11 @@ class SignalEngine:
                   f"{cand.timeframe} approved for notification.",
                   kind="SIGNAL", market=cand.market)
         self._log(f"User notified - {signal_id}.", kind="NOTIFY", market=cand.market)
+        try:  # MT5 auto-execution (VPS bridge) - never blocks signal creation
+            from ..execution.mt5 import execute_signal
+            execute_signal(doc, user_id)
+        except Exception:
+            pass
         return store.get("signals", doc["id"])
 
     # ------------------------------------------------------------------

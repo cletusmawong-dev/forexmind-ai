@@ -44,7 +44,7 @@ export function calcLot(
   const riskUSD = (balance * riskPct) / 100;
   if (pips <= 0 || pipValue <= 0 || riskUSD <= 0) return fail;
   const rawLots = riskUSD / (pips * pipValue);
-  const lots = Math.max(0.01, Math.floor(rawLots * 100) / 100); // MT5 lot step 0.01, round DOWN
+  const lots = Math.max(0.01, Math.floor(rawLots * 100 + 1e-9) / 100); // MT5 lot step 0.01, round DOWN (epsilon: float-safe)
   return {
     ok: true,
     lots,

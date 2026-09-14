@@ -127,10 +127,11 @@ async def warm_cache():
 async def live_loop():
     """Real-market agent loop: track active signals every minute, scan on
     every closed 15M/1H candle boundary, run a learning pass every ~6h."""
-    global _scan_counter, _current_task
+    global _scan_counter, _current_task, last_deal_sync
     last_scan_15m = 0
     last_scan_1h = 0
     last_learning = 0.0
+    last_deal_sync = 0.0
     while True:
         try:
             await asyncio.sleep(60)
@@ -158,6 +159,16 @@ async def live_loop():
                 pass
             try:
                 await asyncio.to_thread(_brief_job)
+            except Exception:
+                pass
+
+            # MT5 deal sync every ~5 min: confirm closed trades from the broker
+            try:
+                if now - last_deal_sync > 300:
+                    last_deal_sync = now
+                    from .execution.mt5 import sync_deals
+                    for uid in _users_cached():
+                        await asyncio.to_thread(sync_deals, uid)
             except Exception:
                 pass
 

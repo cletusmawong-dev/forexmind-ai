@@ -158,6 +158,9 @@ export function SettingsScreen() {
         })()}
       </Glass>
 
+      {/* ---- order execution (MT5 via VPS bridge) ---- */}
+      <ExecutionCard />
+
       {/* ---- system ---- */}
       <Eyebrow className="mt-9">System</Eyebrow>
       <Glass className="mt-2 !py-1" pad={false}>
@@ -168,8 +171,6 @@ export function SettingsScreen() {
           <Row label="AI provider" value={info.data?.ai?.provider === "xkiro" ? "XKiro" : "Grounded analyst"} dot="acc" />
           <Divider />
           <Row label="Database" value={info.data?.database?.firestore_active ? "Firestore (live)" : "Local - Firebase-ready"} dot="acc" />
-          <Divider />
-          <Row label="Order execution" value="Disabled - by design" tone="text-pos" dot="pos" />
         </div>
       </Glass>
 
@@ -227,6 +228,77 @@ function StoredHistoryRow() {
         value={st ? `${(st.total ?? 0).toLocaleString()} candles - ${active}/${markets.length} markets` : "..."}
         dot="acc"
       />
+    </>
+  );
+}
+
+/** MT5 auto-execution status + kill switch (VPS bridge). */
+function ExecutionCard() {
+  const st = usePolling<any>(() => api.get("/api/execution/status"), 30000);
+  const [busy, setBusy] = useState(false);
+  const [toast, setToastLocal] = useState("");
+  const s = st.data;
+  const toggle = async () => {
+    if (busy || !s) return;
+    setBusy(true);
+    try {
+      await api.post("/api/execution/toggle", { enabled: !s.enabled });
+      setToastLocal(!s.enabled ? "Auto-execution ENABLED" : "Kill switch ON - no new trades");
+      st.refresh?.();
+    } catch { /* keep */ }
+    setBusy(false);
+    setTimeout(() => setToastLocal(""), 4000);
+  };
+  return (
+    <>
+      <Eyebrow className="mt-9">Order execution - MT5</Eyebrow>
+      <Glass className="mt-2">
+        {!s || !s.bridge_configured ? (
+          <p className="text-[12px] leading-relaxed text-txt-mid">
+            Execution is <span className="font-semibold text-txt-hi">off</span> - signals are advisory only.
+            Connect your VPS bridge (MT5 demo) to let the agent place trades for you.
+          </p>
+        ) : (
+          <>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <GlowDot tone={s.bridge_online ? "pos" : "warn"} size={7} pulse={s.bridge_online} />
+                <span className="text-[12.5px] font-semibold text-txt-hi">
+                  {s.bridge_online ? "Bridge online" : "Bridge offline"}
+                </span>
+                <span className="text-[11px] text-txt-faint">
+                  {s.account ? `#${s.account.login} - ${s.account.server}` : ""}
+                </span>
+              </div>
+              <Pill tone={s.enabled ? "green" : "red"}>{s.enabled ? "AUTO" : "KILL SWITCH"}</Pill>
+            </div>
+            {s.account && (
+              <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] py-2">
+                  <div className="text-[9px] uppercase tracking-wide text-txt-faint">Balance</div>
+                  <div className="num text-[13px] font-bold text-txt-hi">{s.account.balance}</div>
+                </div>
+                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] py-2">
+                  <div className="text-[9px] uppercase tracking-wide text-txt-faint">Equity</div>
+                  <div className="num text-[13px] font-bold text-txt-hi">{s.account.equity}</div>
+                </div>
+                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] py-2">
+                  <div className="text-[9px] uppercase tracking-wide text-txt-faint">Today</div>
+                  <div className="num text-[13px] font-bold text-txt-hi">{s.trades_today}/{s.max_per_day}</div>
+                </div>
+              </div>
+            )}
+            <p className="mt-3 text-[10.5px] leading-relaxed text-txt-faint">
+              Demo account first. Risk cap {s.risk_cap_pct}% per trade, max {s.max_per_day} trades/day.
+              Results are confirmed from real broker fills.
+            </p>
+            <button className="btn-ghost mt-3 w-full" disabled={busy} onClick={toggle}>
+              {s.enabled ? "STOP auto-trading (kill switch)" : "RESUME auto-trading"}
+            </button>
+          </>
+        )}
+        {toast && <p className="mt-2 text-[11px] font-semibold text-[var(--accent-green)]">{toast}</p>}
+      </Glass>
     </>
   );
 }
