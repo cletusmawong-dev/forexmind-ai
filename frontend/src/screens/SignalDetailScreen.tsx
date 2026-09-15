@@ -145,7 +145,7 @@ export function SignalDetailScreen() {
             <span className="text-[13.5px] font-semibold">Why it qualifies</span>
             <ChevronDown size={16} className={`text-[var(--text-muted)] transition-transform duration-500 ${whyOpen ? "rotate-180" : ""}`} />
           </div>
-          {!whyOpen && firstCheck && <p className="mt-1.5 truncate text-[12px] text-[var(--accent-green)]">✓ {firstCheck.label}</p>}
+          {!whyOpen && firstCheck && <p className="mt-1.5 truncate text-[12px] text-[var(--accent-green)]">[ok] {firstCheck.label}</p>}
         </button>
         <div className={`grid transition-all duration-500 ease-out ${whyOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
           <div className="overflow-hidden">
@@ -153,7 +153,7 @@ export function SignalDetailScreen() {
               {(s.checks ?? []).map((c, i) => (
                 <div key={i}>
                   <div className={`flex items-start gap-2.5 text-[12.5px] ${c.ok ? "" : "text-[var(--text-muted)]"}`}>
-                    <span className="text-[var(--accent-green)]">✓</span>
+                    <span className="text-[var(--accent-green)]">[ok]</span>
                     <span className="font-semibold text-[var(--text-primary)]">{c.label}</span>
                   </div>
                   <div className="ml-[22px] mt-1 text-[11px] text-[var(--text-muted)]">{c.detail}</div>

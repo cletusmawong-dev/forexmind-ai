@@ -104,7 +104,7 @@ export function HomeScreen() {
           <div className="relative p-6">
             <p className="text-[13px] font-medium text-[var(--text-secondary)]">{greeting()}</p>
             <p className="mt-0.5 text-[19px] font-bold tracking-tight">
-              Traders <span className="ml-0.5">👋</span>
+              Traders 
             </p>
             <AnimatedNumber
               value={balance}

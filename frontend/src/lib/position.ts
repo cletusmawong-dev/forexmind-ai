@@ -9,8 +9,8 @@ interface Spec {
 }
 
 const SPECS: Record<string, Spec> = {
-  EURUSD: { pipSize: 0.0001, value: 10, contract: "1 lot = 100,000 €" },
-  GBPUSD: { pipSize: 0.0001, value: 10, contract: "1 lot = 100,000 £" },
+  EURUSD: { pipSize: 0.0001, value: 10, contract: "1 lot = 100,000 EUR" },
+  GBPUSD: { pipSize: 0.0001, value: 10, contract: "1 lot = 100,000 GBP" },
   USDJPY: { pipSize: 0.01, value: (p) => 1000 / (p || 1), contract: "1 lot = 100,000 $" },
   XAUUSD: { pipSize: 0.1, value: 10, contract: "1 lot = 100 oz", verify: true },
   NAS100: { pipSize: 1, value: 1, contract: "$1 / point", verify: true },

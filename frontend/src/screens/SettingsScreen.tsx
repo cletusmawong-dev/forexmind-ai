@@ -152,7 +152,7 @@ export function SettingsScreen() {
                   onClick={async () => {
                     try {
                       const r = await api.post<{ sent: boolean }>(endpoints.notificationTest, {});
-                      flash(r.sent ? "Test alert sent - check your Telegram 📲" : "Not linked yet - follow the steps above.");
+                      flash(r.sent ? "Test alert sent - check your Telegram" : "Not linked yet - follow the steps above.");
                     } catch (e: any) { flash(e.message || "Failed"); }
                   }}
                 >

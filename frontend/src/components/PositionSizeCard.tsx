@@ -69,7 +69,7 @@ export function PositionSizeCard({ signal: s }: { signal: Signal }) {
           </div>
           <p className="mt-2.5 text-[10px] leading-relaxed text-[var(--text-muted)]">
             {r.contract}. Lots rounded down to the 0.01 step so you never risk more than planned.
-            {r.note ? ` ⚠️ ${r.note}` : ""}
+            {r.note ? ` [!]  ${r.note}` : ""}
           </p>
         </>
       ) : (
