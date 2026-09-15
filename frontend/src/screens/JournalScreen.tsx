@@ -132,25 +132,10 @@ export function JournalScreen() {
 
       {tab === "history" && (
         <div>
-          <Eyebrow className="mb-2">Recent completed signals</Eyebrow>
-          <Glass pad={false} className="divide-y divide-white/[0.05] !p-0">
-            {(signals.data?.signals ?? []).map((s) => (
-              <button key={s.id} onClick={() => navigate(`/signals/${s.id}`)} className="tap flex w-full items-center gap-4 px-5 py-4 text-left transition hover:bg-white/[0.02]">
-                <div className="w-16 shrink-0">
-                  <div className="text-[12.5px] font-semibold">{s.market}</div>
-                  <div className={`text-[9px] font-bold tracking-wider ${s.direction === "BUY" ? "text-pos" : "text-neg"}`}>{s.direction}</div>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-[11px] text-txt-low">{s.strategy_name}</div>
-                  <div className="text-[9px] text-txt-faint">{fmtDateTime(s.candle_time)} - {(s.market_conditions as any)?.session}</div>
-                </div>
-                {s.user_action && <Pill tone={s.user_action === "entered" ? "cyan" : "neutral"}>{s.user_action === "entered" ? "taken" : "skipped"}</Pill>}
-                <span className={`num w-12 shrink-0 text-right text-[13px] font-semibold ${s.r_multiple > 0 ? "text-pos" : s.r_multiple < 0 ? "text-neg" : "text-txt-low"}`}>
-                  {fmtR(s.r_multiple)}
-                </span>
-              </button>
-            ))}
-          </Glass>
+          <Eyebrow className="mb-2">Trade log - every closed signal, full story</Eyebrow>
+          <div className="space-y-3">
+            {tradeLog(signals.data?.signals ?? [], navigate)}
+          </div>
         </div>
       )}
     </div>
@@ -192,4 +177,110 @@ function EquityChart({ curve }: { curve: { i: number; cum: number }[] }) {
       </ResponsiveContainer>
     </div>
   );
+}
+
+
+/* ---- trade log: closed signals with TP levels, entry/close times, result ---- */
+type LogSignal = {
+  id: string; market: string; direction: "BUY" | "SELL"; strategy_name: string;
+  signal_id: string; timeframe: string; entry: number; sl: number;
+  tp1?: number; tp2?: number; tp3?: number; tp_hits?: number;
+  status?: string; outcome?: string | null; r_multiple?: number;
+  candle_time?: string; completed_at?: string; exit_price?: number | null;
+  mt5_confirmed?: boolean; mt5_pl?: number;
+  market_conditions?: { session?: string };
+};
+
+function fmtTime(t?: string) {
+  if (!t) return "-";
+  const d = new Date(t);
+  return isNaN(d.getTime()) ? "-" : d.toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+function fmtPx(v?: number | null) {
+  if (v === null || v === undefined) return "-";
+  return v >= 500 ? v.toLocaleString("en-US", { maximumFractionDigits: 1 }) : v.toFixed(v >= 10 ? 3 : 5);
+}
+function duration(entry?: string, close?: string) {
+  if (!entry || !close) return "";
+  const ms = new Date(close).getTime() - new Date(entry).getTime();
+  if (isNaN(ms) || ms < 0) return "";
+  const m = Math.round(ms / 60000);
+  return m < 60 ? `${m}m` : m < 1440 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${Math.floor(m / 1440)}d ${Math.floor((m % 1440) / 60)}h`;
+}
+
+function tradeLog(signals: LogSignal[], navigate: (p: string) => void) {
+  const closed = signals.filter((s) => s.completed).sort((a, b) =>
+    String(b.completed_at || b.candle_time).localeCompare(String(a.completed_at || a.candle_time)));
+  if (!closed.length) {
+    return (
+      <Glass className="px-5 py-8 text-center">
+        <p className="text-[12.5px] text-txt-mid">No closed trades yet.</p>
+        <p className="mt-1 text-[10.5px] text-txt-faint">When a signal hits its TP or SL, the full record lands here.</p>
+      </Glass>
+    );
+  }
+  return closed.map((s) => {
+    const win = s.outcome === "WIN";
+    const tpCount = s.tp_hits ?? 0;
+    const resultWord = s.status === "SL_HIT" ? (tpCount > 0 ? `SL after TP${tpCount}` : "SL") : `TP${Math.max(1, tpCount)}`;
+    const r = s.r_multiple ?? 0;
+    const rColor = r > 0 ? "text-pos" : r < 0 ? "text-neg" : "text-txt-low";
+    const dirColor = s.direction === "BUY" ? "text-pos" : "text-neg";
+    const tps = [s.tp1, s.tp2, s.tp3].filter((v): v is number => typeof v === "number");
+    return (
+      <button key={s.id} onClick={() => navigate(`/signals/${s.id}`)}
+        className="glass glass-hover tap block w-full p-4 text-left" aria-label={`${s.market} ${s.direction} trade record`}>
+        {/* row 1: pair + result */}
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] border text-[13px] font-bold"
+            style={{
+              borderColor: win ? "rgba(47,217,138,0.45)" : "rgba(251,77,106,0.45)",
+              background: win ? "rgba(47,217,138,0.1)" : "rgba(251,77,106,0.1)",
+              color: win ? "var(--accent-green)" : "var(--accent-red)",
+              boxShadow: win ? "0 0 16px rgba(47,217,138,0.25)" : "0 0 16px rgba(251,77,106,0.25)",
+            }} aria-hidden="true">
+            {s.direction === "BUY" ? "▲" : "▼"}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline gap-2">
+              <span className="text-[15px] font-bold tracking-tight">{s.market}</span>
+              <span className={`text-[10.5px] font-bold tracking-wider ${dirColor}`}>{s.direction}</span>
+              <span className="text-[9.5px] text-txt-faint">{s.timeframe}</span>
+            </div>
+            <div className="truncate text-[10px] text-txt-faint">{s.strategy_name} | {s.signal_id}</div>
+          </div>
+          <div className="shrink-0 text-right">
+            <div className={`num text-[17px] font-bold ${rColor}`}>{r > 0 ? "+" : ""}{r.toFixed(1)}R</div>
+            <div className={`text-[8.5px] font-bold uppercase tracking-wider ${win ? "text-pos" : "text-neg"}`}>{win ? "WIN" : "LOSS"} - hit {resultWord}</div>
+          </div>
+        </div>
+
+        {/* row 2: TP ladder */}
+        <div className="mt-3 flex gap-1.5">
+          {tps.map((tp, i) => (
+            <div key={i} className={`num flex-1 rounded-lg border px-2 py-1.5 text-center text-[9.5px] font-semibold ${
+              i < tpCount ? "border-[rgba(47,217,138,0.4)] bg-[rgba(47,217,138,0.08)] text-pos" : "border-white/[0.07] bg-white/[0.02] text-txt-faint"}`}>
+              TP{i + 1} {i < tpCount ? "hit" : "miss"}
+            </div>
+          ))}
+          <div className={`num flex-1 rounded-lg border px-2 py-1.5 text-center text-[9.5px] font-semibold ${
+            s.status === "SL_HIT" ? "border-[rgba(251,77,106,0.4)] bg-[rgba(251,77,106,0.08)] text-neg" : "border-white/[0.07] bg-white/[0.02] text-txt-faint"}`}>
+            SL {s.status === "SL_HIT" ? "hit" : "safe"}
+          </div>
+        </div>
+
+        {/* row 3: prices + times */}
+        <div className="mt-3 grid grid-cols-4 gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5">
+          <div><div className="text-[8px] uppercase tracking-wide text-txt-faint">Entry</div><div className="num text-[11px] font-semibold text-txt-hi">{fmtPx(s.entry)}</div></div>
+          <div><div className="text-[8px] uppercase tracking-wide text-txt-faint">Close</div><div className="num text-[11px] font-semibold text-txt-hi">{fmtPx(s.exit_price)}</div></div>
+          <div><div className="text-[8px] uppercase tracking-wide text-txt-faint">Opened</div><div className="num text-[10px] font-medium text-txt-mid">{fmtTime(s.candle_time)}</div></div>
+          <div><div className="text-[8px] uppercase tracking-wide text-txt-faint">Closed</div><div className="num text-[10px] font-medium text-txt-mid">{fmtTime(s.completed_at)}</div></div>
+        </div>
+        <div className="mt-2 flex items-center justify-between text-[9px] text-txt-faint">
+          <span>Held {duration(s.candle_time, s.completed_at)}{(s.market_conditions as any)?.session ? ` - ${(s.market_conditions as any).session} session` : ""}</span>
+          {s.mt5_confirmed ? <span className="font-semibold text-pos">MT5 confirmed</span> : <span>tap for full analysis</span>}
+        </div>
+      </button>
+    );
+  });
 }
