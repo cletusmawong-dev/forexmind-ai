@@ -137,6 +137,15 @@ def learning_observations(user_id: str = Depends(get_user_id)):
     observations: List[Dict[str, Any]] = []
 
     # Regime performance (FACT once sample >= 5, otherwise reported as untested)
+    def _ev(sigs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        rows = []
+        for s in sorted(sigs, key=lambda x: str(x.get("createdAt", "")), reverse=True)[:25]:
+            rows.append({"signal_id": s.get("signal_id"), "market": s.get("market"),
+                         "direction": s.get("direction"), "outcome": s.get("outcome"),
+                         "r": s.get("r_multiple"), "status": s.get("status"),
+                         "time": s.get("createdAt")})
+        return rows
+
     by_regime: Dict[str, List[Dict[str, Any]]] = {}
     for s in completed:
         r = (s.get("dna") or {}).get("regime") or \
@@ -162,6 +171,7 @@ def learning_observations(user_id: str = Depends(get_user_id)):
         else:
             entry["text"] = (f"Only {len(sigs)} completed signal(s) in {r} regime so "
                              "far - not enough data for any conclusion.")
+        entry["evidence"] = _ev(sigs)
         observations.append(entry)
 
     # Forensic patterns across completed signals (POSSIBLE_EXPLANATION with counts)
@@ -181,6 +191,7 @@ def learning_observations(user_id: str = Depends(get_user_id)):
                          f"\"{label}\" were losses. This pattern co-occurs with "
                          "losses in this account's history."),
                 "sample_size": len(sigs),
+                "evidence": _ev(sigs),
             })
 
     if not observations:

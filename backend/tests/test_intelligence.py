@@ -138,6 +138,7 @@ def test_observations_labeled_and_honest(client, auth):
     small = [o for o in body["observations"]
              if o.get("regime") == "RANGING"]
     assert small and small[0]["kind"] == "UNTESTED HYPOTHESIS"
+    assert small[0]["evidence"] and small[0]["evidence"][0]["signal_id"] == "SIG-O-1"
 
 
 # ---------- Rollback confirmation + audit ----------

@@ -99,13 +99,20 @@ def run_experiment(body: ExperimentIn, user_id: str = Depends(get_user_id)):
         exp = State.experiments.run_from_hypothesis(user_id, hyp)
     except ExperimentError as e:
         raise HTTPException(422, str(e))
-    if exp.get("result") == "IMPROVED":
-        notify(user_id, "APPROVAL_REQUIRED", "Approval required",
+    if exp.get("status") == "READY_FOR_REVIEW" and (
+            exp.get("recommend_approval") or exp.get("overfitting_risk")):
+        warn = " HIGH OVERFITTING RISK detected - do not approve without further evidence." \
+               if exp.get("overfitting_risk") else ""
+        notify(user_id, "APPROVAL_REQUIRED",
+               f"Experiment {exp.get('experiment_code', '')} READY FOR REVIEW",
                f"{hyp['hypothesis_id']}: {exp['variable']} {exp['old_value']} -> "
-               f"{exp['new_value']} improved on the same dataset. Review it.",
+               f"{exp['new_value']} on the same dataset. Verdict: "
+               f"{exp['result']}.{warn} Review it in Learning Lab.",
                meta={"hypothesis_id": hyp["id"]})
-        agent_core.log(f"Experiment for {hyp['hypothesis_id']} completed: IMPROVED. "
-                       "Awaiting user approval.", kind="EXPERIMENT")
+        agent_core.log(f"Experiment {exp.get('experiment_code')} for "
+                       f"{hyp['hypothesis_id']} is READY FOR REVIEW: "
+                       f"{exp.get('result')}. Awaiting user decision.",
+                       kind="EXPERIMENT")
     else:
         agent_core.log(f"Experiment for {hyp['hypothesis_id']} completed: "
                        f"{exp.get('result')}.", kind="EXPERIMENT")

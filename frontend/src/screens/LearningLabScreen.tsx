@@ -1,17 +1,18 @@
 import { useState } from "react";
-import {ArrowDown, ArrowRight, FlaskConical, GraduationCap} from "lucide-react";
+import { ArrowRight, FlaskConical, GraduationCap, ShieldAlert } from "lucide-react";
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
-import type { Experiment, Hypothesis, Lesson, StrategyVersion } from "../lib/types";
+import type { Experiment, Hypothesis, Lesson, Observation, StrategyVersion } from "../lib/types";
 import { DemoTag, Divider, Eyebrow, Glass, GlowDot, Pill, Segmented, Spinner } from "../components/ui";
 import { ChevronDown } from "lucide-react";
 import { fmtDateTime } from "../lib/format";
 
 const FLOW = ["Trade", "Result", "Analysis", "Lesson", "Hypothesis", "1-Var Test", "Approval", "New version"];
-const TABS = ["LESSONS", "HYPOTHESES", "EXPERIMENTS", "VERSIONS"] as const;
+const TABS = ["OBSERVATIONS", "QUEUE", "EXPERIMENTS", "PATTERNS", "HISTORY"] as const;
 
 export function LearningLabScreen() {
-  const [tab, setTab] = useState<(typeof TABS)[number]>("LESSONS");
+  const [tab, setTab] = useState<(typeof TABS)[number]>("OBSERVATIONS");
+  const obs = usePolling<{ observations: Observation[] }>(() => api.get(endpoints.observations), 10000);
   const lessons = usePolling<{ lessons: Lesson[] }>(() => api.get(endpoints.lessons), 8000);
   const hyps = usePolling<{ hypotheses: Hypothesis[] }>(() => api.get(endpoints.hypotheses), 6000);
   const exps = usePolling<{ experiments: Experiment[] }>(() => api.get(endpoints.experiments), 8000);
@@ -20,6 +21,7 @@ export function LearningLabScreen() {
 
   const [busy, setBusy] = useState("");
   const [toast, setToast] = useState("");
+  const [armedRollback, setArmedRollback] = useState<string>("");
 
   const flash = (m: string) => {
     setToast(m);
@@ -50,8 +52,34 @@ export function LearningLabScreen() {
     }
   };
 
-  const pendingCount = (hyps.data?.hypotheses ?? []).filter((h) => h.status === "AWAITING_APPROVAL").length;
+  const rollback = async (strategyId: string, version: string) => {
+    const key = `${strategyId}:${version}`;
+    if (armedRollback !== key) {
+      setArmedRollback(key);
+      setTimeout(() => setArmedRollback((k) => (k === key ? "" : k)), 4000);
+      return;
+    }
+    setArmedRollback("");
+    setBusy(key);
+    try {
+      await api.post(endpoints.rollback(strategyId), { target_version: version, confirm: true, reason: "User rollback from Learning Lab" });
+      flash(`Rolled back to v${version} - history retained, change is logged.`);
+    } catch (e: any) {
+      flash(e.message);
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const allHyps = hyps.data?.hypotheses ?? [];
+  const pendingCount = allHyps.filter((h) => h.status === "AWAITING_APPROVAL").length;
+  const proposedCount = allHyps.filter((h) => h.status === "PROPOSED").length;
+  const observations = obs.data?.observations ?? [];
+  const factObs = observations.filter((o) => o.kind === "FACT");
+  const patternObs = observations.filter((o) => o.kind === "POSSIBLE_EXPLANATION");
+  const [openEvidence, setOpenEvidence] = useState<string | null>(null);
   const [openLesson, setOpenLesson] = useState<string | null>(null);
+  const [splitOpen, setSplitOpen] = useState<string | null>(null);
 
   return (
     <div className="animate-fadeUp">
@@ -94,17 +122,20 @@ export function LearningLabScreen() {
       </Glass>
 
       {/* tabs */}
-      <Segmented
-        className="mt-7"
-        value={tab}
-        onChange={(k) => setTab(k as any)}
-        options={[
-          { key: "LESSONS", label: "Lessons" },
-          { key: "HYPOTHESES", label: "Hypotheses" },
-          { key: "EXPERIMENTS", label: "Experiments" },
-          { key: "VERSIONS", label: "Versions" },
-        ]}
-      />
+      <div className="no-scrollbar mt-7 overflow-x-auto">
+        <Segmented
+          className="min-w-[460px]"
+          value={tab}
+          onChange={(k) => setTab(k as any)}
+          options={[
+            { key: "OBSERVATIONS", label: `Insights` },
+            { key: "QUEUE", label: pendingCount ? `Queue (${pendingCount})` : "Queue" },
+            { key: "EXPERIMENTS", label: "Experiments" },
+            { key: "PATTERNS", label: "Patterns" },
+            { key: "HISTORY", label: "History" },
+          ]}
+        />
+      </div>
 
       {toast && (
         <div className="glass-2 mt-5 flex items-center gap-2.5 px-4 py-3 text-[12px] font-medium text-acc-cyan animate-fadeUp">
@@ -112,73 +143,43 @@ export function LearningLabScreen() {
         </div>
       )}
 
-      {/* ---------------- LESSONS ---------------- */}
-      {tab === "LESSONS" && (
+      {/* ---------------- AI OBSERVATIONS ---------------- */}
+      {tab === "OBSERVATIONS" && (
         <div className="mt-5 space-y-4">
-          {lessons.loading && !lessons.data ? (
+          <p className="px-1 text-[11px] leading-relaxed text-txt-faint">
+            Every statement is labeled FACT, POSSIBLE EXPLANATION or UNTESTED HYPOTHESIS and shows its sample size. The AI never claims more than the data supports.
+          </p>
+          {obs.loading && !obs.data ? (
             <Spinner />
-          ) : (lessons.data?.lessons.length ?? 0) === 0 ? (
+          ) : factObs.length === 0 ? (
             <Glass level={2} className="text-center">
-              <p className="text-[13px] text-txt-mid">No lessons yet.</p>
-              <p className="mt-1 text-[11.5px] text-txt-faint">Observations appear when enough completed signals support a pattern. Never conclusions without evidence.</p>
+              <p className="text-[13px] text-txt-mid">No observations yet.</p>
+              <p className="mt-1 text-[11.5px] text-txt-faint">The engine records market regime and outcome data as signals complete. Statements appear once evidence exists.</p>
             </Glass>
           ) : (
-            lessons.data!.lessons.map((l, idx) => {
-              const expanded = openLesson ? openLesson === l.id : idx === 0;
-              return expanded ? (
-                <Glass key={l.id} className="animate-fadeUp" pad={false}>
-                <div className="flex items-center justify-between px-6 pt-5">
-                  <span className="flex items-center gap-2.5">
-                    <GlowDot tone="violet" size={6} pulse={false} />
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#b3a6ff]">Lesson {String(l.lesson_no).padStart(2, "0")}</span>
-                  </span>
-                  <Pill tone="violet">{l.status}</Pill>
-                </div>
-                <div className="px-6 pb-1 pt-1 text-[11px] text-txt-faint">{l.strategy_name}</div>
-                <p className="px-6 pb-5 pt-2 text-[13px] font-normal leading-relaxed text-txt-mid">"{l.observation}"</p>
-                <div className="mx-5 mb-5 grid grid-cols-3 rounded-2xl border border-white/[0.07] bg-[rgba(4,9,24,0.55)]">
-                  <EvCell label="Evidence" value={String(l.evidence)} suffix="signals" />
-                  <EvCell label="Segment win rate" value={`${l.win_rate}%`} mid />
-                  <EvCell label="Baseline" value={`${l.baseline_win_rate}%`} delta={`${l.delta_pp > 0 ? "+" : ""}${l.delta_pp}pp`} deltaTone={l.delta_pp > 0 ? "text-pos" : "text-neg"} />
-                </div>
-                <button onClick={() => setOpenLesson(null)} className="tap w-full px-6 pb-4 text-left text-[10.5px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--text-secondary)]">
-                  Collapse
-                </button>
-                </Glass>
-              ) : (
-                <button
-                  key={l.id}
-                  onClick={() => setOpenLesson(l.id)}
-                  className="glass glass-hover tap flex w-full items-center gap-3.5 p-4 text-left"
-                >
-                  <span className="relative flex flex-col items-center self-stretch">
-                    <GlowDot tone={l.status === "HYPOTHESIS" ? "acc" : "violet"} size={8} pulse={false} />
-                    <span className="mt-1 w-px flex-1 bg-gradient-to-b from-[rgba(142,123,255,0.4)] to-transparent" />
-                  </span>
-                  <span className="flex-1 text-[12px] font-semibold uppercase tracking-[0.14em] text-[#b3a6ff]">
-                    Lesson {String(l.lesson_no).padStart(2, "0")}
-                  </span>
-                  <Pill tone="violet">{l.status}</Pill>
-                  <ChevronDown size={15} className="text-[var(--text-muted)] -rotate-90" />
-                </button>
-              );
-            })
+            factObs.map((o, idx) => <ObsCard key={idx} o={o} open={openEvidence === o.text} onToggle={() => setOpenEvidence(openEvidence === o.text ? null : o.text)} />)
+          )}
+          {factObs.length === 0 && (obs.data?.observations ?? []).some((o) => o.kind !== "FACT") && (
+            <p className="px-1 text-[11px] text-txt-faint">Anything not yet supported by enough data lives under Patterns or is withheld entirely.</p>
           )}
         </div>
       )}
 
-      {/* ---------------- HYPOTHESES ---------------- */}
-      {tab === "HYPOTHESES" && (
+      {/* ---------------- APPROVAL QUEUE ---------------- */}
+      {tab === "QUEUE" && (
         <div className="mt-5 space-y-4">
-          {hyps.loading && !hyps.data ? (
+          <p className="px-1 text-[11px] leading-relaxed text-txt-faint">
+            The AI can never change a live strategy by itself. Approved changes become a new immutable version; nothing is overwritten.
+          </p>
+          {(hyps.loading && !hyps.data) ? (
             <Spinner />
-          ) : (hyps.data?.hypotheses.length ?? 0) === 0 ? (
+          ) : allHyps.length === 0 ? (
             <Glass level={2} className="text-center">
-              <p className="text-[13px] text-txt-mid">No hypotheses yet.</p>
+              <p className="text-[13px] text-txt-mid">Queue is empty.</p>
               <p className="mt-1 text-[11.5px] text-txt-faint">Hypotheses grow from evidence-backed lessons - exactly one variable at a time.</p>
             </Glass>
           ) : (
-            hyps.data!.hypotheses.map((h) => {
+            [...allHyps].sort((a, b) => rank(b) - rank(a)).map((h) => {
               const pending = h.status === "AWAITING_APPROVAL";
               return (
                 <Glass
@@ -261,25 +262,38 @@ export function LearningLabScreen() {
       {/* ---------------- EXPERIMENTS ---------------- */}
       {tab === "EXPERIMENTS" && (
         <div className="mt-5 space-y-4">
+          <p className="px-1 text-[11px] leading-relaxed text-txt-faint">
+            Each experiment compares original vs experimental on the same dataset - results are never fabricated. Verdicts never rest on win rate alone.
+          </p>
           {exps.loading && !exps.data ? (
             <Spinner />
           ) : (exps.data?.experiments.length ?? 0) === 0 ? (
             <Glass level={2} className="text-center">
               <p className="text-[13px] text-txt-mid">No experiments yet.</p>
-              <p className="mt-1 text-[11.5px] text-txt-faint">Each experiment compares original vs experimental on the same dataset - results are never fabricated.</p>
+              <p className="mt-1 text-[11.5px] text-txt-faint">Run one from a proposed hypothesis in the Queue.</p>
             </Glass>
           ) : (
             exps.data!.experiments.map((e) => (
               <Glass key={e.id} pad={false} className="animate-fadeUp">
                 <div className="flex items-center justify-between px-6 pt-5">
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-acc">{e.hypothesis_id}</span>
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-acc">{e.experiment_code ?? e.hypothesis_id}</span>
                   <Pill tone={e.result === "IMPROVED" ? "pos" : e.result === "WORSE" ? "neg" : "neutral"}>
-                    {e.result.replace(/_/g, " ")}
+                    {e.status === "READY_FOR_REVIEW" && e.result === "INSUFFICIENT_DATA" ? "insufficient data" : e.result.replace(/_/g, " ")}
                   </Pill>
                 </div>
                 <p className="px-6 pt-1 text-[11px] text-txt-faint">
                   {e.strategy_id === "strategy_1_zero_lag" ? "Zero Lag Trend" : "9/21 EMA Smart TP/SL"} - <span className="font-mono">{e.variable}</span> {String(e.old_value)} {'->'} {String(e.new_value)} - {e.market} {e.timeframe}
                 </p>
+
+                {e.overfitting_risk && (
+                  <div className="mx-6 mt-4 flex items-start gap-2.5 rounded-2xl border border-warn/30 bg-warn/[0.07] px-4 py-3">
+                    <ShieldAlert size={15} className="mt-0.5 shrink-0 text-warn" />
+                    <p className="text-[11.5px] font-medium leading-relaxed text-warn">
+                      HIGH OVERFITTING RISK - improves the training period but degrades on the validation period. Do not approve without further out-of-sample evidence.
+                    </p>
+                  </div>
+                )}
+
                 <div className="mt-4 flex items-stretch divide-x divide-white/[0.05]">
                   <Evidence label="Win rate" value={`${e.original_metrics?.win_rate ?? "-"}%`} sub={`${e.experimental_metrics?.win_rate ?? "-"}%`} />
                   <Evidence label="Expectancy" value={`${e.original_metrics?.expectancy ?? "-"}R`} sub={`${e.experimental_metrics?.expectancy ?? "-"}R`} />
@@ -287,21 +301,97 @@ export function LearningLabScreen() {
                   <Evidence label="Trades" value={e.original_metrics?.trades ?? "-"} sub={e.experimental_metrics?.trades ?? "-"} />
                 </div>
                 <p className="px-6 pb-4 pt-4 text-[11.5px] leading-relaxed text-txt-low">{e.conclusion}</p>
-                <div className="px-6 pb-5 text-[9.5px] text-txt-faint">Same dataset for both versions - {fmtDateTime(e.createdAt)}</div>
+
+                {e.split && (
+                  <>
+                    <button className="tap w-full border-t border-white/[0.05] px-6 py-3 text-left" onClick={() => setSplitOpen(splitOpen === e.id ? null : e.id)}>
+                      <span className="flex items-center justify-between text-[10.5px] font-semibold uppercase tracking-[0.14em] text-txt-low">
+                        Train / validation split
+                        <ChevronDown size={14} className={`transition-transform duration-300 ${splitOpen === e.id ? "rotate-180" : ""}`} />
+                      </span>
+                    </button>
+                    {splitOpen === e.id && (
+                      <div className="animate-fadeUp border-t border-white/[0.05] px-6 pb-5 pt-4">
+                        <SplitTable title="Train (70%)" split={e.split.train} />
+                        <div className="mt-4"><SplitTable title="Validation (30%)" split={e.split.validation} /></div>
+                        <p className="mt-4 text-[10px] leading-relaxed text-txt-faint">Time-ordered split: the change is validated on the most recent 30% of trades it has never seen. Agreement across both periods lowers overfitting risk.</p>
+                      </div>
+                    )}
+                  </>
+                )}
+                <div className="px-6 pb-5 pt-3 text-[9.5px] text-txt-faint">Same dataset for both versions - {fmtDateTime(e.createdAt)}</div>
               </Glass>
             ))
           )}
         </div>
       )}
 
-      {/* ---------------- VERSIONS ---------------- */}
-      {tab === "VERSIONS" && (
+      {/* ---------------- PATTERNS ---------------- */}
+      {tab === "PATTERNS" && (
+        <div className="mt-5 space-y-4">
+          <p className="px-1 text-[11px] leading-relaxed text-txt-faint">
+            Co-occurrences found by forensics across completed signals. A pattern is a possible explanation - never proof on its own.
+          </p>
+          {obs.loading && !obs.data ? (
+            <Spinner />
+          ) : patternObs.length === 0 ? (
+            <Glass level={2} className="text-center">
+              <p className="text-[13px] text-txt-mid">No patterns yet.</p>
+              <p className="mt-1 text-[11.5px] text-txt-faint">Forensics compares each completed signal against similar past signals. Patterns appear only with repeat evidence.</p>
+            </Glass>
+          ) : (
+            patternObs.map((o, idx) => <ObsCard key={idx} o={o} open={openEvidence === o.text} onToggle={() => setOpenEvidence(openEvidence === o.text ? null : o.text)} />)
+          )}
+        </div>
+      )}
+
+      {/* ---------------- HISTORY ---------------- */}
+      {tab === "HISTORY" && (
         <div className="mt-5 space-y-8">
+          {/* lessons */}
+          <div>
+            <Eyebrow className="mb-2">Lessons</Eyebrow>
+            {lessons.loading && !lessons.data ? (
+              <Spinner />
+            ) : (lessons.data?.lessons.length ?? 0) === 0 ? (
+              <Glass level={2} className="text-center">
+                <p className="text-[13px] text-txt-mid">No lessons yet.</p>
+                <p className="mt-1 text-[11.5px] text-txt-faint">Observations appear when enough completed signals support a pattern. Never conclusions without evidence.</p>
+              </Glass>
+            ) : (
+              <div className="space-y-4">
+                {lessons.data!.lessons.map((l, idx) => {
+                  const expanded = openLesson ? openLesson === l.id : idx === 0;
+                  return expanded ? (
+                    <Glass key={l.id} className="animate-fadeUp" pad={false}>
+                    <div className="flex items-center justify-between px-6 pt-5">
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-acc-violet">Lesson {l.lesson_no}</span>
+                      <Pill tone="neutral">{l.strategy_name}</Pill>
+                    </div>
+                    <p className="px-6 pt-3 text-[13px] leading-relaxed text-txt-hi">{l.observation}</p>
+                    <div className="mt-4 flex items-stretch divide-x divide-white/[0.05] border-t border-white/[0.05]">
+                      <EvCell label="Evidence" value={String(l.evidence)} />
+                      <EvCell label="Win rate" value={`${l.win_rate}%`} delta={`vs ${l.baseline_win_rate}% base`} deltaTone={l.delta_pp >= 0 ? "text-pos" : "text-neg"} />
+                      <EvCell label="Delta" value={`${l.delta_pp >= 0 ? "+" : ""}${l.delta_pp}pp`} mid />
+                    </div>
+                    </Glass>
+                  ) : (
+                    <button key={l.id} onClick={() => setOpenLesson(l.id)} className="glass glass-hover tap flex w-full items-center justify-between px-5 py-4 text-left">
+                      <span className="text-[12.5px] text-txt-mid">Lesson {l.lesson_no} - {l.strategy_name}</span>
+                      <ChevronDown size={15} className="rotate-180 text-txt-faint" />
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* versions + rollback */}
           {[
-            { title: "Strategy 1 - Zero Lag Trend", data: versions1.data?.versions },
-            { title: "Strategy 2 - 9/21 EMA Smart TP/SL", data: versions2.data?.versions },
+            { id: "strategy_1_zero_lag", title: "Strategy 1 - Zero Lag Trend", data: versions1.data?.versions },
+            { id: "strategy_2_ema_atr", title: "Strategy 2 - 9/21 EMA Smart TP/SL", data: versions2.data?.versions },
           ].map((group) => (
-            <div key={group.title}>
+            <div key={group.id}>
               <Eyebrow className="mb-2">{group.title}</Eyebrow>
               <Glass pad={false} className="divide-y divide-white/[0.05] !p-0">
                 {(group.data ?? []).map((v) => (
@@ -313,15 +403,109 @@ export function LearningLabScreen() {
                         <div className="mt-0.5 text-[10.5px] text-txt-faint">{v.note || "Original version"}</div>
                       </div>
                     </div>
-                    {v.active && <Pill tone="pos">active</Pill>}
+                    {v.active ? (
+                      <Pill tone="pos">active</Pill>
+                    ) : (
+                      <button
+                        className={`tap rounded-full border px-3.5 py-2 text-[10.5px] font-semibold transition-all duration-300 ${
+                          armedRollback === `${group.id}:${v.version}`
+                            ? "border-warn/50 bg-warn/10 text-warn"
+                            : "border-white/[0.1] text-txt-low hover:border-white/20 hover:text-txt-mid"
+                        }`}
+                        disabled={busy === `${group.id}:${v.version}`}
+                        onClick={() => rollback(group.id, v.version)}
+                      >
+                        {armedRollback === `${group.id}:${v.version}` ? "Confirm rollback?" : "Roll back"}
+                      </button>
+                    )}
                   </div>
                 ))}
               </Glass>
             </div>
           ))}
-          <a href="/strategies" className="btn-ghost w-full">Compare & roll back in Strategy Manager</a>
+          <p className="px-1 text-[10.5px] leading-relaxed text-txt-faint">
+            Version history is never overwritten. Rolling back creates a logged event (who, when, why) and restores the previous parameters exactly.
+          </p>
+          <a href="/strategies" className="btn-ghost w-full">Compare versions in Strategy Manager</a>
         </div>
       )}
+    </div>
+  );
+}
+
+function rank(h: Hypothesis): number {
+  if (h.status === "AWAITING_APPROVAL") return 3;
+  if (h.status === "PROPOSED") return 2;
+  return 1;
+}
+
+function kindTone(kind: string): { dot: string; text: string; pill: "pos" | "warn" | "neutral" } {
+  if (kind === "FACT") return { dot: "bg-pos", text: "text-pos", pill: "pos" };
+  if (kind === "POSSIBLE_EXPLANATION") return { dot: "bg-warn", text: "text-warn", pill: "warn" };
+  return { dot: "bg-white/25", text: "text-txt-mid", pill: "neutral" };
+}
+
+function ObsCard({ o, open, onToggle }: { o: Observation; open: boolean; onToggle: () => void }) {
+  const kt = kindTone(o.kind);
+  return (
+    <Glass pad={false} className="animate-fadeUp">
+      <div className="p-6">
+        <div className="flex items-center justify-between">
+          <span className="flex items-center gap-2.5">
+            <span className={`h-[7px] w-[7px] rounded-full ${kt.dot}`} />
+            <span className={`text-[10px] font-bold uppercase tracking-[0.16em] ${kt.text}`}>{o.kind.replace("_", " ")}</span>
+          </span>
+          <Pill tone={kt.pill}>{o.sample_size} signals</Pill>
+        </div>
+        <p className="mt-3 text-[13px] leading-relaxed text-txt-hi">{o.text}</p>
+        {o.evidence && o.evidence.length > 0 && (
+          <>
+            <button className="tap mt-4 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-acc-cyan" onClick={onToggle}>
+              {open ? "Hide evidence" : "View evidence"}
+              <ChevronDown size={13} className={`transition-transform duration-300 ${open ? "rotate-180" : ""}`} />
+            </button>
+            {open && (
+              <div className="animate-fadeUp mt-3 overflow-hidden rounded-2xl border border-white/[0.06]">
+                <div className="divide-y divide-white/[0.05]">
+                  {o.evidence.map((ev, i) => (
+                    <div key={i} className="flex items-center justify-between bg-white/[0.02] px-4 py-2.5 text-[11px]">
+                      <span className="font-mono text-txt-low">{ev.signal_id}</span>
+                      <span className="flex items-center gap-3">
+                        <span className="text-txt-faint">{ev.market} {ev.direction}</span>
+                        <span className={ev.outcome === "WIN" ? "font-semibold text-pos" : ev.outcome === "LOSS" ? "font-semibold text-neg" : "text-txt-faint"}>
+                          {ev.outcome ?? ev.status} {ev.r !== null && ev.r !== undefined ? `${ev.r > 0 ? "+" : ""}${ev.r}R` : ""}
+                        </span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </Glass>
+  );
+}
+
+function SplitTable({ title, split }: { title: string; split: { base: any; exp: any } }) {
+  return (
+    <div>
+      <div className="eyebrow !text-[9px] mb-2">{title}</div>
+      <div className="grid grid-cols-3 gap-2 text-center">
+        <div />
+        <div className="text-[9px] font-semibold uppercase tracking-[0.12em] text-txt-faint">Original</div>
+        <div className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[var(--accent-cyan)]">Experimental</div>
+        <div className="text-left text-[10.5px] text-txt-low">Expectancy</div>
+        <div className="num text-[12px] font-semibold">{split.base?.expectancy ?? "-"}R</div>
+        <div className="num text-[12px] font-semibold text-[var(--accent-cyan)]">{split.exp?.expectancy ?? "-"}R</div>
+        <div className="text-left text-[10.5px] text-txt-low">Win rate</div>
+        <div className="num text-[12px] font-semibold">{split.base?.win_rate ?? "-"}%</div>
+        <div className="num text-[12px] font-semibold text-[var(--accent-cyan)]">{split.exp?.win_rate ?? "-"}%</div>
+        <div className="text-left text-[10.5px] text-txt-low">Trades</div>
+        <div className="num text-[12px] text-txt-mid">{split.base?.trades ?? "-"}</div>
+        <div className="num text-[12px] text-txt-mid">{split.exp?.trades ?? "-"}</div>
+      </div>
     </div>
   );
 }

@@ -50,6 +50,62 @@ export interface Signal {
   user_notes?: string;
   result_analysis?: any;
   createdAt: string;
+  dna?: DnaSnapshot | null;
+  forensics?: ForensicsReport | null;
+}
+
+export interface DnaSnapshot {
+  price?: number;
+  ema9?: number;
+  ema21?: number;
+  ema21_slope_pct?: number;
+  atr14?: number;
+  atr_pct_of_price?: number;
+  regime?: string;
+  regime_confidence?: number;
+  volatility?: string;
+  volatility_rank?: number;
+  momentum?: string;
+  mtf?: Record<string, string>;
+  mtf_alignment?: string;
+  session?: string;
+  news_proximity_min?: number | null;
+  news_event?: string | null;
+  data_source?: string;
+  data_demo?: boolean;
+}
+
+export interface ForensicsFinding {
+  label: string;
+  kind: string;
+  detail: string;
+}
+
+export interface ForensicsReport {
+  findings: ForensicsFinding[];
+  comparables: EvidenceSignal[];
+  sample_size: number;
+}
+
+export interface EvidenceSignal {
+  signal_id: string | null;
+  market?: string;
+  direction?: string;
+  outcome: string | null;
+  r: number | null;
+  status: string | null;
+  time: string | null;
+}
+
+export interface Observation {
+  kind: string;
+  text: string;
+  sample_size: number;
+  regime?: string;
+  wins?: number;
+  losses?: number;
+  median_r?: number;
+  evidence?: EvidenceSignal[];
 }
 
 export interface Lesson {
@@ -103,6 +159,13 @@ export interface Experiment {
   recommend_approval: boolean;
   delta_win_rate?: number;
   delta_expectancy?: number;
+  experiment_code?: string;
+  status?: string;
+  overfitting_risk?: boolean;
+  split?: {
+    train: { base: any; exp: any };
+    validation: { base: any; exp: any };
+  } | null;
   createdAt: string;
 }
 
@@ -171,6 +234,23 @@ export interface AgentStatus {
   strategy_versions: Record<string, string>;
   ai: { provider: string; configured: boolean; note: string };
   market_data: { provider: string; demo: boolean };
+}
+
+export interface ReplayData {
+  signal: {
+    id: string; signal_id: string; market: string; timeframe: string;
+    strategy_name: string; direction: "BUY" | "SELL";
+    entry: number; sl: number; tp1: number | null; tp2: number | null;
+    tp3: number | null; candle_time: string; status: string;
+    outcome: string | null; r_multiple: number; tp_hits: number;
+  };
+  markers: { entry: number; sl: number; tp1: number | null; tp2: number | null; tp3: number | null };
+  candles: { ts: number; open: number; high: number; low: number; close: number }[];
+  coverage: "full" | "partial" | "unavailable";
+  note: string | null;
+  dna: DnaSnapshot | null;
+  forensics: ForensicsReport | null;
+  demo: boolean;
 }
 
 export interface Candle {

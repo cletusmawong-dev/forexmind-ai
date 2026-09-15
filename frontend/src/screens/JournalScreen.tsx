@@ -184,7 +184,8 @@ function EquityChart({ curve }: { curve: { i: number; cum: number }[] }) {
 type LogSignal = {
   id: string; market: string; direction: "BUY" | "SELL"; strategy_name: string;
   signal_id: string; timeframe: string; entry: number; sl: number;
-  tp1?: number; tp2?: number; tp3?: number; tp_hits?: number;
+  tp1?: number | null; tp2?: number | null; tp3?: number | null; tp_hits?: number;
+  completed?: boolean;
   status?: string; outcome?: string | null; r_multiple?: number;
   candle_time?: string; completed_at?: string; exit_price?: number | null;
   mt5_confirmed?: boolean; mt5_pl?: number;

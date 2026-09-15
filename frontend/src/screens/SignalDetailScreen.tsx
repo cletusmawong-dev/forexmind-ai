@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, ChevronDown, CircleSlash, NotebookPen } from "lucide-react";
+import { ArrowLeft, ChevronDown, CircleSlash, FlaskConical, NotebookPen } from "lucide-react";
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
-import type { Candle, Signal } from "../lib/types";
+import type { Candle, ReplayData, Signal } from "../lib/types";
 import { DemoTag, Divider, Glass, MetricGrid, Pill, Spinner, StatusDot, ProgressBar } from "../components/ui";
 import { CandleChart, ChartLine } from "../components/CandleChart";
 import { PositionSizeCard } from "../components/PositionSizeCard";
@@ -27,6 +27,13 @@ export function SignalDetailScreen() {
     15000,
     [s?.market, s?.timeframe]
   );
+  const [replayOpen, setReplayOpen] = useState(false);
+  const replayQ = usePolling<ReplayData | null>(
+    async () => (replayOpen && s ? api.get<ReplayData>(endpoints.signalReplay(s.id)) : null),
+    60000,
+    [s?.id, replayOpen]
+  );
+  const r = replayQ.data;
 
   if (!s) return <Spinner label="Loading signal..." />;
   const buy = s.direction === "BUY";
@@ -270,6 +277,91 @@ export function SignalDetailScreen() {
           </div>
         </div>
       )}
+
+      {/* ---- forensic replay ---- */}
+      <div className="mt-4">
+        <button onClick={() => setReplayOpen(!replayOpen)} className="glass glass-hover tap flex w-full items-center justify-between px-5 py-4">
+          <span className="flex items-center gap-2 text-[13.5px] font-semibold">
+            <FlaskConical size={14} className="text-acc-cyan" /> Forensic replay
+            {s.completed && <span className="text-[10px] font-medium text-txt-faint">- what the agent saw, and what happened</span>}
+          </span>
+          <ChevronDown size={16} className={`text-[var(--text-muted)] transition-transform duration-500 ${replayOpen ? "rotate-180" : ""}`} />
+        </button>
+        {replayOpen && (
+          <div className="animate-fadeUp mt-2 space-y-4">
+            {!r ? (
+              <Spinner label="Loading replay..." />
+            ) : (
+              <>
+                <Glass className="!px-2 !py-3">
+                  <CandleChart
+                    candles={(r.candles ?? []).map((c) => ({
+                      time: new Date(c.ts * 1000).toISOString().slice(0, 16),
+                      open: c.open, high: c.high, low: c.low, close: c.close, volume: 0,
+                    }))}
+                    lines={[
+                      { price: r.markers.sl, color: "#FB4D6A", label: "SL", style: "dashed", fade: 0.7 },
+                      { price: r.markers.entry, color: "#4D7CFE", label: "Entry", style: "solid", fade: 0.9 },
+                      ...(r.markers.tp1 ? [{ price: r.markers.tp1, color: "#2FD98A", label: "TP1", style: "dashed" as const, fade: 0.8 }] : []),
+                      ...(r.markers.tp2 ? [{ price: r.markers.tp2, color: "#2FD98A", label: "TP2", style: "dashed" as const, fade: 0.55 }] : []),
+                      ...(r.markers.tp3 ? [{ price: r.markers.tp3, color: "#2FD98A", label: "TP3", style: "dashed" as const, fade: 0.35 }] : []),
+                    ]}
+                    entry={r.markers.entry}
+                    sl={r.markers.sl}
+                    tp1={r.markers.tp1 ?? undefined}
+                    markerTime={r.signal.candle_time}
+                    markerDirection={r.signal.direction}
+                    showLastPrice={false}
+                    height={300}
+                  />
+                  <p className="px-4 pt-2 text-[10px] text-txt-faint">
+                    Stored candles replayed from the signal time. {r.signal.outcome ? `Outcome: ${r.signal.outcome}${r.signal.r_multiple !== null && r.signal.r_multiple !== undefined ? ` (${r.signal.r_multiple > 0 ? "+" : ""}${r.signal.r_multiple}R)` : ""}.` : "Still tracking - outcome pending."}
+                  </p>
+                </Glass>
+                {r.note && (
+                  <p className="px-1 text-[10.5px] leading-relaxed text-txt-faint">{r.note}</p>
+                )}
+                {r.dna ? (
+                  <Glass>
+                    <div className="eyebrow mb-3">Signal DNA - captured at signal time</div>
+                    <div className="flex flex-wrap gap-2">
+                      {r.dna.regime && <Pill tone="neutral">{r.dna.regime.replace(/_/g, " ")}</Pill>}
+                      {r.dna.regime_confidence !== undefined && <Pill tone="neutral">confidence {Math.round(r.dna.regime_confidence * 100)}%</Pill>}
+                      {r.dna.volatility && <Pill tone="neutral">{r.dna.volatility} vol</Pill>}
+                      {r.dna.atr14 !== undefined && <Pill tone="neutral">ATR {fmtPrice(r.dna.atr14)}</Pill>}
+                      {r.dna.session && <Pill tone="neutral">{r.dna.session}</Pill>}
+                      {r.dna.mtf_alignment && <Pill tone="neutral">MTF {r.dna.mtf_alignment}</Pill>}
+                      {r.dna.momentum && <Pill tone="neutral">momentum {r.dna.momentum}</Pill>}
+                      {r.dna.news_event && <Pill tone="warn">news: {r.dna.news_event}</Pill>}
+                    </div>
+                  </Glass>
+                ) : (
+                  <p className="px-1 text-[10.5px] text-txt-faint">No DNA snapshot for this signal - it predates DNA capture.</p>
+                )}
+                {r.forensics && r.forensics.findings.length > 0 && (
+                  <Glass>
+                    <div className="eyebrow mb-3">Forensic notes</div>
+                    <div className="space-y-3">
+                      {r.forensics.findings.map((f, i) => (
+                        <div key={i}>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[9px] font-bold uppercase tracking-[0.14em] ${f.kind === "FACT" ? "text-pos" : f.kind === "POSSIBLE_EXPLANATION" ? "text-warn" : "text-txt-mid"}`}>{f.kind.replace("_", " ")}</span>
+                            <span className="text-[12px] font-semibold text-txt-hi">{f.label}</span>
+                          </div>
+                          <p className="mt-1 text-[11.5px] leading-relaxed text-txt-low">{f.detail}</p>
+                        </div>
+                      ))}
+                      {r.forensics.sample_size < 10 && (
+                        <p className="text-[10.5px] text-txt-faint">Insufficient sample: only {r.forensics.sample_size} comparable completed signal(s) so far.</p>
+                      )}
+                    </div>
+                  </Glass>
+                )}
+              </>
+            )}
+          </div>
+        )}
+      </div>
 
       <div className="mt-5 flex flex-wrap items-center justify-center gap-2 pb-2">
         <Pill tone="neutral">{s.signal_id}</Pill>
