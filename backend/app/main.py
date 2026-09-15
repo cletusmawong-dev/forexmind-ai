@@ -47,8 +47,8 @@ async def startup():
         pass
     init_state()
     try:
-        seed_if_empty()
-        agent_core.ensure_user_docs("demo-user")
+        from .seed import ensure_strategy_docs
+        ensure_strategy_docs()   # strategy registry only - never demo users/signals
     except Exception as e:
         # Quota gate or transient DB issue: boot anyway so market-data and
         # health endpoints stay up; DB-backed features degrade honestly.
