@@ -151,6 +151,8 @@ class SignalEngine:
                 "price": cand.entry,
             },
             "candle_time": cand.candle_time,
+            "dna": None,                # Signal DNA snapshot (filled right below)
+            "forensics": None,          # filled automatically on completion
             "status": "ACTIVE",
             "tp_hits": 0,
             "r_multiple": 0.0,
@@ -168,6 +170,12 @@ class SignalEngine:
         self._log(f"{strategy.short_name}: {cand.direction} signal on {cand.market} "
                   f"{cand.timeframe} approved for notification.",
                   kind="SIGNAL", market=cand.market)
+        try:  # Signal DNA: full market snapshot at the exact signal moment
+            from ..learning.dna import build as build_dna
+            store.update("signals", doc["id"],
+                         {"dna": build_dna(cand.market, cand.timeframe, df, cand.mtf)})
+        except Exception:
+            pass
         self._log(f"User notified - {signal_id}.", kind="NOTIFY", market=cand.market)
         try:  # MT5 auto-execution (VPS bridge) - never blocks signal creation
             from ..execution.mt5 import execute_signal

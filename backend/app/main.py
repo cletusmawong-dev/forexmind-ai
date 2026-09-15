@@ -189,6 +189,9 @@ async def live_loop():
                         from .market_data import candle_store
                         df15 = await asyncio.to_thread(State.provider.get_candles, market, "15M", candle_store.KEEP)
                         await asyncio.to_thread(candle_store.record, market, df15)
+                        if df15 is not None:
+                            from .learning import regime as regime_mod
+                            await asyncio.to_thread(regime_mod.record, market, df15)
                     except Exception:
                         pass
                     try:

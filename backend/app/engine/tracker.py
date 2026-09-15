@@ -133,6 +133,13 @@ class SignalTracker:
         })
         if updated:
             analyze_single_result(sig.get("userId"), updated)
+            try:  # forensic analysis from Signal DNA vs historical comparables
+                from ..learning.forensics import analyze as forensic_analyze
+                fresh = store.get("signals", sig["id"]) or sig
+                store.update("signals", sig["id"],
+                             {"forensics": forensic_analyze(fresh, store)})
+            except Exception:
+                pass
 
         # keep the user's own trade result in sync (SPEC §17)
         if sig.get("user_action") == "entered":

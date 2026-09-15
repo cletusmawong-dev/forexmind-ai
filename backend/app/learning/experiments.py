@@ -84,6 +84,31 @@ class ExperimentEngine:
         exp_metrics = compute_metrics(exp_result["trades"])
         verdict = classify_experiment(orig_metrics, exp_metrics,
                                       settings.min_trades_for_experiment)
+
+        # ---- anti-overfitting: time-ordered 70/30 train/validation split ----
+        def _split(trades):
+            ts = sorted(trades, key=lambda t: t.get("entry_time", ""))
+            cut = max(1, int(len(ts) * 0.7))
+            return ts[:cut], ts[cut:]
+
+        b_train, b_val = _split(base_result["trades"])
+        e_train, e_val = _split(exp_result["trades"])
+        train_m = compute_metrics(b_train); train_e = compute_metrics(e_train)
+        val_m = compute_metrics(b_val); val_e = compute_metrics(e_val)
+        overfit_risk = False
+        if (train_e.get("trades", 0) >= 10 and val_e.get("trades", 0) >= 5
+                and train_m.get("trades", 0) >= 10):
+            train_better = train_e.get("expectancy", 0) > train_m.get("expectancy", 0)
+            val_worse = val_e.get("expectancy", 0) < val_m.get("expectancy", 0)
+            overfit_risk = bool(train_better and val_worse)
+
+        if verdict.get("result") != "INSUFFICIENT_DATA" and overfit_risk:
+            verdict["overfitting_risk"] = True
+            verdict["conclusion"] += (
+                " WARNING: HIGH OVERFITTING RISK - the change improves the training "
+                "period but degrades on the validation period. Do not approve without "
+                "further out-of-sample evidence.")
+
         return {
             "strategy_id": strategy_id,
             "variable": changed_key,
@@ -97,6 +122,13 @@ class ExperimentEngine:
             "original_metrics": orig_metrics,
             "experimental_metrics": exp_metrics,
             "verdict": verdict,
+            "overfitting_risk": verdict.get("overfitting_risk", False),
+            "split": {
+                "train": {"base": {k: v for k, v in train_m.items() if not isinstance(v, dict)},
+                          "exp": {k: v for k, v in train_e.items() if not isinstance(v, dict)}},
+                "validation": {"base": {k: v for k, v in val_m.items() if not isinstance(v, dict)},
+                               "exp": {k: v for k, v in val_e.items() if not isinstance(v, dict)}},
+            },
         }
 
     def run_from_hypothesis(self, user_id: str, hypothesis: Dict[str, Any]) -> Dict[str, Any]:
@@ -120,8 +152,10 @@ class ExperimentEngine:
         verdict = comparison["verdict"]
 
         now = comparison["dataset"]["end"]
+        code = f"EXP-{store.count('experiments') + 1:06d}"
         exp_doc = store.create("experiments", {
             "userId": user_id,
+            "experiment_code": code,
             "hypothesis_id": hypothesis["id"],
             "strategy_id": strategy_id,
             "variable": comparison["variable"],
@@ -141,6 +175,9 @@ class ExperimentEngine:
             "recommend_approval": verdict.get("recommend_approval", False),
             "delta_win_rate": verdict.get("delta_win_rate"),
             "delta_expectancy": verdict.get("delta_expectancy"),
+            "overfitting_risk": bool(comparison.get("overfitting_risk")),
+            "status": "READY_FOR_REVIEW",
+            "split": comparison.get("split"),
         })
 
         store.update("hypotheses", hypothesis["id"], {
