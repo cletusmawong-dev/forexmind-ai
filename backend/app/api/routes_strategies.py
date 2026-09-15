@@ -64,11 +64,30 @@ def list_versions(strategy_id: str, user_id: str = Depends(get_user_id)):
 
 @router.post("/{strategy_id}/rollback")
 def rollback(strategy_id: str, body: dict = None, user_id: str = Depends(get_user_id)):
+    body = body or {}
+    if not body.get("confirm"):
+        raise HTTPException(
+            428, "Rollback requires explicit confirmation "
+                 "(body: {\"confirm\": true, \"target_version\": \"x.y\"}). "
+                 "The active version stays unchanged.")
+    versions = State.store.list("strategy_versions",
+                                filters={"strategy_id": strategy_id})
+    from_v = next((v["version"] for v in versions if v.get("active")
+                   and v.get("version")), None)
     try:
-        target = vc.rollback(strategy_id, (body or {}).get("target_version"))
+        target = vc.rollback(strategy_id, body.get("target_version"))
     except ValueError as e:
         raise HTTPException(409, str(e))
-    return {"rolled_back_to": target}
+    State.store.create("version_events", {
+        "userId": user_id, "kind": "ROLLBACK", "strategy_id": strategy_id,
+        "from_version": from_v, "to_version": target["version"],
+        "reason": body.get("reason") or None,
+        "at": __import__("datetime").datetime.now(
+            __import__("datetime").timezone.utc).isoformat(),
+    })
+    return {"rolled_back": True, "rolled_back_to": target,
+            "from_version": from_v, "to_version": target["version"],
+            "note": "History was never destroyed - previous versions are retained."}
 
 
 @router.get("/{strategy_id}/compare")

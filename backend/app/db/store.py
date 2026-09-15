@@ -33,7 +33,7 @@ COLLECTIONS = [
     "users", "markets", "signals", "trades", "strategies", "strategy_versions",
     "agent_goals", "agent_activity", "lessons", "hypotheses", "experiments",
     "notifications", "performance", "settings", "backtests", "candles",
-    "exec_commands",
+    "exec_commands", "market_regimes", "version_events",
 ]
 
 
