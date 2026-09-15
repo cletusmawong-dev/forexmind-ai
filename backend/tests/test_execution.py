@@ -67,9 +67,11 @@ def test_bridge_offline_is_honest(monkeypatch):
 
 
 def test_daily_cap(monkeypatch):
+    from datetime import datetime, timezone
     store = X.get_store()
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     for i in range(2):   # cap = 2
-        store.create("signals", {"userId": "u1", "signal_id": f"S-{i}", "day": "2026-09-14",
+        store.create("signals", {"userId": "u1", "signal_id": f"S-{i}", "day": today,
                                  "mt5_ticket": 100 + i})
     monkeypatch.setattr(X, "bridge_get", lambda p, timeout=8: {"balance": 1000})
     X.execute_signal(SIG, "u1")
