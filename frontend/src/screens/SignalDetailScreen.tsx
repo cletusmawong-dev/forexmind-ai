@@ -187,11 +187,11 @@ export function SignalDetailScreen() {
       <Glass className="mt-4">
         <div className="eyebrow mb-3">Your decision</div>
         {!s.user_action && !mode && (
+          <div>
           <p className="mb-3 px-1 text-[11px] leading-relaxed text-txt-faint">
             This signal is <span className="font-semibold text-txt-mid">always tracked to TP/SL</span> -
             confirming only records it as <span className="italic">your</span> trade in the journal.
           </p>
-          <>
             <p className="mb-4 text-[12.5px] text-[var(--text-secondary)]">Did you enter this trade on MT5?</p>
             <div className="flex gap-2.5">
               <button className="btn-primary flex-1" onClick={() => setMode("entered")}>
@@ -201,7 +201,7 @@ export function SignalDetailScreen() {
                 I skipped
               </button>
             </div>
-          </>
+          </div>
         )}
         {mode === "entered" && (
           <div className="space-y-2.5 anim-fadeUp">
