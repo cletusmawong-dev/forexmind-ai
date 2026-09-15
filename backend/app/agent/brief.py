@@ -139,6 +139,9 @@ def build(user_id: str) -> str:
     if not text:
         text = _template(ctx, objective, news, prices)
 
+    from ..core.plain_text import to_plain
+    text = to_plain(text)
+
     with _lock:
         _cache[today] = text
     return text

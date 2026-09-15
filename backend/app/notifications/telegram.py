@@ -21,6 +21,8 @@ from ..db.store import get_store
 
 def send_telegram(user_id: str, text: str) -> bool:
     """Best-effort delivery. Returns True only when actually sent."""
+    from ..core.plain_text import to_plain
+    text = to_plain(text)
     token = settings.telegram_bot_token
     if not token:
         return False

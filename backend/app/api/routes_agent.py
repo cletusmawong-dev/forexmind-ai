@@ -52,6 +52,9 @@ def scan_now(user_id: str = Depends(get_user_id)):
 
 @router.post("/chat")
 def chat(body: ChatIn, user_id: str = Depends(get_user_id)):
+    from ..core.plain_text import to_plain
     result = chat_answer(body.message, user_id)
+    if isinstance(result.get("answer"), str):
+        result["answer"] = to_plain(result["answer"])
     result["ai"] = ai_status()
     return result

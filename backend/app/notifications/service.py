@@ -15,6 +15,8 @@ from ..db.store import get_store
 
 def notify(user_id: Optional[str], type_: str, title: str, body: str,
            signal_id: Optional[str] = None, meta: Optional[Dict[str, Any]] = None) -> dict:
+    from ..core.plain_text import to_plain
+    title, body = to_plain(title), to_plain(body)
     store = get_store()
     doc = store.create("notifications", {
         "userId": user_id,
