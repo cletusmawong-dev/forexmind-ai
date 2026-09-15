@@ -113,11 +113,11 @@ export function AnalyticsScreen() {
             {(a?.experiments ?? []).map((e: any, i: number) => (
               <div key={i} className="flex items-center justify-between py-3">
                 <span className="text-[12px] text-txt-mid">
-                  <span className="font-mono text-txt-low">{e.variable}</span> {String(e.old)} → {String(e.new)}
+                  <span className="font-mono text-txt-low">{e.variable}</span> {String(e.old)} {'->'} {String(e.new)}
                 </span>
                 <span className="flex items-center gap-3">
                   <span className="num text-[11px] text-txt-low">
-                    {e.orig_wr}% → <span className="font-medium text-txt-hi">{e.exp_wr}%</span>
+                    {e.orig_wr}% {'->'} <span className="font-medium text-txt-hi">{e.exp_wr}%</span>
                   </span>
                   <Pill tone={e.result === "IMPROVED" ? "pos" : e.result === "WORSE" ? "neg" : "neutral"}>{e.result.replace(/_/g, " ").toLowerCase()}</Pill>
                 </span>

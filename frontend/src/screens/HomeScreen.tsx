@@ -222,7 +222,7 @@ export function HomeScreen() {
                     {m.bias.replace(" BIAS", "")}
                   </div>
                   <div className={`text-[8.5px] font-bold uppercase tracking-[0.1em] ${m.status === "SIGNAL READY" ? "text-[var(--accent-cyan)]" : m.status === "SETUP FORMING" ? "text-[var(--accent-amber)]" : "text-[var(--text-muted)]"}`}>
-                    {m.status === "SIGNAL READY" ? "◉ signal" : m.status === "SETUP FORMING" ? "forming" : m.status === "WATCHING" ? "watching" : "no setup"}
+                    {m.status === "SIGNAL READY" ? "signal ready" : m.status === "SETUP FORMING" ? "forming" : m.status === "WATCHING" ? "watching" : "no setup"}
                   </div>
                 </div>
               </div>

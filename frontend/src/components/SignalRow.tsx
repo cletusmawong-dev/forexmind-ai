@@ -2,7 +2,7 @@ import { ArrowDownRight, ArrowUpRight, ChevronRight } from "lucide-react";
 import type { Signal } from "../lib/types";
 import { fmtPrice, fmtR, statusToneShort } from "../lib/format";
 
-/** Circular glass direction icon with soft glow (SELL = pink ↓, BUY = green ↑). */
+/** Circular glass direction icon with soft glow (SELL = pink, BUY = green). */
 export function CircleDirIcon({ dir, size = 44 }: { dir: "BUY" | "SELL"; size?: number }) {
   const buy = dir === "BUY";
   const color = buy ? "var(--accent-green)" : "var(--accent-red)";

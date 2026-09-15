@@ -7,7 +7,7 @@ import type { Signal } from "../lib/types";
 import { ConnectionState, DemoTag, Divider, Eyebrow, Glass, Pill, Segmented, Spinner } from "../components/ui";
 import { fmtDateTime, fmtR } from "../lib/format";
 import { useNavigate } from "react-router-dom";
-import { NotebookPen } from "lucide-react";
+import {NotebookPen, ArrowUpRight, ArrowDownRight} from "lucide-react";
 
 export function JournalScreen() {
   const [tab, setTab] = useState<"record" | "history">("record");
@@ -239,7 +239,7 @@ function tradeLog(signals: LogSignal[], navigate: (p: string) => void) {
               color: win ? "var(--accent-green)" : "var(--accent-red)",
               boxShadow: win ? "0 0 16px rgba(47,217,138,0.25)" : "0 0 16px rgba(251,77,106,0.25)",
             }} aria-hidden="true">
-            {s.direction === "BUY" ? "▲" : "▼"}
+            {s.direction === "BUY" ? <ArrowUpRight size={16} strokeWidth={2.4} /> : <ArrowDownRight size={16} strokeWidth={2.4} />}
           </span>
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline gap-2">

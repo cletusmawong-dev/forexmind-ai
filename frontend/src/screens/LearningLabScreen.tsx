@@ -278,7 +278,7 @@ export function LearningLabScreen() {
                   </Pill>
                 </div>
                 <p className="px-6 pt-1 text-[11px] text-txt-faint">
-                  {e.strategy_id === "strategy_1_zero_lag" ? "Zero Lag Trend" : "9/21 EMA Smart TP/SL"} - <span className="font-mono">{e.variable}</span> {String(e.old_value)} → {String(e.new_value)} - {e.market} {e.timeframe}
+                  {e.strategy_id === "strategy_1_zero_lag" ? "Zero Lag Trend" : "9/21 EMA Smart TP/SL"} - <span className="font-mono">{e.variable}</span> {String(e.old_value)} {'->'} {String(e.new_value)} - {e.market} {e.timeframe}
                 </p>
                 <div className="mt-4 flex items-stretch divide-x divide-white/[0.05]">
                   <Evidence label="Win rate" value={`${e.original_metrics?.win_rate ?? "-"}%`} sub={`${e.experimental_metrics?.win_rate ?? "-"}%`} />

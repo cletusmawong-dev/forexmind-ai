@@ -75,7 +75,11 @@ class Settings:
 
 settings = Settings()
 
-INITIAL_MARKETS = ["XAUUSD", "NAS100", "EURUSD", "GBPUSD", "USDJPY"]
+# NAS100 off by default: the free TwelveData tier covers it only through the
+# QQQ proxy, which tracks the index loosely - signals on thin data mislead.
+# Set MARKETS_EXTRA=+NAS100 to re-enable when a real index feed is available.
+_markets = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY"]
+INITIAL_MARKETS = _markets + ([m.lstrip("+") for m in os.getenv("MARKETS_EXTRA", "").split(",") if m] if os.getenv("MARKETS_EXTRA") else [])
 TIMEFRAMES = ["5M", "15M", "1H", "4H", "1D"]
 SESSIONS = {"Asian": (0, 8), "London": (8, 13), "NewYork": (13, 21), "Late": (21, 24)}
 

@@ -284,7 +284,7 @@ function LadderRow({ label, value, tone, note, muted, hit }: { label: string; va
   return (
     <div className={`flex items-baseline justify-between py-[13px] ${muted ? "opacity-35" : ""}`}>
       <span className="flex items-center gap-2 text-[12.5px] text-[var(--text-secondary)]">
-        {hit && <span className="text-[var(--accent-green)]">●</span>}
+        {hit && <span className="text-[var(--accent-green)]">[ok]</span>}
         {label}
       </span>
       <span className="flex items-baseline gap-3">
