@@ -3,7 +3,7 @@ import {ChevronDown, GitBranch, Layers} from "lucide-react";
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
 import type { StrategyDoc, StrategyVersion } from "../lib/types";
-import { DemoTag, Divider, Eyebrow, Glass, GlowDot, Pill, Segmented, Spinner } from "../components/ui";
+import { DemoTag, Divider, Eyebrow, Glass, GlowDot, Pill, Spinner } from "../components/ui";
 
 type EngineMode = "s1" | "s2" | "both" | "none";
 
@@ -119,17 +119,22 @@ export function StrategiesScreen() {
             {MODE_LABEL[engineMode]}
           </span>
         </p>
-        <div className={`no-scrollbar mt-4 overflow-x-auto ${busy === "engine" ? "pointer-events-none opacity-50" : ""}`}>
-          <Segmented
-            className="min-w-[340px]"
-            value={engineMode === "none" ? "" : engineMode}
-            onChange={(k) => applyEngineMode(k as EngineMode)}
-            options={[
-              { key: "s1", label: "Strategy 1" },
-              { key: "s2", label: "Strategy 2" },
-              { key: "both", label: "Both" },
-            ]}
-          />
+        <div className={`mt-4 grid grid-cols-3 gap-2 ${busy === "engine" ? "pointer-events-none opacity-50" : ""}`}>
+          {([["s1", "Strategy 1"], ["s2", "Strategy 2"], ["both", "Both"]] as const).map(([k, label]) => (
+            <button
+              key={k}
+              onClick={() => applyEngineMode(k)}
+              disabled={busy === "engine" || engineMode === k}
+              aria-pressed={engineMode === k}
+              className={`tap min-h-[46px] rounded-2xl border px-2 py-3 text-[12px] font-semibold transition-all duration-300 ${
+                engineMode === k
+                  ? "border-acc/40 bg-acc/[0.09] text-acc"
+                  : "border-white/[0.08] bg-white/[0.02] text-txt-low hover:text-txt-mid"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
         <p className="mt-3 text-[10px] leading-relaxed text-txt-faint">
           Applies to new signals only. Signals already tracking always run to completion.

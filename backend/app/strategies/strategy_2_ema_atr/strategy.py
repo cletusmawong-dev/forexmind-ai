@@ -10,6 +10,11 @@ EMA crossing ABOVE slow, SELL on cross BELOW; TP hit = high/low vs level
 per direction, each TP independent. Documented accounting decisions (not
 strategy changes): same-bar SL-before-TP, 200-bar tracking expiry.
 
+CONFIDENCE (user directive 2026-09-16): the 0-100 confidence score is
+based on HIGHER-TIMEFRAME ALIGNMENT - 80 pts from 1H/4H/1D agreement
+(this strategy's own fast/slow EMA relationship per timeframe), 20 pts
+from local crossover strength. Entries, SL and TPs are unchanged.
+
     Fast EMA = EMA(close, 9)      Slow EMA = EMA(close, 21)      ATR = ATR(14)
 
     BUY  when 9 EMA crosses ABOVE 21 EMA
@@ -117,13 +122,28 @@ class EmaAtrStrategy(BaseStrategy):
         if rk["risk"] <= 0:
             return None
         tps = self.calculate_targets(rk["entry"], rk["risk"], direction, params)
+        # higher-timeframe alignment via this strategy's own fast/slow EMAs
+        tf_order = {"5M": 5, "15M": 15, "1H": 60, "4H": 240, "1D": 1440}
+        base_min = tf_order.get(timeframe, 15)
+        fast_len = int(params["fast_len"]); slow_len = int(params["slow_len"])
+        mtf: Dict[str, int] = {}
+        for tf in ("5M", "15M", "1H", "4H", "1D"):
+            if tf_order[tf] <= base_min:
+                continue
+            hdf = (higher_frames or {}).get(tf)
+            if hdf is None or len(hdf.dropna()) < slow_len + 10:
+                continue  # frame unavailable -> honestly excluded
+            h = hdf.dropna()
+            hf, hs = ema(h["close"], fast_len), ema(h["close"], slow_len)
+            fv, sv = float(hf.iloc[-1]), float(hs.iloc[-1])
+            mtf[tf] = 1 if fv > sv else (-1 if fv < sv else 0)
         ctx = dict(score_context or {})
         ctx.setdefault("close", float(df["close"].iloc[i]))
         ctx.setdefault("session", ctx.get("session", "London"))
-        ctx.setdefault("htf_df", (higher_frames or {}).get("1H"))
+        ctx["mtf_trend"] = mtf
         checks, analysis = self.explain_signal(
             state, i, direction, params,
-            {"risk": rk["risk"], "session": ctx["session"]})
+            {"risk": rk["risk"], "session": ctx["session"], "mtf_trend": mtf})
         score, comps = self.score(state, i, direction, ctx)
         return Candidate(
             strategy_id=self.id, market=market, timeframe=timeframe,
@@ -132,45 +152,48 @@ class EmaAtrStrategy(BaseStrategy):
             sl=rk["sl"], tps=tps, risk=rk["risk"],
             rr_primary=float(params["tp3_rr"]),
             score=score, score_components=comps, checks=checks, analysis=analysis,
-            mtf=None, params=dict(params), params_version=self.version,
+            mtf=mtf, params=dict(params), params_version=self.version,
         )
 
     def score(self, state, i, direction, ctx) -> tuple:
+        """Confidence based on HIGHER-TIMEFRAME ALIGNMENT (user directive).
+
+        80 pts: agreement of the higher timeframes (1H/4H/1D for a 15M
+        signal) with the signal direction, measured by this strategy's own
+        fast/slow EMA relationship per frame. Unavailable frames are
+        excluded from the denominator. 20 pts: local crossover quality.
+        """
         sgn = 1 if direction == "BUY" else -1
+        mtf = ctx.get("mtf_trend") or {}
+        n = len(mtf)
+        if n:
+            agree = sum(1 for v in mtf.values() if v == sgn)
+            neutral = sum(1 for v in mtf.values() if v == 0)
+            c1 = round(80.0 * (agree + 0.5 * neutral) / n, 1)
+        else:
+            c1 = 0.0
+
         atr_i = float(state["atr"].iloc[i])
         sep = abs(float(state["ema_f"].iloc[i]) - float(state["ema_s"].iloc[i]))
         ratio = (sep / atr_i) if atr_i > 0 else 0.0
-        c1 = round(min(ratio / 0.4, 1.0) * 40.0, 1)
+        c2 = round(min(ratio / 0.4, 1.0) * 20.0, 1)
 
-        vr = 0.5
-        try:
-            vr_series = self._volatility_rank(state)
-            if len(vr_series) > i and not pd.isna(vr_series.iloc[i]):
-                vr = float(vr_series.iloc[i])
-        except Exception:
-            pass
-        c2 = round(max(0.0, min(30.0 * (1.0 - abs(vr - 0.6) * 1.6), 30.0)), 1)
-
-        c3 = SESSION_WEIGHT.get(ctx.get("session", "London"), 10.0)
-
-        c4 = 0.0
-        htf = ctx.get("htf_df")
-        try:
-            if htf is not None and len(htf) >= 50:
-                h = htf.dropna()
-                f = ema(h["close"], 9); s = ema(h["close"], 21)
-                if (f.iloc[-1] > s.iloc[-1] and sgn > 0) or (f.iloc[-1] < s.iloc[-1] and sgn < 0):
-                    c4 = 15.0
-        except Exception:
-            pass
-
-        total = int(round(min(100.0, c1 + c2 + c3 + c4)))
-        return total, {"Crossover strength": c1, "Volatility regime": c2,
-                       "Session": c3, "1H EMA alignment": c4}
+        total = int(round(min(100.0, c1 + c2)))
+        return total, {"HTF alignment": c1, "Crossover strength": c2}
 
     def explain_signal(self, state, i, direction, params, extra) -> tuple:
         sgn = 1 if direction == "BUY" else -1
         atr_i = float(state["atr"].iloc[i]); sm = float(params["sl_mult"])
+        mtf = (extra or {}).get("mtf_trend") or {}
+        words = {1: "bullish", -1: "bearish", 0: "neutral"}
+        if mtf:
+            agree = sum(1 for v in mtf.values() if v == sgn)
+            part = ", ".join(f"{tf} {words.get(v, 'n/a')}" for tf, v in mtf.items())
+            htf_detail = (f"{part} - {agree} of {len(mtf)} higher timeframes "
+                          f"agree with the {'bullish' if sgn > 0 else 'bearish'} setup")
+        else:
+            htf_detail = ("higher-timeframe data unavailable - confidence rests "
+                          "on the crossover itself")
         checks = [
             {"label": f"{int(params['fast_len'])}/{int(params['slow_len'])} EMA crossover confirmed",
              "ok": True,
@@ -178,8 +201,8 @@ class EmaAtrStrategy(BaseStrategy):
             {"label": "Entry condition confirmed",
              "ok": True,
              "detail": f"entry at close, SL = {sm:g} x ATR({int(params['atr_len'])})"},
-            {"label": "Higher-timeframe conditions",
-             "ok": True, "detail": "not required by this strategy"},
+            {"label": "Higher-timeframe alignment (confidence basis)",
+             "ok": True, "detail": htf_detail},
             {"label": "Risk/reward acceptable",
              "ok": True,
              "detail": f"TP1 1R / TP2 2R / TP3 3R from a {atr_i * sm:.5g} stop distance"},

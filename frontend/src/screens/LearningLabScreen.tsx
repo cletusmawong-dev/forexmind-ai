@@ -512,7 +512,7 @@ function SplitTable({ title, split }: { title: string; split: { base: any; exp: 
 
 function Evidence({ label, value, sub, suffix, tone = "text-white" }: { label: string; value: string; sub?: string; suffix?: string; tone?: string }) {
   return (
-    <div className="flex-1 px-4 py-4 text-center">
+    <div className="flex-1 px-2 py-4 text-center sm:px-4">
       <div className="text-[8px] font-semibold uppercase tracking-[0.13em] text-txt-faint">{label}</div>
       <div className={`num mt-1.5 text-[14.5px] font-semibold ${tone}`}>
         {value} {suffix && <span className="text-[8.5px] font-medium text-txt-faint">{suffix}</span>}
