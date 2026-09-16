@@ -195,8 +195,14 @@ export function StrategiesScreen() {
                         key={st}
                         disabled={s.status === st || busy === s.id + st}
                         onClick={() => setStatus(s.id, st)}
-                        className={`rounded-full border px-3.5 py-1.5 text-[10px] font-semibold tracking-[0.1em] transition-all ${
-                          s.status === st ? "border-pos/30 bg-pos/[0.09] text-pos" : "border-white/[0.07] bg-white/[0.02] text-txt-low hover:text-txt-mid"
+                        className={`rounded-full border px-3.5 py-1.5 text-[10px] font-bold tracking-[0.1em] transition-all ${
+                          s.status === st
+                            ? st === "ACTIVE"
+                              ? "chip-on-pos"
+                              : st === "PAUSED"
+                                ? "chip-on-warn"
+                                : "chip-on-muted"
+                            : "chip-off"
                         }`}
                       >
                         {st}

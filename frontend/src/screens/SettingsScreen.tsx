@@ -158,6 +158,9 @@ export function SettingsScreen() {
         </button>
       </Glass>
 
+      {/* ---- strategies on/off (always visible; was buried in Strategy Manager) ---- */}
+      <StrategiesCard />
+
       {/* ---- telegram phone alerts ---- */}
       <Eyebrow className="mt-9">Phone alerts - Telegram</Eyebrow>
       <p className="mb-3 mt-1 px-1 text-[11px] text-txt-faint">Signals, TP/SL hits and approvals delivered even when the app is closed.</p>
@@ -411,3 +414,83 @@ function ExecutionCard() {
   );
 }
 
+
+/** Strategies ON/OFF - always visible in Settings (mirrors Strategy Manager status). */
+function StrategiesCard() {
+  const list = usePolling<any>(() => api.get(endpoints.strategies), 12000);
+  const [busy, setBusy] = useState("");
+  const [toast, setToast] = useState("");
+  const flash = (m: string) => {
+    setToast(m);
+    setTimeout(() => setToast(""), 3500);
+  };
+  const items = (list.data?.strategies ?? []) as any[];
+  const toggle = async (s: any) => {
+    const turningOn = s.status !== "ACTIVE";
+    setBusy(s.id);
+    try {
+      await api.patch(endpoints.strategy(s.id), { status: turningOn ? "ACTIVE" : "PAUSED" });
+      flash(`${s.short_name}: ${turningOn ? "ON - will generate new signals" : "OFF - no new signals"}.`);
+      await list.refresh();
+    } catch {
+      flash("Could not update - check connection and try again.");
+    }
+    setBusy("");
+  };
+  return (
+    <>
+      <Eyebrow className="mt-9">Strategies - on / off</Eyebrow>
+      <p className="mb-3 mt-1 px-1 text-[11px] text-txt-faint">
+        Turn each strategy on or off. OFF stops new signals only - signals already tracking always run to completion.
+      </p>
+      {toast && (
+        <div className="glass-2 mb-3 flex items-center gap-2.5 px-4 py-3 text-[12px] font-medium text-acc-cyan">
+          <GlowDot tone="acc" size={6} pulse={false} /> {toast}
+        </div>
+      )}
+      <Glass pad={false} className="divide-y divide-white/[0.05] !p-0">
+        {list.loading && !list.data ? (
+          <div className="flex justify-center py-6"><Spinner /></div>
+        ) : items.length === 0 ? (
+          <div className="px-5 py-5 text-[12px] text-txt-low">No strategies registered yet.</div>
+        ) : (
+          items.map((s: any) => {
+            const on = s.status === "ACTIVE";
+            return (
+              <div key={s.id} className={`flex items-center gap-4 px-5 py-4 ${busy === s.id ? "opacity-50" : ""}`}>
+                <GlowDot tone={on ? "pos" : "warn"} size={7} pulse={on} />
+                <div className="min-w-0 flex-1">
+                  <div className="text-[13.5px] font-medium tracking-tight text-txt-hi">{s.short_name}</div>
+                  <div className={`mt-0.5 text-[11px] font-semibold ${on ? "text-pos" : "text-txt-faint"}`}>
+                    {on ? "ON - generating signals" : "OFF - paused"}
+                  </div>
+                </div>
+                <button
+                  role="switch"
+                  aria-checked={on}
+                  aria-label={`${s.short_name} on/off`}
+                  disabled={busy === s.id}
+                  onClick={() => toggle(s)}
+                  className="tap flex min-h-[44px] items-center"
+                >
+                  <span
+                    className={`relative block h-[30px] w-[56px] rounded-full transition-all duration-300 ${
+                      on ? "shadow-[0_0_16px_rgba(52,211,153,0.4)]" : ""
+                    }`}
+                    style={{ background: on ? "linear-gradient(120deg, #34d399 0%, #059669 100%)" : "rgba(255,255,255,0.12)" }}
+                  >
+                    <span
+                      className="absolute top-[3px] h-[24px] w-[24px] rounded-full bg-white shadow transition-all duration-300"
+                      style={{ left: on ? "29px" : "3px" }}
+                    />
+                  </span>
+                </button>
+              </div>
+            );
+          })
+        )}
+      </Glass>
+      <Link to="/strategies" className="btn-ghost mt-3 w-full">Strategy Manager - versions &amp; rollback</Link>
+    </>
+  );
+}
