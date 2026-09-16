@@ -10,10 +10,14 @@ EMA crossing ABOVE slow, SELL on cross BELOW; TP hit = high/low vs level
 per direction, each TP independent. Documented accounting decisions (not
 strategy changes): same-bar SL-before-TP, 200-bar tracking expiry.
 
-CONFIDENCE (user directive 2026-09-16): the 0-100 confidence score is
-based on HIGHER-TIMEFRAME ALIGNMENT - 80 pts from 1H/4H/1D agreement
-(this strategy's own fast/slow EMA relationship per timeframe), 20 pts
-from local crossover strength. Entries, SL and TPs are unchanged.
+CONFIDENCE (user directives 2026-09-16): the 0-100 confidence score is
+based on HIGHER-TIMEFRAME ALIGNMENT with a higher-timeframe 100 EMA as an
+assist - 60 pts from 1H/4H/1D agreement (this strategy's own fast/slow EMA
+relationship per timeframe), 20 pts from price vs the 100 EMA on those
+same higher timeframes (above assists BUYs, below assists SELLs), and
+20 pts from local crossover strength. Frames with insufficient history
+for a stable 100 EMA are excluded honestly. Entries, SL and TPs are
+unchanged.
 
     Fast EMA = EMA(close, 9)      Slow EMA = EMA(close, 21)      ATR = ATR(14)
 
@@ -127,6 +131,7 @@ class EmaAtrStrategy(BaseStrategy):
         base_min = tf_order.get(timeframe, 15)
         fast_len = int(params["fast_len"]); slow_len = int(params["slow_len"])
         mtf: Dict[str, int] = {}
+        htf_100: Dict[str, int] = {}
         for tf in ("5M", "15M", "1H", "4H", "1D"):
             if tf_order[tf] <= base_min:
                 continue
@@ -137,13 +142,18 @@ class EmaAtrStrategy(BaseStrategy):
             hf, hs = ema(h["close"], fast_len), ema(h["close"], slow_len)
             fv, sv = float(hf.iloc[-1]), float(hs.iloc[-1])
             mtf[tf] = 1 if fv > sv else (-1 if fv < sv else 0)
+            if len(h) >= 130:  # 100 EMA needs real history to be meaningful
+                e100 = float(ema(h["close"], 100).iloc[-1])
+                htf_100[tf] = 1 if float(h["close"].iloc[-1]) > e100 else -1
         ctx = dict(score_context or {})
         ctx.setdefault("close", float(df["close"].iloc[i]))
         ctx.setdefault("session", ctx.get("session", "London"))
         ctx["mtf_trend"] = mtf
+        ctx["htf_100"] = htf_100
         checks, analysis = self.explain_signal(
             state, i, direction, params,
-            {"risk": rk["risk"], "session": ctx["session"], "mtf_trend": mtf})
+            {"risk": rk["risk"], "session": ctx["session"], "mtf_trend": mtf,
+             "htf_100": htf_100})
         score, comps = self.score(state, i, direction, ctx)
         return Candidate(
             strategy_id=self.id, market=market, timeframe=timeframe,
@@ -158,10 +168,12 @@ class EmaAtrStrategy(BaseStrategy):
     def score(self, state, i, direction, ctx) -> tuple:
         """Confidence based on HIGHER-TIMEFRAME ALIGNMENT (user directive).
 
-        80 pts: agreement of the higher timeframes (1H/4H/1D for a 15M
+        60 pts: agreement of the higher timeframes (1H/4H/1D for a 15M
         signal) with the signal direction, measured by this strategy's own
-        fast/slow EMA relationship per frame. Unavailable frames are
-        excluded from the denominator. 20 pts: local crossover quality.
+        fast/slow EMA relationship per frame. 20 pts: higher-timeframe
+        100 EMA assist - price above the 100 EMA assists BUYs, below
+        assists SELLs (user directive). Unavailable frames are excluded
+        from the denominator. 20 pts: local crossover quality.
         """
         sgn = 1 if direction == "BUY" else -1
         mtf = ctx.get("mtf_trend") or {}
@@ -169,22 +181,32 @@ class EmaAtrStrategy(BaseStrategy):
         if n:
             agree = sum(1 for v in mtf.values() if v == sgn)
             neutral = sum(1 for v in mtf.values() if v == 0)
-            c1 = round(80.0 * (agree + 0.5 * neutral) / n, 1)
+            c1 = round(60.0 * (agree + 0.5 * neutral) / n, 1)
         else:
             c1 = 0.0
+
+        htf_100 = ctx.get("htf_100") or {}
+        n100 = len(htf_100)
+        if n100:
+            agree100 = sum(1 for v in htf_100.values() if v == sgn)
+            c2 = round(20.0 * agree100 / n100, 1)
+        else:
+            c2 = 0.0
 
         atr_i = float(state["atr"].iloc[i])
         sep = abs(float(state["ema_f"].iloc[i]) - float(state["ema_s"].iloc[i]))
         ratio = (sep / atr_i) if atr_i > 0 else 0.0
-        c2 = round(min(ratio / 0.4, 1.0) * 20.0, 1)
+        c3 = round(min(ratio / 0.4, 1.0) * 20.0, 1)
 
-        total = int(round(min(100.0, c1 + c2)))
-        return total, {"HTF alignment": c1, "Crossover strength": c2}
+        total = int(round(min(100.0, c1 + c2 + c3)))
+        return total, {"HTF alignment": c1, "HTF 100 EMA": c2,
+                       "Crossover strength": c3}
 
     def explain_signal(self, state, i, direction, params, extra) -> tuple:
         sgn = 1 if direction == "BUY" else -1
         atr_i = float(state["atr"].iloc[i]); sm = float(params["sl_mult"])
         mtf = (extra or {}).get("mtf_trend") or {}
+        htf_100 = (extra or {}).get("htf_100") or {}
         words = {1: "bullish", -1: "bearish", 0: "neutral"}
         if mtf:
             agree = sum(1 for v in mtf.values() if v == sgn)
@@ -194,6 +216,16 @@ class EmaAtrStrategy(BaseStrategy):
         else:
             htf_detail = ("higher-timeframe data unavailable - confidence rests "
                           "on the crossover itself")
+        if htf_100:
+            a100 = sum(1 for v in htf_100.values() if v == sgn)
+            side = "above" if sgn > 0 else "below"
+            part100 = ", ".join(f"{tf} {'above' if v > 0 else 'below'} 100 EMA"
+                                for tf, v in htf_100.items())
+            htf_detail += (f"; 100 EMA assist: {part100} - {a100} of "
+                           f"{len(htf_100)} assist the {'buy' if sgn > 0 else 'sell'}")
+        else:
+            htf_detail += ("; 100 EMA assist unavailable - insufficient "
+                           "higher-timeframe history")
         checks = [
             {"label": f"{int(params['fast_len'])}/{int(params['slow_len'])} EMA crossover confirmed",
              "ok": True,

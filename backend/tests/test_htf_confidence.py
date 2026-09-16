@@ -1,10 +1,10 @@
-"""HTF-alignment confidence tests (user directive 2026-09-16).
+"""HTF-alignment + 100 EMA confidence tests (user directives 2026-09-16).
 
-Strategy 2's 0-100 confidence must be based on higher-timeframe alignment:
-80 pts from agreement of the frames above the signal timeframe (measured by
-this strategy's own fast/slow EMA relationship), 20 pts local crossover
-quality. Per-frame trends land on the candidate's mtf field (shown as MTF
-chips) and the signal's checks state the alignment in words.
+Strategy 2's 0-100 confidence: 60 pts from higher-timeframe alignment
+(fast/slow EMA relationship per HTF frame), 20 pts from the higher-
+timeframe 100 EMA assist (price above assists BUYs, below assists SELLs;
+frames with <130 bars are honestly excluded), 20 pts local crossover
+quality. Entries/SL/TPs are never affected.
 """
 import numpy as np
 import pandas as pd
@@ -25,8 +25,8 @@ def _base_df():
     return df.iloc[:cross_idx + 1]
 
 
-def _trend_df(up=True):
-    n = 60
+def _trend_df(up=True, n=150):
+    """Tall frame so the 100 EMA is valid; trend sets close vs EMAs."""
     close = (3000 + np.arange(n) * 1.0) if up else (3000 - np.arange(n) * 1.0)
     idx = pd.date_range("2026-08-01", periods=n, freq="1h")
     return pd.DataFrame({"open": close, "high": close + 0.4,
@@ -47,47 +47,74 @@ def _candidate(higher):
         higher_frames=higher, score_context={"session": "London"})
 
 
-def test_all_htfs_aligned_confidence_100():
+def _htf_detail(cand):
+    return next(c["detail"] for c in cand.checks if "Higher-timeframe" in c["label"])
+
+
+def test_full_alignment_plus_100ema():
     cand = _candidate({"1H": _trend_df(True), "4H": _trend_df(True),
                        "1D": _trend_df(True)})
-    assert cand is not None and cand.direction == "BUY"
     assert cand.mtf == {"1H": 1, "4H": 1, "1D": 1}
-    assert cand.score_components["HTF alignment"] == 80.0
-    assert cand.score == int(round(sum(cand.score_components.values()))) >= 80
-    detail = next(c["detail"] for c in cand.checks if "Higher-timeframe" in c["label"])
-    assert "3 of 3 higher timeframes agree" in detail
+    comps = cand.score_components
+    assert comps["HTF alignment"] == 60.0
+    assert comps["HTF 100 EMA"] == 20.0      # price above 100 EMA on all frames
+    assert cand.score == int(round(sum(comps.values())))
+    assert cand.score >= 80  # 60 alignment + 20 assist before crossover pts
+    d = _htf_detail(cand)
+    assert "3 of 3 higher timeframes agree" in d
+    assert "3 of 3 assist the buy" in d
+    assert "above 100 EMA" in d
 
 
-def test_all_htfs_against_confidence_floor():
+def test_all_against_floor():
     cand = _candidate({"1H": _trend_df(False), "4H": _trend_df(False),
                        "1D": _trend_df(False)})
     assert cand.mtf == {"1H": -1, "4H": -1, "1D": -1}
-    assert cand.score_components["HTF alignment"] == 0.0
-    assert cand.score == int(round(sum(cand.score_components.values())))
-    assert cand.score < 30  # alignment against -> confidence low
-    detail = next(c["detail"] for c in cand.checks if "Higher-timeframe" in c["label"])
-    assert "0 of 3 higher timeframes agree" in detail
+    comps = cand.score_components
+    assert comps["HTF alignment"] == 0.0
+    assert comps["HTF 100 EMA"] == 0.0       # price below 100 EMA fights a BUY
+    assert cand.score == int(round(sum(comps.values())))
+    assert cand.score < 30
+    d = _htf_detail(cand)
+    assert "0 of 3 higher timeframes agree" in d
+    assert "0 of 3 assist the buy" in d
 
 
-def test_mixed_htfs_partial_confidence_and_chips():
+def test_mixed_partial():
     cand = _candidate({"1H": _trend_df(True), "4H": _trend_df(True),
                        "1D": _trend_df(False)})
-    assert cand.mtf == {"1H": 1, "4H": 1, "1D": -1}
-    assert cand.score_components["HTF alignment"] == pytest.approx(53.3)
-    detail = next(c["detail"] for c in cand.checks if "Higher-timeframe" in c["label"])
-    assert "2 of 3 higher timeframes agree" in detail
-    assert "1D bearish" in detail
+    comps = cand.score_components
+    assert comps["HTF alignment"] == pytest.approx(40.0)   # 2/3 x 60
+    assert comps["HTF 100 EMA"] == pytest.approx(13.3)     # 2/3 x 20
+    d = _htf_detail(cand)
+    assert "2 of 3 higher timeframes agree" in d
+    assert "1D bearish" in d
 
 
-def test_missing_frames_honest():
-    cand = _candidate({"1H": _trend_df(True)})  # 4H / 1D unavailable
-    assert cand.mtf == {"1H": 1}
-    assert cand.score_components["HTF alignment"] == 80.0
-    detail = next(c["detail"] for c in cand.checks if "Higher-timeframe" in c["label"])
-    assert "1 of 1 higher timeframes agree" in detail
+def test_short_frames_excluded_honestly():
+    """60-bar frames: valid for the 9/21 trend, NOT for the 100 EMA."""
+    cand = _candidate({"1H": _trend_df(True, n=60), "4H": _trend_df(True, n=60),
+                       "1D": _trend_df(True, n=60)})
+    assert cand.mtf == {"1H": 1, "4H": 1, "1D": 1}
+    comps = cand.score_components
+    assert comps["HTF alignment"] == 60.0
+    assert comps["HTF 100 EMA"] == 0.0
+    d = _htf_detail(cand)
+    assert "insufficient higher-timeframe history" in d
 
-    cand2 = _candidate({})  # nothing available at all
-    assert cand2.mtf == {}
-    assert cand2.score_components["HTF alignment"] == 0.0
-    detail2 = next(c["detail"] for c in cand2.checks if "Higher-timeframe" in c["label"])
-    assert "unavailable" in detail2
+
+def test_no_frames_at_all():
+    cand = _candidate({})
+    assert cand.mtf == {}
+    comps = cand.score_components
+    assert comps["HTF alignment"] == 0.0 and comps["HTF 100 EMA"] == 0.0
+    assert "unavailable" in _htf_detail(cand)
+
+
+def test_entries_untouched_by_scoring():
+    """Scoring must never move entry/SL/TP: same frames, same levels."""
+    higher = {"1H": _trend_df(True), "4H": _trend_df(True), "1D": _trend_df(True)}
+    cand = _candidate(higher)
+    levels = (cand.entry, cand.sl, tuple(cand.tps))
+    cand2 = _candidate({})
+    assert (cand2.entry, cand2.sl, tuple(cand2.tps)) == levels
