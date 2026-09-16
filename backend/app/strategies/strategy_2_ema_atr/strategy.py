@@ -1,7 +1,14 @@
 """Strategy 2 - KN Smart TP/SL Signals
 
-Faithful implementation of the supplied Pine Script (SPEC §10) with the ONE
-requested modification: Fast EMA = 9, Slow EMA = 21 (not 5/13).
+Faithful implementation of the user-supplied Pine Script
+('KN - Smart TP SL Signals', @version=6, verified line-by-line 2026-09-15,
+locked by tests/test_strategy2_fidelity.py) with the ONE user-confirmed
+modification: Fast EMA = 9, Slow EMA = 21 (script defaults are 5/13).
+Every other rule is verbatim: entry = close, risk = ATR(14) x 1.5,
+SL = close -/+ risk, TP1/2/3 = close +/- risk x 1.0/2.0/3.0, BUY on fast
+EMA crossing ABOVE slow, SELL on cross BELOW; TP hit = high/low vs level
+per direction, each TP independent. Documented accounting decisions (not
+strategy changes): same-bar SL-before-TP, 200-bar tracking expiry.
 
     Fast EMA = EMA(close, 9)      Slow EMA = EMA(close, 21)      ATR = ATR(14)
 
