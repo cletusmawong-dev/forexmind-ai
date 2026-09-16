@@ -3,7 +3,19 @@ import {ChevronDown, GitBranch, Layers} from "lucide-react";
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
 import type { StrategyDoc, StrategyVersion } from "../lib/types";
-import { DemoTag, Divider, Eyebrow, Glass, GlowDot, Pill, Spinner } from "../components/ui";
+import { DemoTag, Divider, Eyebrow, Glass, GlowDot, Pill, Segmented, Spinner } from "../components/ui";
+
+type EngineMode = "s1" | "s2" | "both" | "none";
+
+const S1 = "strategy_1_zero_lag";
+const S2 = "strategy_2_ema_atr";
+
+const MODE_LABEL: Record<EngineMode, string> = {
+  s1: "Zero Lag Trend only",
+  s2: "9/21 EMA Smart TP/SL only",
+  both: "both strategies",
+  none: "no strategy - signals are OFF",
+};
 
 export function StrategiesScreen() {
   const { data, loading, refresh } = usePolling<{ strategies: StrategyDoc[] }>(() => api.get(endpoints.strategies), 8000);
@@ -34,6 +46,33 @@ export function StrategiesScreen() {
     await api.patch(endpoints.strategy(sid), { status });
     setBusy("");
     refresh();
+  };
+
+  const engineMode: EngineMode = (() => {
+    const list = data?.strategies ?? [];
+    const s1on = list.find((s) => s.id === S1)?.status === "ACTIVE";
+    const s2on = list.find((s) => s.id === S2)?.status === "ACTIVE";
+    return s1on && s2on ? "both" : s1on ? "s1" : s2on ? "s2" : "none";
+  })();
+
+  const applyEngineMode = async (mode: EngineMode) => {
+    if (mode === "none" || mode === engineMode) return;
+    setBusy("engine");
+    try {
+      const plan: Record<string, [string, string]> = {
+        s1: [S1, S2], s2: [S2, S1], both: [S1, S2],
+      };
+      const [on, off] = plan[mode];
+      await api.patch(endpoints.strategy(on), { status: "ACTIVE" });
+      if (mode !== "both") await api.patch(endpoints.strategy(off), { status: "PAUSED" });
+      else await api.patch(endpoints.strategy(off), { status: "ACTIVE" });
+      flash(`Signal engine: ${MODE_LABEL[mode]}. New signals only - tracked signals finish normally.`);
+    } catch (e: any) {
+      flash(e.message);
+    } finally {
+      setBusy("");
+      refresh();
+    }
   };
 
   const rollback = async (sid: string) => {
@@ -67,6 +106,35 @@ export function StrategiesScreen() {
       </header>
 
       {toast && <div className="glass-2 mb-5 px-4 py-3 text-[12px] font-medium text-acc-cyan">{toast}</div>}
+
+      {/* ---- signal engine selector: which strategy generates signals ---- */}
+      <Glass className="mb-6">
+        <div className="flex items-center justify-between">
+          <Eyebrow>Signal engine</Eyebrow>
+          <GlowDot tone={engineMode === "none" ? "warn" : "pos"} size={6} pulse={engineMode !== "none"} />
+        </div>
+        <p className="mt-1 text-[11.5px] leading-relaxed text-txt-low">
+          Choose the strategy that generates signals. Currently:{" "}
+          <span className={engineMode === "none" ? "font-semibold text-warn" : "font-semibold text-txt-hi"}>
+            {MODE_LABEL[engineMode]}
+          </span>
+        </p>
+        <div className={`no-scrollbar mt-4 overflow-x-auto ${busy === "engine" ? "pointer-events-none opacity-50" : ""}`}>
+          <Segmented
+            className="min-w-[340px]"
+            value={engineMode === "none" ? "" : engineMode}
+            onChange={(k) => applyEngineMode(k as EngineMode)}
+            options={[
+              { key: "s1", label: "Strategy 1" },
+              { key: "s2", label: "Strategy 2" },
+              { key: "both", label: "Both" },
+            ]}
+          />
+        </div>
+        <p className="mt-3 text-[10px] leading-relaxed text-txt-faint">
+          Applies to new signals only. Signals already tracking always run to completion.
+        </p>
+      </Glass>
 
       <Glass pad={false} className="divide-y divide-white/[0.05] !p-0">
         {(data?.strategies ?? []).map((s, idx) => (
