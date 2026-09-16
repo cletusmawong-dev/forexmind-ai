@@ -8,13 +8,13 @@
   /* ---- design tokens (single source of truth) ----
      FOREXMIND AI neon-glass theme: rich royal-navy terminal, electric
      blue/cyan neons, violet/magenta blooms, gold for the demo badge. */
-  --bg-primary: #050b26;
-  --bg-secondary: #081236;
-  --bg-elevated: #0a1740;
-  --glass-surface: rgba(16, 40, 105, 0.72);
-  --glass-surface-hover: rgba(24, 56, 132, 0.8);
-  --glass-border: rgba(88, 148, 255, 0.38);
-  --glass-border-soft: rgba(96, 158, 255, 0.2);
+  --bg-primary: #030819;
+  --bg-secondary: #050d26;
+  --bg-elevated: #081435;
+  --glass-surface: rgba(13, 32, 84, 0.7);
+  --glass-surface-hover: rgba(20, 46, 112, 0.78);
+  --glass-border: rgba(96, 156, 255, 0.4);
+  --glass-border-soft: rgba(96, 158, 255, 0.22);
   --glass-highlight: rgba(190, 220, 255, 0.2);
   --accent-blue: #3b82f6;
   --accent-blue-bright: #6aa2ff;
@@ -52,12 +52,12 @@ body {
   inset: 0;
   z-index: -3;
   background:
-    radial-gradient(1150px 720px at 12% -8%, rgba(45, 118, 255, 0.55), transparent 62%),
-    radial-gradient(920px 640px at 106% 2%, rgba(129, 88, 245, 0.38), transparent 58%),
-    radial-gradient(780px 580px at 108% 78%, rgba(225, 78, 202, 0.17), transparent 60%),
-    radial-gradient(860px 660px at 50% 116%, rgba(45, 118, 255, 0.3), transparent 62%),
-    radial-gradient(500px 440px at -8% 72%, rgba(34, 211, 238, 0.12), transparent 58%),
-    linear-gradient(185deg, #0a1740 0%, #050b26 46%, #071233 100%);
+    radial-gradient(1150px 720px at 12% -8%, rgba(43, 112, 255, 0.44), transparent 62%),
+    radial-gradient(920px 640px at 106% 2%, rgba(126, 86, 244, 0.32), transparent 58%),
+    radial-gradient(780px 580px at 108% 78%, rgba(225, 78, 202, 0.15), transparent 60%),
+    radial-gradient(860px 660px at 50% 116%, rgba(43, 112, 255, 0.24), transparent 62%),
+    radial-gradient(500px 440px at -8% 72%, rgba(34, 211, 238, 0.11), transparent 58%),
+    linear-gradient(185deg, #071233 0%, #030819 46%, #040c24 100%);
 }
 /* faint trading-chart grid over the blooms */
 .ambient::after {
@@ -84,7 +84,7 @@ body {
 @layer components {
   .glass {
     border: 1px solid var(--glass-border);
-    background: linear-gradient(155deg, rgba(41, 88, 200, 0.55) 0%, rgba(19, 46, 118, 0.72) 42%, rgba(8, 20, 56, 0.8) 100%);
+    background: linear-gradient(155deg, rgba(35, 76, 178, 0.52) 0%, rgba(16, 40, 104, 0.74) 42%, rgba(6, 16, 46, 0.85) 100%);
     backdrop-filter: blur(20px) saturate(165%);
     -webkit-backdrop-filter: blur(20px) saturate(165%);
     box-shadow:
@@ -96,7 +96,7 @@ body {
   }
   .glass-2 {
     border: 1px solid var(--glass-border-soft);
-    background: linear-gradient(155deg, rgba(28, 62, 140, 0.5), rgba(9, 22, 60, 0.66));
+    background: linear-gradient(155deg, rgba(24, 54, 128, 0.48), rgba(7, 18, 50, 0.68));
     backdrop-filter: blur(16px) saturate(150%);
     -webkit-backdrop-filter: blur(16px) saturate(150%);
     box-shadow: 0 10px 30px rgba(1, 4, 20, 0.42), inset 0 1px 0 rgba(190, 220, 255, 0.12);
@@ -111,6 +111,22 @@ body {
       0 0 42px rgba(47, 108, 245, 0.26),
       0 24px 70px rgba(1, 4, 20, 0.68),
       inset 0 1px 0 rgba(190, 220, 255, 0.18);
+  }
+  /* page header: subtle radial glow behind branding + hairline divider */
+  .page-head {
+    position: relative;
+  }
+  .page-head::before {
+    content: "";
+    position: absolute;
+    inset: -18px -22px 0;
+    pointer-events: none;
+    background: radial-gradient(420px 130px at 18% 0%, rgba(47, 108, 245, 0.2), transparent 68%);
+  }
+  .page-head-divider {
+    height: 1px;
+    margin-top: 16px;
+    background: linear-gradient(to right, rgba(120, 175, 255, 0.32), rgba(120, 175, 255, 0.07) 55%, transparent);
   }
   /* hero balance card: brighter royal wash + controlled outer glow */
   .hero-card {

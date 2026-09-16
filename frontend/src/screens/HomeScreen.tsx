@@ -65,20 +65,21 @@ export function HomeScreen() {
 
       <div className="lg:col-span-7">
         {/* header */}
-        <header className="mb-6 flex items-center justify-between gap-2">
+        <header className="page-head mb-4 flex items-center justify-between gap-2">
           <span className="lg:hidden"><Logo size={36} /></span>
-          <div className="flex items-center gap-2.5">
+          <div className="relative flex items-center gap-2.5">
             <div className="sm:block">
               <DemoTag />
             </div>
             <Link
               to="/notifications"
-              className="tap relative flex h-10 w-10 items-center justify-center rounded-full border border-white/[0.1] bg-white/[0.04] text-[var(--text-secondary)] backdrop-blur-xl"
+              className="tap relative flex h-10 w-10 items-center justify-center rounded-full border border-[rgba(120,175,255,0.28)] bg-[rgba(10,22,56,0.55)] text-[var(--text-secondary)] backdrop-blur-xl transition-all duration-300 hover:border-[rgba(120,175,255,0.5)] hover:text-white"
+              style={{ boxShadow: "inset 0 1px 0 rgba(190,220,255,0.12)" }}
               aria-label="Notifications"
             >
               <Bell size={16} />
               {!!notifs.data?.unread && (
-                <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-[var(--bg-primary)] bg-[var(--accent-blue)]" style={{ boxShadow: "0 0 10px rgba(77,124,254,0.9)" }} />
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full border-2 border-[var(--bg-primary)] bg-[var(--accent-blue)] px-0.5 text-[8px] font-bold text-white" style={{ boxShadow: "0 0 10px rgba(77,124,254,0.9)" }}>{notifs.data.unread}</span>
               )}
             </Link>
             <div className="flex items-center gap-2">
@@ -88,12 +89,13 @@ export function HomeScreen() {
                   Trader <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-green)] anim-pulse" style={{ boxShadow: "0 0 8px rgba(47,217,138,0.9)" }} />
                 </div>
               </div>
-              <div className="flex h-9 w-9 items-center justify-center rounded-full border border-[rgba(94,160,255,0.45)] text-[12px] font-bold text-[#cfe4ff]"
-                   style={{ background: "linear-gradient(145deg, rgba(37,99,235,0.5), rgba(14,42,104,0.7))", boxShadow: "0 0 16px rgba(59,130,246,0.35)" }}
+              <div className="flex h-9 w-9 items-center justify-center rounded-full border border-[rgba(120,175,255,0.5)] text-[12px] font-bold text-[#dce9ff]"
+                   style={{ background: "linear-gradient(145deg, rgba(59,110,245,0.55), rgba(18,46,112,0.75))", boxShadow: "0 0 18px rgba(64,120,250,0.4), inset 0 1px 0 rgba(210,232,255,0.3)" }}
                    aria-hidden="true">T</div>
             </div>
           </div>
         </header>
+        <div className="page-head-divider mb-6" aria-hidden="true" />
 
         {/* ---- hero ---- */}
         <Glass className="hero-card relative overflow-hidden" pad={false}>
