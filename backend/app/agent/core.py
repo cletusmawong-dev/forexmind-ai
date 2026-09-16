@@ -54,7 +54,9 @@ def get_risk(user_id: str) -> Dict[str, Any]:
     if not doc:
         ensure_user_docs(user_id)
         doc = store.list("settings", filters={"userId": user_id, "kind": "risk"}, limit=1)
-    return {k: v for k, v in doc[0].items() if k not in ("id", "userId", "kind", "createdAt", "updatedAt")}
+    fields = {k: v for k, v in doc[0].items() if k not in ("id", "userId", "kind", "createdAt", "updatedAt")}
+    # defaults for fields added after the doc was created (e.g. signal_timeframes)
+    return {**{k: v for k, v in DEFAULT_RISK.items() if k not in fields}, **fields}
 
 
 def patch_goals(user_id: str, patch: Dict[str, Any]) -> Dict[str, Any]:
