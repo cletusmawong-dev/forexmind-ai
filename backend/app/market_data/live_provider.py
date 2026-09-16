@@ -44,6 +44,7 @@ TF_MINUTES = {"5M": 5, "15M": 15, "30M": 30, "1H": 60, "4H": 240, "1D": 1440}
 # refresh cadence per timeframe (seconds) - tuned so a full 5-market scan
 # cycle stays comfortably inside Twelve Data's free tier (8 req/min, 800/day)
 TTL = {"5M": 120, "15M": 600, "30M": 600, "1H": 1200, "4H": 3600, "1D": 7200}
+MIN_CACHE_BARS = 300   # scans require >= 300 bars; small-limit callers must never shrink the cache
 
 # minimum spacing between Twelve Data HTTP calls (free tier: 8/min)
 TD_MIN_GAP = 8.0
@@ -219,7 +220,16 @@ class LiveProvider(MarketDataProvider):
         return df if len(df) else None
 
     def _cached(self, market: str, tf: str, limit: int = 600) -> Optional[pd.DataFrame]:
+        """One cache slot per (market, tf), always holding a FULL history.
+
+        BUGFIX (missed-signal root cause, 2026-09-16): the limit is NOT part
+        of the cache key. A small-limit caller (tracker limit=3, chart
+        limit=140) used to refetch on TTL expiry and overwrite the slot with
+        a tiny df - the next scan then saw len(df) < 300 and silently bailed,
+        so Strategy 2 never fired. Requests now always FETCH a full history
+        (floor 300 bars) and small callers are served via tail()."""
         key = (market, tf)
+        fetch_n = max(int(limit), MIN_CACHE_BARS)
         now = time.monotonic()
         with self._lock:
             hit = self._cache.get(key)
@@ -227,18 +237,18 @@ class LiveProvider(MarketDataProvider):
                 df = hit[1]
                 return df.tail(limit).copy() if df is not None and len(df) else None
 
-        df = self._aligned(market, tf, self._fetch_oanda(market, tf, limit))
+        df = self._aligned(market, tf, self._fetch_oanda(market, tf, fetch_n))
         if df is None and self.td_key:
-            df = self._aligned(market, tf, self._fetch_td(market, tf, limit))
+            df = self._aligned(market, tf, self._fetch_td(market, tf, fetch_n))
         if df is None:
-            df = self._aligned(market, tf, self._fetch_yahoo(market, tf, limit))
+            df = self._aligned(market, tf, self._fetch_yahoo(market, tf, fetch_n))
         if df is None and self.td_key:  # TD symbol missing on Yahoo-free markets? try Yahoo fallback symbol
             _, _, fb, _o = SYMBOL_MAP.get(market, (None, None, None, None))
             if fb:
                 sym_backup = self._yahoo_symbol(market)
                 try:
                     SYMBOL_MAP[market] = (self._td_symbol(market), fb, None, _o)
-                    df = self._aligned(market, tf, self._fetch_yahoo(market, tf, limit))
+                    df = self._aligned(market, tf, self._fetch_yahoo(market, tf, fetch_n))
                 finally:
                     SYMBOL_MAP[market] = (self._td_symbol(market), sym_backup, fb, _o)
         with self._lock:

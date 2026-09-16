@@ -38,9 +38,10 @@ class SignalEngine:
         created: List[Dict[str, Any]] = []
         df = self.provider.get_candles(market, timeframe, limit=1600)
         if df is None or len(df) < 300:
-            if log_activity:
-                self._log(f"Market data unavailable for {market} {timeframe}. "
-                          "Signal generation paused.", kind="DATA", market=market)
+            # ALWAYS visible - silent data starvation masked a cache bug before
+            self._log(f"Market data unavailable for {market} {timeframe} "
+                      f"({0 if df is None else len(df)} bars). Signal generation paused.",
+                      kind="DATA", market=market)
             return []
         higher = self.provider.higher_frames(market, timeframe)
         session = session_of(pd.Timestamp(df.index[-1]).hour)
