@@ -111,6 +111,37 @@ export function LearningLabScreen() {
     }
   };
 
+  const ntSpecs = (() => {
+    const st = (strategies.data?.strategies ?? []).find((x) => x.id === ntStrategy);
+    return Object.entries(st?.experiment_variables ?? {});
+  })();
+
+  const createNewTest = async () => {
+    if (!ntVar || ntVal === "") {
+      flash("Pick a variable and a new value first.");
+      return;
+    }
+    setBusy("newtest");
+    try {
+      await api.post(endpoints.hypotheses, {
+        strategy_id: ntStrategy,
+        variable: ntVar,
+        new_value: isNaN(Number(ntVal)) ? ntVal : Number(ntVal),
+        reason: ntReason.trim() || "User-initiated what-if test",
+        expected_effect: "To be measured by the one-variable experiment.",
+      });
+      flash("Test created - hit Run one-variable experiment below.");
+      setNewTestOpen(false);
+      setNtVar("");
+      setNtVal("");
+      setNtReason("");
+    } catch (e: any) {
+      flash(e.message);
+    } finally {
+      setBusy("");
+    }
+  };
+
   const allHyps = hyps.data?.hypotheses ?? [];
   const pendingCount = allHyps.filter((h) => h.status === "AWAITING_APPROVAL").length;
   const proposedCount = allHyps.filter((h) => h.status === "PROPOSED").length;
@@ -121,6 +152,11 @@ export function LearningLabScreen() {
   const [designFor, setDesignFor] = useState<string | null>(null);
   const [designVar, setDesignVar] = useState("");
   const [designVal, setDesignVal] = useState("");
+  const [newTestOpen, setNewTestOpen] = useState(false);
+  const [ntStrategy, setNtStrategy] = useState("strategy_2_ema_atr");
+  const [ntVar, setNtVar] = useState("");
+  const [ntVal, setNtVal] = useState("");
+  const [ntReason, setNtReason] = useState("");
   const [openLesson, setOpenLesson] = useState<string | null>(null);
   const [splitOpen, setSplitOpen] = useState<string | null>(null);
 
@@ -363,9 +399,40 @@ export function LearningLabScreen() {
       {/* ---------------- APPROVAL QUEUE ---------------- */}
       {tab === "QUEUE" && (
         <div className="mt-5 space-y-4">
-          <p className="px-1 text-[11px] leading-relaxed text-txt-faint">
-            The AI can never change a live strategy by itself. Approved changes become a new immutable version; nothing is overwritten.
-          </p>
+          <div className="flex items-center justify-between px-1">
+            <p className="max-w-[75%] text-[11px] leading-relaxed text-txt-faint">
+              The AI can never change a live strategy by itself. Approved changes become a new immutable version; nothing is overwritten.
+            </p>
+            <button className="btn-ghost shrink-0 !px-3.5 !py-2 text-[11px]" onClick={() => setNewTestOpen(!newTestOpen)}>
+              {newTestOpen ? "Close" : "New test"}
+            </button>
+          </div>
+          {newTestOpen && (
+            <Glass className="animate-fadeUp">
+              <div className="eyebrow mb-3">Your own what-if test - one variable only</div>
+              <div className="space-y-2.5">
+                <select className="input" value={ntStrategy} onChange={(e) => { setNtStrategy(e.target.value); setNtVar(""); }}>
+                  {(strategies.data?.strategies ?? []).map((st) => (
+                    <option key={st.id} value={st.id}>{st.short_name}</option>
+                  ))}
+                </select>
+                <select className="input" value={ntVar} onChange={(e) => setNtVar(e.target.value)}>
+                  <option value="">Choose variable...</option>
+                  {ntSpecs.map(([k, spec]) => (
+                    <option key={k} value={k}>{k} (current {String((strategies.data?.strategies ?? []).find((x) => x.id === ntStrategy)?.active_params?.[k])}, range {String((spec as any)?.min)}-{String((spec as any)?.max)})</option>
+                  ))}
+                </select>
+                <input className="input" placeholder="New value to test" value={ntVal} onChange={(e) => setNtVal(e.target.value)} inputMode="decimal" />
+                <input className="input" placeholder="Why (optional)" value={ntReason} onChange={(e) => setNtReason(e.target.value)} />
+                <button className="btn-primary w-full" disabled={busy === "newtest" || !ntVar || ntVal === ""} onClick={createNewTest}>
+                  Create test
+                </button>
+                <p className="text-[10px] leading-relaxed text-txt-faint">
+                  The test runs on the same dataset as the live version, then STOPS for your review. Nothing touches the live strategy until you approve.
+                </p>
+              </div>
+            </Glass>
+          )}
           {(hyps.loading && !hyps.data) ? (
             <Spinner />
           ) : allHyps.length === 0 ? (
