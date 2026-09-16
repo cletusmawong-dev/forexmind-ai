@@ -205,7 +205,7 @@ async def live_loop():
                                        f"({ev['country']} {ev['title']})", kind="NEWS", market=market)
                         continue
                     for uid in user_ids:
-                        for tf in ("15M", "1H"):
+                        for tf in agent_core.user_signal_timeframes(uid):
                             await asyncio.to_thread(State.engine.scan, uid, market, tf, log_activity=False)
                     agent_core.log_scanning([market], "15M")
                 _current_task = "Monitoring markets"

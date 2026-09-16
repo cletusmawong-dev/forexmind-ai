@@ -28,14 +28,28 @@ export function SettingsScreen() {
       setWeekly(String(goals.data.weekly_objective_pct));
     }
   }, [goals.data]);
+  const [timeframes, setTimeframes] = useState<string[]>(["15M"]);
   useEffect(() => {
     if (risk.data) {
       setRiskPct(String(risk.data.risk_per_trade_pct));
       setMaxLoss(String(risk.data.max_daily_loss_pct));
       setMaxSignals(String(risk.data.max_signals_per_day));
       setMinRR(String(risk.data.min_rr));
+      setTimeframes(risk.data.signal_timeframes ?? ["15M"]);
     }
   }, [risk.data]);
+
+  const TF_OPTIONS = ["15M", "1H", "4H", "1D"];
+  const toggleTf = (tf: string) => {
+    const next = timeframes.includes(tf)
+      ? timeframes.filter((t) => t !== tf)
+      : [...timeframes, tf];
+    if (next.length === 0) {
+      flash("Keep at least one timeframe.");
+      return;
+    }
+    setTimeframes(next);
+  };
 
   const flash = (m: string) => {
     setToast(m);
@@ -51,13 +65,19 @@ export function SettingsScreen() {
     flash("Objective updated.");
   };
   const saveRisk = async () => {
-    await api.patch(endpoints.settings, {
-      risk_per_trade_pct: parseFloat(riskPct),
-      max_daily_loss_pct: parseFloat(maxLoss),
-      max_signals_per_day: parseInt(maxSignals),
-      min_rr: parseFloat(minRR),
-    });
-    flash("Risk controls updated.");
+    try {
+      await api.patch(endpoints.settings, {
+        risk_per_trade_pct: parseFloat(riskPct),
+        max_daily_loss_pct: parseFloat(maxLoss),
+        max_signals_per_day: parseInt(maxSignals),
+        min_rr: parseFloat(minRR),
+        signal_timeframes: timeframes,
+      });
+      flash(`Saved. The bot now enters on: ${timeframes.join(", ")}.`);
+    } catch (e: any) {
+      flash(e.message);
+      return;
+    }
   };
 
   if (!goals.data || !risk.data) return <Spinner label="Loading settings..." />;
@@ -95,6 +115,27 @@ export function SettingsScreen() {
       <Eyebrow className="mt-9">Risk management</Eyebrow>
       <p className="mb-3 mt-1 px-1 text-[11px] text-txt-faint">Signal filtering and guidance - the app never executes.</p>
       <Glass>
+        <div className="eyebrow !text-[9px] mb-2.5">Entry timeframes - the bot only enters on these</div>
+        <div className="grid grid-cols-4 gap-2">
+          {TF_OPTIONS.map((tf) => (
+            <button
+              key={tf}
+              onClick={() => toggleTf(tf)}
+              aria-pressed={timeframes.includes(tf)}
+              className={`tap min-h-[44px] rounded-2xl border px-2 py-2.5 text-[12px] font-semibold transition-all duration-300 ${
+                timeframes.includes(tf)
+                  ? "border-acc/40 bg-acc/[0.09] text-acc"
+                  : "border-white/[0.08] bg-white/[0.02] text-txt-low hover:text-txt-mid"
+              }`}
+            >
+              {tf}
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 text-[10px] leading-relaxed text-txt-faint">
+          Signals already tracking always run to completion. 5M is not offered on the free data plan.
+        </p>
+        <Divider className="my-5" />
         <div className="grid grid-cols-2 gap-4">
           <Field label="Risk / trade %" value={riskPct} onChange={setRiskPct} />
           <Field label="Max daily loss %" value={maxLoss} onChange={setMaxLoss} />

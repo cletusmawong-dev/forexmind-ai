@@ -27,6 +27,7 @@ DEFAULT_RISK = {
     "min_rr": 1.5,
     "sessions": ["London", "NewYork", "Asian", "Late"],
     "allowed_markets": ["XAUUSD", "NAS100", "EURUSD", "GBPUSD", "USDJPY"],
+    "signal_timeframes": ["15M"],
 }
 
 
@@ -66,16 +67,36 @@ def patch_goals(user_id: str, patch: Dict[str, Any]) -> Dict[str, Any]:
 
 def patch_risk(user_id: str, patch: Dict[str, Any]) -> Dict[str, Any]:
     store = get_store()
+    if not store.list("settings", filters={"userId": user_id, "kind": "risk"}, limit=1):
+        ensure_user_docs(user_id)
     doc = store.list("settings", filters={"userId": user_id, "kind": "risk"}, limit=1)[0]
     allowed = {"risk_per_trade_pct", "max_daily_loss_pct", "max_consecutive_losses",
-               "max_signals_per_day", "min_rr", "sessions", "allowed_markets"}
+               "max_signals_per_day", "min_rr", "sessions", "allowed_markets",
+               "signal_timeframes"}
+    clean_keys = {k: v for k, v in patch.items() if k in allowed}
+    if "signal_timeframes" in clean_keys:
+        tfs = clean_keys["signal_timeframes"]
+        if not isinstance(tfs, list) or not tfs or \
+                any(t not in ("15M", "1H", "4H", "1D") for t in tfs):
+            raise ValueError("signal_timeframes must be a non-empty list from: 15M, 1H, 4H, 1D")
     clean = {}
-    for k, v in patch.items():
-        if k not in allowed:
-            continue
+    for k, v in clean_keys.items():
         clean[k] = v if isinstance(v, list) else (
             int(v) if k in ("max_consecutive_losses", "max_signals_per_day") else float(v))
     return store.update("settings", doc["id"], clean)
+
+
+def user_signal_timeframes(user_id: str) -> List[str]:
+    """Entry timeframes the scanner scans for THIS user (user directive
+    2026-09-16: default 15M only). Existing signals always finish tracking
+    regardless of this setting."""
+    try:
+        risk = get_risk(user_id)
+        tfs = risk.get("signal_timeframes") or ["15M"]
+        valid = [t for t in tfs if t in ("15M", "1H", "4H", "1D")]
+        return valid or ["15M"]
+    except Exception:
+        return ["15M"]
 
 
 def log(message: str, kind: str = "INFO", market: Optional[str] = None) -> None:

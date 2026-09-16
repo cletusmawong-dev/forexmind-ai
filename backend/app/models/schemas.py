@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, Field
+from pydantic import field_validator, BaseModel, Field
 
 
 # ---------------------------------------------------------------- auth
@@ -24,7 +24,11 @@ class GoalSettings(BaseModel):
     weekly_objective_pct: float = 5.0
 
 
+ALLOWED_SIGNAL_TIMEFRAMES = ["15M", "1H", "4H", "1D"]
+
+
 class RiskSettings(BaseModel):
+    signal_timeframes: List[str] = Field(default_factory=lambda: ["15M"])
     risk_per_trade_pct: float = 1.0
     max_daily_loss_pct: float = 3.0
     max_consecutive_losses: int = 4
@@ -33,6 +37,18 @@ class RiskSettings(BaseModel):
     sessions: List[str] = Field(default_factory=lambda: ["London", "NewYork", "Asian", "Late"])
     allowed_markets: List[str] = Field(
         default_factory=lambda: ["XAUUSD", "NAS100", "EURUSD", "GBPUSD", "USDJPY"])
+
+    @field_validator("signal_timeframes")
+    @classmethod
+    def _validate_timeframes(cls, v):
+        if not v:
+            raise ValueError("signal_timeframes cannot be empty - pick at least one of 15M, 1H, 4H, 1D")
+        bad = [t for t in v if t not in ALLOWED_SIGNAL_TIMEFRAMES]
+        if bad:
+            raise ValueError(
+                f"unsupported timeframe(s) {bad} - choose from {ALLOWED_SIGNAL_TIMEFRAMES}. "
+                "5M is not offered: it would exceed the free market-data quota.")
+        return list(dict.fromkeys(v))  # dedupe, keep order
 
 
 # ---------------------------------------------------------------- signals
