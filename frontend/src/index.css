@@ -272,7 +272,20 @@ body {
   }
 
   .tap {
-    @apply transition-all duration-300 active:scale-[0.98];
+    @apply transition-all duration-200 active:scale-[0.95] active:brightness-125;
+  }
+  /* clear SELECTED state for option chips (user request: selection must be
+     obviously visible - solid color change, not just a border hint) */
+  .chip-on {
+    @apply border-transparent text-white;
+    background: linear-gradient(120deg, rgba(79, 147, 255, 0.85) 0%, rgba(29, 78, 216, 0.85) 100%);
+    box-shadow: 0 0 18px rgba(79, 147, 255, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  }
+  .chip-off {
+    @apply border-white/[0.09] bg-white/[0.02] text-txt-low;
+  }
+  .chip-off:hover {
+    @apply text-txt-mid border-white/20;
   }
 }
 

@@ -126,10 +126,8 @@ export function StrategiesScreen() {
               onClick={() => applyEngineMode(k)}
               disabled={busy === "engine" || engineMode === k}
               aria-pressed={engineMode === k}
-              className={`tap min-h-[46px] rounded-2xl border px-2 py-3 text-[12px] font-semibold transition-all duration-300 ${
-                engineMode === k
-                  ? "border-acc/40 bg-acc/[0.09] text-acc"
-                  : "border-white/[0.08] bg-white/[0.02] text-txt-low hover:text-txt-mid"
+              className={`tap min-h-[46px] rounded-2xl border px-2 py-3 text-[12px] font-bold tracking-wide ${
+                engineMode === k ? "chip-on" : "chip-off"
               }`}
             >
               {label}

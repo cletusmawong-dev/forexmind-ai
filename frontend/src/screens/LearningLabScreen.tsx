@@ -25,6 +25,17 @@ export function LearningLabScreen() {
 
   const [busy, setBusy] = useState("");
   const [toast, setToast] = useState("");
+  const [openEvidence, setOpenEvidence] = useState<string | null>(null);
+  const [designFor, setDesignFor] = useState<string | null>(null);
+  const [designVar, setDesignVar] = useState("");
+  const [designVal, setDesignVal] = useState("");
+  const [newTestOpen, setNewTestOpen] = useState(false);
+  const [ntStrategy, setNtStrategy] = useState("strategy_2_ema_atr");
+  const [ntVar, setNtVar] = useState("");
+  const [ntVal, setNtVal] = useState("");
+  const [ntReason, setNtReason] = useState("");
+  const [openLesson, setOpenLesson] = useState<string | null>(null);
+  const [splitOpen, setSplitOpen] = useState<string | null>(null);
   const [armedRollback, setArmedRollback] = useState<string>("");
 
   const flash = (m: string) => {
@@ -148,17 +159,7 @@ export function LearningLabScreen() {
   const observations = obs.data?.observations ?? [];
   const factObs = observations.filter((o) => o.kind === "FACT");
   const patternObs = observations.filter((o) => o.kind === "POSSIBLE_EXPLANATION");
-  const [openEvidence, setOpenEvidence] = useState<string | null>(null);
-  const [designFor, setDesignFor] = useState<string | null>(null);
-  const [designVar, setDesignVar] = useState("");
-  const [designVal, setDesignVal] = useState("");
-  const [newTestOpen, setNewTestOpen] = useState(false);
-  const [ntStrategy, setNtStrategy] = useState("strategy_2_ema_atr");
-  const [ntVar, setNtVar] = useState("");
-  const [ntVal, setNtVal] = useState("");
-  const [ntReason, setNtReason] = useState("");
-  const [openLesson, setOpenLesson] = useState<string | null>(null);
-  const [splitOpen, setSplitOpen] = useState<string | null>(null);
+
 
   return (
     <div className="animate-fadeUp">

@@ -13,7 +13,7 @@ const tabs = [
 /** Floating liquid-glass dock (matches the reference mockup). */
 export function BottomNav() {
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 lg:hidden" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 14px)" }}>
+    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[80] flex justify-center px-4 lg:hidden" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 14px)" }}>
       <nav className="glass-float pointer-events-auto flex items-center gap-0.5 rounded-[26px] px-2 py-2" aria-label="Primary">
         {tabs.map(({ to, label, icon: Icon }) => (
           <NavLink

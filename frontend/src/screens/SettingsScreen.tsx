@@ -122,10 +122,8 @@ export function SettingsScreen() {
               key={tf}
               onClick={() => toggleTf(tf)}
               aria-pressed={timeframes.includes(tf)}
-              className={`tap min-h-[44px] rounded-2xl border px-2 py-2.5 text-[12px] font-semibold transition-all duration-300 ${
-                timeframes.includes(tf)
-                  ? "border-acc/40 bg-acc/[0.09] text-acc"
-                  : "border-white/[0.08] bg-white/[0.02] text-txt-low hover:text-txt-mid"
+              className={`tap min-h-[44px] rounded-2xl border px-2 py-2.5 text-[12px] font-bold tracking-wide ${
+                timeframes.includes(tf) ? "chip-on" : "chip-off"
               }`}
             >
               {tf}
