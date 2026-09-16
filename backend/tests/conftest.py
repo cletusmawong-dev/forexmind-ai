@@ -35,5 +35,7 @@ def fresh_store(tmp_path, monkeypatch):
     s = store_mod.LocalStore(path=test_db)
     monkeypatch.setattr(store_mod, "_store", s)
     from app.state import State
+    _prev = State.store
     State.store = s
     yield s
+    State.store = _prev  # restore - never leak the test store into other files

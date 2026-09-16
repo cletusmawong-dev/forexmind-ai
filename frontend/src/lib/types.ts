@@ -50,6 +50,7 @@ export interface Signal {
   user_notes?: string;
   result_analysis?: any;
   createdAt: string;
+  adaptive?: AdaptiveEvaluation | null;
   dna?: DnaSnapshot | null;
   forensics?: ForensicsReport | null;
 }
@@ -162,6 +163,10 @@ export interface Experiment {
   experiment_code?: string;
   status?: string;
   overfitting_risk?: boolean;
+  small_sample_warning?: boolean;
+  robustness?: Record<string, { base: any; exp: any }> | null;
+  robustness_note?: string | null;
+  signal_frequency_per_day?: number | null;
   split?: {
     train: { base: any; exp: any };
     validation: { base: any; exp: any };
@@ -251,6 +256,58 @@ export interface ReplayData {
   dna: DnaSnapshot | null;
   forensics: ForensicsReport | null;
   demo: boolean;
+}
+
+export interface AdaptiveEvaluation {
+  adaptive_version: string;
+  weights: Record<string, number>;
+  similarity_weights: Record<string, number>;
+  similarity_threshold: number;
+  min_sample: number;
+  score: number;
+  verdict: string;
+  reliability: "HIGH" | "MEDIUM" | "LOW";
+  components: Record<string, number>;
+  missing_data: string[];
+  historical: {
+    status: string;
+    similar_signals: number;
+    wins?: number;
+    losses?: number;
+    win_rate?: number;
+    total_r?: number | null;
+    avg_r?: number | null;
+    note?: string;
+    comparables?: EvidenceSignal[];
+  };
+  regime_evidence?: any;
+  session_evidence?: any;
+  news?: { status: string; note?: string };
+  checks: { label: string; detail?: string }[];
+  informationality_only?: boolean;
+  informational_only?: boolean;
+  note?: string;
+}
+
+export interface ResearchHypothesis {
+  id: string;
+  strategy_id: string;
+  market: string;
+  segment_type: string;
+  segment_label: string;
+  claim: string;
+  kind: string;
+  status: string;
+  sample_size: number;
+  segment_win_rate: number;
+  segment_avg_r?: number;
+  segment_median_r?: number;
+  overall?: { n: number; win_rate: number; avg_r?: number };
+  divergence_pp: number;
+  evidence?: EvidenceSignal[];
+  note?: string;
+  designed_hypothesis_id?: string | null;
+  createdAt: string;
 }
 
 export interface Candle {

@@ -2,17 +2,21 @@ import { useState } from "react";
 import { ArrowRight, FlaskConical, GraduationCap, ShieldAlert } from "lucide-react";
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
-import type { Experiment, Hypothesis, Lesson, Observation, StrategyVersion } from "../lib/types";
+import type { Experiment, Hypothesis, Lesson, Observation, ResearchHypothesis, Signal, StrategyDoc, StrategyVersion } from "../lib/types";
 import { DemoTag, Divider, Eyebrow, Glass, GlowDot, Pill, Segmented, Spinner } from "../components/ui";
 import { ChevronDown } from "lucide-react";
 import { fmtDateTime } from "../lib/format";
 
 const FLOW = ["Trade", "Result", "Analysis", "Lesson", "Hypothesis", "1-Var Test", "Approval", "New version"];
-const TABS = ["OBSERVATIONS", "QUEUE", "EXPERIMENTS", "PATTERNS", "HISTORY"] as const;
+const TABS = ["SIGNAL IQ", "RESEARCH", "QUEUE", "EXPERIMENTS", "PATTERNS", "INSIGHTS", "HISTORY"] as const;
 
 export function LearningLabScreen() {
-  const [tab, setTab] = useState<(typeof TABS)[number]>("OBSERVATIONS");
+  const [tab, setTab] = useState<(typeof TABS)[number]>("SIGNAL IQ");
   const obs = usePolling<{ observations: Observation[] }>(() => api.get(endpoints.observations), 10000);
+  const signals = usePolling<{ signals: Signal[] }>(() => api.get(endpoints.signals), 10000);
+  const research = usePolling<{ hypotheses: ResearchHypothesis[]; discovered: number }>(() => api.get(endpoints.research), 15000);
+  const refreshResearch = () => { try { (research as any).refresh?.(); } catch { /* noop */ } };
+  const strategies = usePolling<{ strategies: StrategyDoc[] }>(() => api.get(endpoints.strategies), 30000);
   const lessons = usePolling<{ lessons: Lesson[] }>(() => api.get(endpoints.lessons), 8000);
   const hyps = usePolling<{ hypotheses: Hypothesis[] }>(() => api.get(endpoints.hypotheses), 6000);
   const exps = usePolling<{ experiments: Experiment[] }>(() => api.get(endpoints.experiments), 8000);
@@ -71,6 +75,42 @@ export function LearningLabScreen() {
     }
   };
 
+  const designExperiment = async (researchId: string) => {
+    if (!designVar || designVal === "") {
+      flash("Choose a variable and a new value first.");
+      return;
+    }
+    setBusy(researchId);
+    try {
+      await api.post(endpoints.researchDesign(researchId), {
+        variable: designVar,
+        new_value: isNaN(Number(designVal)) ? designVal : Number(designVal),
+      });
+      flash("One-variable hypothesis created. Run the experiment from the Queue.");
+      setDesignFor(null);
+      setDesignVar("");
+      setDesignVal("");
+    } catch (e: any) {
+      flash(e.message);
+    } finally {
+      setBusy("");
+      refreshResearch();
+    }
+  };
+
+  const discoverNow = async () => {
+    setBusy("discover");
+    try {
+      const r = await api.post<{ created: number }>(endpoints.researchDiscover, {});
+      flash(r.created ? `${r.created} new hypothesis(ies) discovered from historical evidence.` : "No new patterns with sufficient evidence yet. Nothing invented.");
+    } catch (e: any) {
+      flash(e.message);
+    } finally {
+      setBusy("");
+      refreshResearch();
+    }
+  };
+
   const allHyps = hyps.data?.hypotheses ?? [];
   const pendingCount = allHyps.filter((h) => h.status === "AWAITING_APPROVAL").length;
   const proposedCount = allHyps.filter((h) => h.status === "PROPOSED").length;
@@ -78,6 +118,9 @@ export function LearningLabScreen() {
   const factObs = observations.filter((o) => o.kind === "FACT");
   const patternObs = observations.filter((o) => o.kind === "POSSIBLE_EXPLANATION");
   const [openEvidence, setOpenEvidence] = useState<string | null>(null);
+  const [designFor, setDesignFor] = useState<string | null>(null);
+  const [designVar, setDesignVar] = useState("");
+  const [designVal, setDesignVal] = useState("");
   const [openLesson, setOpenLesson] = useState<string | null>(null);
   const [splitOpen, setSplitOpen] = useState<string | null>(null);
 
@@ -128,10 +171,12 @@ export function LearningLabScreen() {
           value={tab}
           onChange={(k) => setTab(k as any)}
           options={[
-            { key: "OBSERVATIONS", label: `Insights` },
+            { key: "SIGNAL IQ", label: "Signal IQ" },
+            { key: "RESEARCH", label: research.data?.discovered ? `Research (${research.data.discovered})` : "Research" },
             { key: "QUEUE", label: pendingCount ? `Queue (${pendingCount})` : "Queue" },
             { key: "EXPERIMENTS", label: "Experiments" },
             { key: "PATTERNS", label: "Patterns" },
+            { key: "INSIGHTS", label: "Insights" },
             { key: "HISTORY", label: "History" },
           ]}
         />
@@ -144,7 +189,7 @@ export function LearningLabScreen() {
       )}
 
       {/* ---------------- AI OBSERVATIONS ---------------- */}
-      {tab === "OBSERVATIONS" && (
+      {tab === "INSIGHTS" && (
         <div className="mt-5 space-y-4">
           <p className="px-1 text-[11px] leading-relaxed text-txt-faint">
             Every statement is labeled FACT, POSSIBLE EXPLANATION or UNTESTED HYPOTHESIS and shows its sample size. The AI never claims more than the data supports.
@@ -161,6 +206,156 @@ export function LearningLabScreen() {
           )}
           {factObs.length === 0 && (obs.data?.observations ?? []).some((o) => o.kind !== "FACT") && (
             <p className="px-1 text-[11px] text-txt-faint">Anything not yet supported by enough data lives under Patterns or is withheld entirely.</p>
+          )}
+        </div>
+      )}
+
+      {/* ---------------- SIGNAL IQ ---------------- */}
+      {tab === "SIGNAL IQ" && (
+        <div className="mt-5 space-y-4">
+          <p className="px-1 text-[11px] leading-relaxed text-txt-faint">
+            Adaptive Quality rates how much historical evidence supports each signal. It never changes entry, stop or targets.
+          </p>
+          {signals.loading && !signals.data ? (
+            <Spinner />
+          ) : (signals.data?.signals ?? []).length === 0 ? (
+            <Glass level={2} className="text-center">
+              <p className="text-[13px] text-txt-mid">No signals yet.</p>
+            </Glass>
+          ) : (
+            (signals.data?.signals ?? []).slice(0, 15).map((sig) => {
+              const ad = sig.adaptive;
+              return (
+                <Glass key={sig.id} pad={false} className="animate-fadeUp">
+                  <div className="flex items-center justify-between px-5 py-4">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2.5">
+                        <span className={`text-[12px] font-bold ${sig.direction === "BUY" ? "text-pos" : "text-neg"}`}>{sig.direction}</span>
+                        <span className="num text-[13px] font-semibold text-txt-hi">{sig.market}</span>
+                        <span className="text-[10.5px] text-txt-faint">{sig.timeframe}</span>
+                      </div>
+                      <div className="mt-0.5 truncate text-[10.5px] text-txt-faint">{sig.strategy_name} - {sig.signal_id}</div>
+                    </div>
+                    {ad ? (
+                      <div className="text-right">
+                        <div className={`num text-[22px] font-light ${ad.score >= 75 ? "text-pos" : ad.score >= 55 ? "text-warn" : "text-neg"}`}>{ad.score}<span className="text-[11px] text-txt-faint">/100</span></div>
+                        <div className="text-[9px] font-semibold uppercase tracking-[0.12em] text-txt-faint">{ad.reliability} reliability</div>
+                      </div>
+                    ) : (
+                      <Pill tone="neutral">not evaluated</Pill>
+                    )}
+                  </div>
+                  {ad && (
+                    <div className="border-t border-white/[0.05] px-5 py-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-[10.5px]">
+                        <span className={ad.historical.status === "OK" ? "text-txt-mid" : "text-txt-faint"}>
+                          {ad.historical.status === "OK"
+                            ? `${ad.historical.similar_signals} comparable: ${ad.historical.wins}W/${ad.historical.losses}L - ${ad.historical.win_rate}% - ${ad.historical.total_r}R`
+                            : ad.historical.note}
+                        </span>
+                        <span className={ad.historical.status === "OK" ? "font-semibold uppercase tracking-[0.12em] text-acc-cyan" : "font-semibold uppercase tracking-[0.12em] text-warn"}>
+                          {ad.historical.status === "OK" ? "Historical match" : "Insufficient sample"}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </Glass>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {/* ---------------- RESEARCH ---------------- */}
+      {tab === "RESEARCH" && (
+        <div className="mt-5 space-y-4">
+          <div className="flex items-center justify-between px-1">
+            <p className="text-[11px] leading-relaxed text-txt-faint">
+              Patterns the engine detected in completed signals. Each one is an UNTESTED HYPOTHESIS - proven only by a one-variable experiment you approve.
+            </p>
+            <button className="btn-ghost shrink-0 !px-3.5 !py-2 text-[11px]" disabled={busy === "discover"} onClick={discoverNow}>
+              Discover
+            </button>
+          </div>
+          {research.loading && !research.data ? (
+            <Spinner />
+          ) : (research.data?.hypotheses ?? []).length === 0 ? (
+            <Glass level={2} className="text-center">
+              <p className="text-[13px] text-txt-mid">No research hypotheses yet.</p>
+              <p className="mt-1 text-[11.5px] text-txt-faint">Run Discover to scan completed signals for outcome divergence. Nothing is invented - findings need at least 10 signals in a segment.</p>
+            </Glass>
+          ) : (
+            (research.data?.hypotheses ?? []).map((rh) => {
+              const strat = (strategies.data?.strategies ?? []).find((x) => x.id === rh.strategy_id);
+              const vars = Object.entries(strat?.experiment_variables ?? {});
+              return (
+                <Glass key={rh.id} pad={false} className="animate-fadeUp">
+                  <div className="p-6">
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-2.5">
+                        <span className="h-[7px] w-[7px] rounded-full bg-warn" />
+                        <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-warn">UNTESTED HYPOTHESIS</span>
+                      </span>
+                      <Pill tone="neutral">{rh.sample_size} signals</Pill>
+                    </div>
+                    <p className="mt-3 text-[13px] leading-relaxed text-txt-hi">{rh.claim}</p>
+                    <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1 text-[11px] text-txt-low">
+                      <span>Segment: <span className="num font-semibold text-txt-mid">{rh.segment_win_rate}%</span> win rate</span>
+                      <span>Overall: <span className="num font-semibold text-txt-mid">{rh.overall?.win_rate ?? "-"}%</span> ({rh.overall?.n ?? "-"} signals)</span>
+                      <span>Median: <span className="num font-semibold text-txt-mid">{rh.segment_median_r}R</span></span>
+                      <span className={rh.divergence_pp >= 0 ? "text-pos" : "text-neg"}>{rh.divergence_pp >= 0 ? "+" : ""}{rh.divergence_pp}pp vs baseline</span>
+                    </div>
+                    <button className="tap mt-4 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-acc-cyan"
+                            onClick={() => setOpenEvidence(openEvidence === rh.id ? null : rh.id)}>
+                      {openEvidence === rh.id ? "Hide evidence" : "View evidence"}
+                      <ChevronDown size={13} className={`transition-transform duration-300 ${openEvidence === rh.id ? "rotate-180" : ""}`} />
+                    </button>
+                    {openEvidence === rh.id && (
+                      <div className="animate-fadeUp mt-3 overflow-hidden rounded-2xl border border-white/[0.06]">
+                        <div className="divide-y divide-white/[0.05]">
+                          {(rh.evidence ?? []).map((ev, i) => (
+                            <div key={i} className="flex items-center justify-between bg-white/[0.02] px-4 py-2.5 text-[11px]">
+                              <span className="font-mono text-txt-low">{ev.signal_id}</span>
+                              <span className={ev.outcome === "WIN" ? "font-semibold text-pos" : ev.outcome === "LOSS" ? "font-semibold text-neg" : "text-txt-faint"}>
+                                {ev.outcome} {ev.r !== null && ev.r !== undefined ? `${ev.r > 0 ? "+" : ""}${ev.r}R` : ""}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <Divider className="my-4" />
+                    {rh.status === "TEST_DESIGNED" ? (
+                      <p className="text-[11px] text-acc-cyan">One-variable hypothesis created - run it from the Queue.</p>
+                    ) : (
+                      <>
+                        <div className="eyebrow !text-[9px] mb-2">Design a one-variable experiment</div>
+                        {designFor === rh.id ? (
+                          <div className="space-y-2.5">
+                            <select className="input" value={designVar} onChange={(e) => setDesignVar(e.target.value)}>
+                              <option value="">Choose variable...</option>
+                              {vars.map(([k, spec]) => (
+                                <option key={k} value={k}>{k} ({String((spec as any)?.min)}-{String((spec as any)?.max)})</option>
+                              ))}
+                            </select>
+                            <input className="input" placeholder="New value" value={designVal} onChange={(e) => setDesignVal(e.target.value)} inputMode="decimal" />
+                            <div className="flex gap-2.5">
+                              <button className="btn-primary flex-1" disabled={busy === rh.id} onClick={() => designExperiment(rh.id)}>Create hypothesis</button>
+                              <button className="btn-ghost" onClick={() => setDesignFor(null)}>Cancel</button>
+                            </div>
+                            <p className="text-[10px] text-txt-faint">Exactly one variable changes. The experiment runs on the same dataset, then stops for your review.</p>
+                          </div>
+                        ) : (
+                          <button className="btn-ghost w-full" onClick={() => { setDesignFor(rh.id); setDesignVar(""); setDesignVal(""); }}>
+                            Design experiment
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </Glass>
+              );
+            })
           )}
         </div>
       )}

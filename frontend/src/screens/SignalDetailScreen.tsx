@@ -363,6 +363,103 @@ export function SignalDetailScreen() {
         )}
       </div>
 
+      {/* ---- adaptive quality (historical evidence) ---- */}
+      {s.adaptive ? (
+        <Glass className="mt-4">
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="eyebrow">Adaptive Quality</div>
+              <p className="mt-1 text-[11px] text-txt-faint">{s.adaptive.note}</p>
+            </div>
+            <div className="text-right">
+              <div className={`num text-[34px] font-light leading-none ${s.adaptive.score >= 75 ? "text-pos" : s.adaptive.score >= 55 ? "text-warn" : "text-neg"}`}
+                   style={{ textShadow: s.adaptive.score >= 75 ? "0 0 28px rgba(62,207,142,0.35)" : "none" }}>
+                {s.adaptive.score}<span className="text-[14px] text-txt-faint">/100</span>
+              </div>
+              <div className="mt-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-txt-faint">
+                {s.adaptive.verdict} - {s.adaptive.reliability} reliability
+              </div>
+            </div>
+          </div>
+
+          <Divider className="my-4" />
+
+          {/* WHY THIS SIGNAL SCORES THIS HIGH */}
+          <div className="eyebrow mb-2.5">Why this signal scores this high</div>
+          <div className="space-y-1.5">
+            {s.adaptive.checks.map((c, i) => (
+              <div key={i} className="flex items-start gap-2 text-[11.5px] leading-relaxed text-txt-low">
+                <span className="mt-0.5 shrink-0 font-bold text-pos">[ok]</span>{c.label}
+              </div>
+            ))}
+          </div>
+
+          {/* Historical match */}
+          <Divider className="my-4" />
+          <div className="flex items-center justify-between">
+            <div className="eyebrow">Historical match</div>
+            {s.adaptive.historical.status === "OK" ? (
+              <span className="text-[9px] font-semibold uppercase tracking-[0.12em] text-acc-cyan">
+                {s.adaptive.historical.similar_signals} comparable signals
+              </span>
+            ) : (
+              <span className="text-[9px] font-semibold uppercase tracking-[0.12em] text-warn">Insufficient sample</span>
+            )}
+          </div>
+          {s.adaptive.historical.status === "OK" ? (
+            <div className="mt-3 flex items-stretch divide-x divide-white/[0.05] rounded-2xl border border-white/[0.05] bg-white/[0.02]">
+              <div className="flex-1 py-3 text-center">
+                <div className="num text-[16px] font-semibold text-pos">{s.adaptive.historical.wins}</div>
+                <div className="mt-0.5 text-[9px] uppercase tracking-[0.12em] text-txt-faint">wins</div>
+              </div>
+              <div className="flex-1 py-3 text-center">
+                <div className="num text-[16px] font-semibold text-neg">{s.adaptive.historical.losses}</div>
+                <div className="mt-0.5 text-[9px] uppercase tracking-[0.12em] text-txt-faint">losses</div>
+              </div>
+              <div className="flex-1 py-3 text-center">
+                <div className="num text-[16px] font-semibold text-txt-hi">{s.adaptive.historical.win_rate}%</div>
+                <div className="mt-0.5 text-[9px] uppercase tracking-[0.12em] text-txt-faint">win rate</div>
+              </div>
+              <div className="flex-1 py-3 text-center">
+                <div className={`num text-[16px] font-semibold ${(s.adaptive.historical.total_r ?? 0) >= 0 ? "text-pos" : "text-neg"}`}>
+                  {s.adaptive.historical.total_r}R
+                </div>
+                <div className="mt-0.5 text-[9px] uppercase tracking-[0.12em] text-txt-faint">total</div>
+              </div>
+            </div>
+          ) : (
+            <p className="mt-2 text-[11px] leading-relaxed text-txt-faint">{s.adaptive.historical.note}</p>
+          )}
+
+          {/* Evidence breakdown */}
+          <Divider className="my-4" />
+          <div className="eyebrow mb-3">Evidence breakdown</div>
+          <div className="space-y-3">
+            {Object.entries(s.adaptive.components).map(([k, v]) => (
+              <div key={k}>
+                <div className="mb-1 flex justify-between text-[10.5px]">
+                  <span className="capitalize text-txt-low">{k.replace(/_/g, " ")}</span>
+                  <span className={`num font-semibold ${v >= 60 ? "text-pos" : v >= 35 ? "text-warn" : "text-neg"}`}>
+                    {v >= 67 ? "Strong" : v >= 34 ? "Fair" : "Weak"}
+                  </span>
+                </div>
+                <ProgressBar pct={v} />
+              </div>
+            ))}
+          </div>
+          {s.adaptive.missing_data.length > 0 && (
+            <p className="mt-4 text-[10.5px] leading-relaxed text-txt-faint">
+              Missing data (excluded honestly, never guessed): {s.adaptive.missing_data.join(", ").replace(/_/g, " ")}.
+              Weights renormalized over available evidence.
+            </p>
+          )}
+        </Glass>
+      ) : (
+        <p className="mt-4 px-1 text-[10.5px] text-txt-faint">
+          Adaptive Quality is not available for this signal - it was created before the intelligence layer existed. New signals are evaluated automatically.
+        </p>
+      )}
+
       <div className="mt-5 flex flex-wrap items-center justify-center gap-2 pb-2">
         <Pill tone="neutral">{s.signal_id}</Pill>
         <Pill tone="neutral">{s.market_conditions?.session} session</Pill>

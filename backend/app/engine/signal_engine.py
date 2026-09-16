@@ -154,6 +154,7 @@ class SignalEngine:
             "candle_time": cand.candle_time,
             "dna": None,                # Signal DNA snapshot (filled right below)
             "forensics": None,          # filled automatically on completion
+            "adaptive": None,           # Adaptive Quality (filled right below)
             "status": "ACTIVE",
             "tp_hits": 0,
             "r_multiple": 0.0,
@@ -175,6 +176,13 @@ class SignalEngine:
             from ..learning.dna import build as build_dna
             store.update("signals", doc["id"],
                          {"dna": build_dna(cand.market, cand.timeframe, df, cand.mtf)})
+        except Exception:
+            pass
+        try:  # Adaptive Quality: evidence-based evaluation of this signal
+            fresh = store.get("signals", doc["id"])
+            if fresh:
+                from ..learning.adaptive import evaluate_and_store
+                evaluate_and_store(store, fresh)
         except Exception:
             pass
         self._log(f"User notified - {signal_id}.", kind="NOTIFY", market=cand.market)

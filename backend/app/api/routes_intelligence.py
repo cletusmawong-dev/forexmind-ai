@@ -10,6 +10,8 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
+from typing import Any
 
 from ..market_data import candle_store
 from ..learning import forensics
@@ -123,6 +125,70 @@ def market_regimes(market: str = Query("XAUUSD"), days: int = Query(7, ge=1, le=
         "history": regime.history(market.upper(), days),
         "informational_only": True,
     }
+
+
+@router.get("/signals/{signal_id}/adaptive")
+def signal_adaptive(signal_id: str, user_id: str = Depends(get_user_id),
+                    refresh: bool = Query(False)):
+    """Adaptive Quality evaluation - stored at creation or computed on demand."""
+    from ..learning.adaptive import evaluate
+    doc = _own_signal(signal_id, user_id)
+    if doc.get("adaptive") and not refresh:
+        return {"signal_id": signal_id, "adaptive": doc["adaptive"], "source": "stored"}
+    result = evaluate(doc, State.store)  # never raises, never touches levels
+    try:
+        State.store.update("signals", doc["id"], {"adaptive": result})
+    except Exception:
+        pass
+    return {"signal_id": signal_id, "adaptive": result, "source": "computed"}
+
+
+@router.get("/learning/research")
+def research_list(user_id: str = Depends(get_user_id)):
+    items = State.store.list("research_hypotheses",
+                             filters={"userId": user_id}, limit=100)
+    items.sort(key=lambda d: str(d.get("createdAt", "")), reverse=True)
+    return {"hypotheses": items,
+            "discovered": len(items),
+            "note": ("Patterns observed in historical data - UNTESTED "
+                     "HYPOTHESES, not facts and not strategy changes.")}
+
+
+@router.post("/learning/research/discover")
+def research_discover(user_id: str = Depends(get_user_id)):
+    from ..learning.research import discover
+    found = discover(user_id)
+    return {"created": len(found), "hypotheses": found,
+            "note": ("Discovery scanned completed signals for outcome "
+                     "divergence. Findings require one-variable testing "
+                     "and user approval before anything changes.")}
+
+
+class DesignExperimentIn(BaseModel):
+    variable: str
+    new_value: Any
+
+
+@router.post("/learning/research/{research_id}/design")
+def research_design(research_id: str, body: DesignExperimentIn,
+                    user_id: str = Depends(get_user_id)):
+    """Turn a discovery into a ONE-VARIABLE experiment hypothesis (existing
+    validation + approval flow). Only experimentable variables accepted."""
+    from ..learning.research import design_experiment
+    doc = State.store.get("research_hypotheses", research_id)
+    if not doc or doc.get("userId") != user_id:
+        raise HTTPException(404, "Research hypothesis not found")
+    try:
+        hyp = design_experiment(user_id, doc, body.variable, body.new_value)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    State.store.update("research_hypotheses", research_id,
+                       {"status": "TEST_DESIGNED",
+                        "designed_hypothesis_id": hyp.get("hypothesis_id")})
+    return {"hypothesis": hyp,
+            "note": ("One-variable hypothesis created (PROPOSED). Run the "
+                     "experiment from the Learning Lab Queue - approval "
+                     "remains manual.")}
 
 
 @router.get("/learning/observations")

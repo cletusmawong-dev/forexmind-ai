@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
+import pandas as pd
+
 from ..backtesting.engine import BacktestEngine
 from ..config import settings
 from ..db.store import get_store
@@ -108,6 +110,36 @@ class ExperimentEngine:
                 " WARNING: HIGH OVERFITTING RISK - the change improves the training "
                 "period but degrades on the validation period. Do not approve without "
                 "further out-of-sample evidence.")
+        if verdict.get("result") != "INSUFFICIENT_DATA" and (
+                train_e.get("trades", 0) < 10 or val_e.get("trades", 0) < 5):
+            verdict["small_sample_warning"] = True
+            verdict["conclusion"] += (
+                " Note: small sample (train/val trades below 10/5) - any measured "
+                "improvement may be noise.")
+
+        # robustness across sessions (same dataset, same trades, split by session)
+        robustness = {"sessions": {}, "note": None}
+        sessions = sorted({t.get("session") for t in base_result["trades"]
+                           if t.get("session")} | {t.get("session") for t in exp_result["trades"]
+                                                  if t.get("session")})
+        for ses in sessions:
+            b_ses = [t for t in base_result["trades"] if t.get("session") == ses]
+            e_ses = [t for t in exp_result["trades"] if t.get("session") == ses]
+            if len(b_ses) >= 5 and len(e_ses) >= 5:
+                robustness["sessions"][ses] = {
+                    "base": compute_metrics(b_ses), "exp": compute_metrics(e_ses)}
+        if not robustness["sessions"]:
+            robustness["note"] = ("Insufficient data for robustness test - "
+                                  "no session bucket reached 5 trades per version.")
+
+        # signal frequency (trades per day over the dataset period)
+        freq = None
+        try:
+            days = max(1.0, (pd.Timestamp(base_result["dataset"]["end"])
+                             - pd.Timestamp(base_result["dataset"]["start"])).total_seconds() / 86400.0)
+            freq = round(len(exp_result["trades"]) / days, 3)
+        except Exception:
+            pass
 
         return {
             "strategy_id": strategy_id,
@@ -123,12 +155,15 @@ class ExperimentEngine:
             "experimental_metrics": exp_metrics,
             "verdict": verdict,
             "overfitting_risk": verdict.get("overfitting_risk", False),
+            "small_sample_warning": verdict.get("small_sample_warning", False),
             "split": {
                 "train": {"base": {k: v for k, v in train_m.items() if not isinstance(v, dict)},
                           "exp": {k: v for k, v in train_e.items() if not isinstance(v, dict)}},
                 "validation": {"base": {k: v for k, v in val_m.items() if not isinstance(v, dict)},
                                "exp": {k: v for k, v in val_e.items() if not isinstance(v, dict)}},
             },
+            "robustness": robustness,
+            "signal_frequency_per_day": freq,
         }
 
     def run_from_hypothesis(self, user_id: str, hypothesis: Dict[str, Any]) -> Dict[str, Any]:
@@ -176,8 +211,12 @@ class ExperimentEngine:
             "delta_win_rate": verdict.get("delta_win_rate"),
             "delta_expectancy": verdict.get("delta_expectancy"),
             "overfitting_risk": bool(comparison.get("overfitting_risk")),
+            "small_sample_warning": bool(comparison.get("small_sample_warning")),
             "status": "READY_FOR_REVIEW",
             "split": comparison.get("split"),
+            "robustness": (comparison.get("robustness") or {}).get("sessions"),
+            "robustness_note": (comparison.get("robustness") or {}).get("note"),
+            "signal_frequency_per_day": comparison.get("signal_frequency_per_day"),
         })
 
         store.update("hypotheses", hypothesis["id"], {

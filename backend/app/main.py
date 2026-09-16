@@ -217,6 +217,13 @@ async def live_loop():
 
             if now - last_learning > 6 * 3600:
                 last_learning = now
+                try:  # Research Lab: discover new one-variable-testable patterns
+                    for _uid in (await _user_ids()):
+                        await asyncio.to_thread(
+                            __import__("app.learning.research", fromlist=["discover"]).discover,
+                            _uid)
+                except Exception:
+                    pass
                 _current_task = "Reviewing completed signals"
                 from .learning.analysis import analyze_closed_signals
                 from .learning.hypotheses import propose_from_lessons
