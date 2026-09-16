@@ -204,7 +204,7 @@ export function LearningLabScreen() {
       {/* tabs */}
       <div className="no-scrollbar mt-7 overflow-x-auto">
         <Segmented
-          className="min-w-[460px]"
+          className="min-w-[600px]"
           value={tab}
           onChange={(k) => setTab(k as any)}
           options={[

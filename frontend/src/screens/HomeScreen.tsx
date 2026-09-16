@@ -66,7 +66,7 @@ export function HomeScreen() {
       <div className="lg:col-span-7">
         {/* header */}
         <header className="mb-6 flex items-center justify-between gap-2">
-          <Logo size={36} />
+          <span className="lg:hidden"><Logo size={36} /></span>
           <div className="flex items-center gap-2.5">
             <div className="sm:block">
               <DemoTag />
@@ -96,11 +96,11 @@ export function HomeScreen() {
         </header>
 
         {/* ---- hero ---- */}
-        <Glass className="relative overflow-hidden" pad={false}>
+        <Glass className="hero-card relative overflow-hidden" pad={false}>
           <img src={heroBull} alt="" aria-hidden="true"
                className="pointer-events-none absolute right-0 top-0 h-full w-[74%] object-cover object-right opacity-80"
                style={{ mixBlendMode: "screen", maskImage: "linear-gradient(to right, transparent 8%, black 52%)", WebkitMaskImage: "linear-gradient(to right, transparent 8%, black 52%)" }} />
-          <HeroArt className="right-0 top-0 h-full w-[46%] opacity-60" />
+          <HeroArt className="right-0 top-0 h-full w-[46%] opacity-75 [mask-image:linear-gradient(to_right,transparent,black_55%)] [-webkit-mask-image:linear-gradient(to_right,transparent,black_55%)]" />
           <div className="relative p-6">
             <p className="text-[13px] font-medium text-[var(--text-secondary)]">{greeting()}</p>
             <p className="mt-0.5 text-[19px] font-bold tracking-tight">

@@ -23,7 +23,7 @@ export function BottomNav() {
             className={({ isActive }) =>
               `tap relative flex h-[52px] w-[52px] flex-col items-center justify-center gap-[3px] rounded-[18px] transition-all duration-300 ${
                 isActive
-                  ? "bg-gradient-to-b from-[rgba(77,124,254,0.35)] to-[rgba(77,124,254,0.1)] text-white"
+                  ? "bg-gradient-to-b from-[rgba(96,150,255,0.5)] to-[rgba(77,124,254,0.14)] text-white shadow-[0_0_22px_rgba(77,124,254,0.4),inset_0_1px_0_rgba(220,240,255,0.3)]"
                   : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
               }`
             }

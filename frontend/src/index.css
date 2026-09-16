@@ -6,30 +6,31 @@
   color-scheme: dark;
 
   /* ---- design tokens (single source of truth) ----
-     FOREXMIND AI neon-glass theme: deep-navy terminal, electric blue/cyan
-     neons, violet/magenta blooms, gold for the historical/demo badge. */
-  --bg-primary: #020817;
-  --bg-secondary: #050b24;
-  --bg-elevated: #03112b;
-  --glass-surface: rgba(8, 28, 74, 0.72);
-  --glass-surface-hover: rgba(12, 38, 96, 0.8);
-  --glass-border: rgba(64, 150, 255, 0.34);
-  --glass-border-soft: rgba(80, 160, 255, 0.18);
-  --glass-highlight: rgba(180, 214, 255, 0.16);
+     FOREXMIND AI neon-glass theme: rich royal-navy terminal, electric
+     blue/cyan neons, violet/magenta blooms, gold for the demo badge. */
+  --bg-primary: #050b26;
+  --bg-secondary: #081236;
+  --bg-elevated: #0a1740;
+  --glass-surface: rgba(16, 40, 105, 0.72);
+  --glass-surface-hover: rgba(24, 56, 132, 0.8);
+  --glass-border: rgba(88, 148, 255, 0.38);
+  --glass-border-soft: rgba(96, 158, 255, 0.2);
+  --glass-highlight: rgba(190, 220, 255, 0.2);
   --accent-blue: #3b82f6;
-  --accent-blue-bright: #5ea0ff;
+  --accent-blue-bright: #6aa2ff;
   --accent-cyan: #22d3ee;
   --accent-green: #2fd98a;
   --accent-red: #fb4d6a;
   --accent-purple: #8e7bff;
   --accent-magenta: #e14eca;
   --accent-gold: #f5b84d;
-  --text-primary: #eef4ff;
-  --text-secondary: #a9b9dc;
-  --text-muted: #64769e;
+  --accent-amber: #f5b84d;
+  --text-primary: #f0f5ff;
+  --text-secondary: #b0c0e4;
+  --text-muted: #6d7fa8;
   --radius: 22px;
-  --glow-blue: 0 0 28px rgba(59, 130, 246, 0.32);
-  --shadow-card: 0 18px 44px rgba(0, 2, 12, 0.55);
+  --glow-blue: 0 0 30px rgba(59, 130, 246, 0.38);
+  --shadow-card: 0 18px 46px rgba(1, 4, 20, 0.55);
 }
 
 html,
@@ -51,12 +52,12 @@ body {
   inset: 0;
   z-index: -3;
   background:
-    radial-gradient(1100px 700px at 12% -8%, rgba(37, 99, 235, 0.42), transparent 62%),
-    radial-gradient(900px 620px at 106% 2%, rgba(124, 76, 240, 0.3), transparent 58%),
-    radial-gradient(760px 560px at 108% 78%, rgba(225, 78, 202, 0.14), transparent 60%),
-    radial-gradient(820px 640px at 50% 116%, rgba(37, 99, 235, 0.22), transparent 62%),
-    radial-gradient(480px 420px at -8% 72%, rgba(34, 211, 238, 0.1), transparent 58%),
-    linear-gradient(185deg, #04102b 0%, #020817 44%, #030a1e 100%);
+    radial-gradient(1150px 720px at 12% -8%, rgba(45, 118, 255, 0.55), transparent 62%),
+    radial-gradient(920px 640px at 106% 2%, rgba(129, 88, 245, 0.38), transparent 58%),
+    radial-gradient(780px 580px at 108% 78%, rgba(225, 78, 202, 0.17), transparent 60%),
+    radial-gradient(860px 660px at 50% 116%, rgba(45, 118, 255, 0.3), transparent 62%),
+    radial-gradient(500px 440px at -8% 72%, rgba(34, 211, 238, 0.12), transparent 58%),
+    linear-gradient(185deg, #0a1740 0%, #050b26 46%, #071233 100%);
 }
 /* faint trading-chart grid over the blooms */
 .ambient::after {
@@ -64,11 +65,11 @@ body {
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(96, 150, 255, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(96, 150, 255, 0.05) 1px, transparent 1px);
+    linear-gradient(rgba(110, 165, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(110, 165, 255, 0.06) 1px, transparent 1px);
   background-size: 44px 44px;
-  mask-image: radial-gradient(1200px 800px at 50% 0%, rgba(0, 0, 0, 0.85), transparent 78%);
-  -webkit-mask-image: radial-gradient(1200px 800px at 50% 0%, rgba(0, 0, 0, 0.85), transparent 78%);
+  mask-image: radial-gradient(1200px 800px at 50% 0%, rgba(0, 0, 0, 0.9), transparent 78%);
+  -webkit-mask-image: radial-gradient(1200px 800px at 50% 0%, rgba(0, 0, 0, 0.9), transparent 78%);
 }
 .noise {
   position: fixed;
@@ -83,33 +84,49 @@ body {
 @layer components {
   .glass {
     border: 1px solid var(--glass-border);
-    background: linear-gradient(155deg, rgba(23, 60, 138, 0.6) 0%, rgba(10, 30, 78, 0.74) 42%, rgba(4, 12, 34, 0.82) 100%);
+    background: linear-gradient(155deg, rgba(41, 88, 200, 0.55) 0%, rgba(19, 46, 118, 0.72) 42%, rgba(8, 20, 56, 0.8) 100%);
     backdrop-filter: blur(20px) saturate(165%);
     -webkit-backdrop-filter: blur(20px) saturate(165%);
     box-shadow:
-      0 0 0 1px rgba(59, 130, 246, 0.06),
-      0 0 32px rgba(37, 99, 235, 0.16),
+      0 0 0 1px rgba(80, 140, 255, 0.08),
+      0 0 38px rgba(47, 108, 245, 0.2),
       var(--shadow-card),
       inset 0 1px 0 var(--glass-highlight);
     @apply rounded-[22px];
   }
   .glass-2 {
     border: 1px solid var(--glass-border-soft);
-    background: linear-gradient(155deg, rgba(16, 42, 100, 0.5), rgba(5, 14, 38, 0.66));
+    background: linear-gradient(155deg, rgba(28, 62, 140, 0.5), rgba(9, 22, 60, 0.66));
     backdrop-filter: blur(16px) saturate(150%);
     -webkit-backdrop-filter: blur(16px) saturate(150%);
-    box-shadow: 0 10px 28px rgba(0, 2, 12, 0.4), inset 0 1px 0 rgba(180, 214, 255, 0.1);
+    box-shadow: 0 10px 30px rgba(1, 4, 20, 0.42), inset 0 1px 0 rgba(190, 220, 255, 0.12);
     @apply rounded-[18px];
   }
   .glass-float {
-    border: 1px solid rgba(96, 168, 255, 0.3);
-    background: linear-gradient(160deg, rgba(16, 40, 96, 0.82), rgba(3, 9, 26, 0.92));
+    border: 1px solid rgba(110, 170, 255, 0.34);
+    background: linear-gradient(160deg, rgba(26, 58, 132, 0.82), rgba(6, 14, 40, 0.92));
     backdrop-filter: blur(36px) saturate(175%);
     -webkit-backdrop-filter: blur(36px) saturate(175%);
     box-shadow:
-      0 0 36px rgba(37, 99, 235, 0.22),
-      0 24px 70px rgba(0, 2, 12, 0.68),
-      inset 0 1px 0 rgba(180, 214, 255, 0.16);
+      0 0 42px rgba(47, 108, 245, 0.26),
+      0 24px 70px rgba(1, 4, 20, 0.68),
+      inset 0 1px 0 rgba(190, 220, 255, 0.18);
+  }
+  /* hero balance card: brighter royal wash + controlled outer glow */
+  .hero-card {
+    border-color: rgba(120, 175, 255, 0.45);
+    box-shadow:
+      0 0 0 1px rgba(90, 150, 255, 0.12),
+      0 0 48px rgba(47, 108, 245, 0.28),
+      0 20px 50px rgba(1, 4, 20, 0.55),
+      inset 0 1px 0 rgba(200, 226, 255, 0.22);
+  }
+  .hero-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(560px 300px at 88% -10%, rgba(47, 108, 245, 0.28), transparent 62%);
   }
   .glass-hover {
     transition: background 0.25s ease, border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
@@ -143,10 +160,10 @@ body {
   /* neon rounded-square icon chip used by page/section headers */
   .icon-chip {
     @apply flex h-11 w-11 shrink-0 items-center justify-center rounded-[15px];
-    border: 1px solid rgba(94, 160, 255, 0.45);
-    background: linear-gradient(150deg, rgba(37, 99, 235, 0.4), rgba(14, 42, 104, 0.55));
-    box-shadow: 0 0 22px rgba(59, 130, 246, 0.35), inset 0 1px 0 rgba(190, 220, 255, 0.28);
-    color: #cfe4ff;
+    border: 1px solid rgba(110, 170, 255, 0.55);
+    background: linear-gradient(150deg, rgba(48, 112, 245, 0.48), rgba(18, 50, 124, 0.6));
+    box-shadow: 0 0 26px rgba(64, 130, 250, 0.42), inset 0 1px 0 rgba(200, 226, 255, 0.34);
+    color: #d8e8ff;
   }
   .icon-chip-cyan {
     border-color: rgba(34, 211, 238, 0.42);
@@ -167,27 +184,27 @@ body {
   }
   .btn-primary {
     @apply btn text-white;
-    background: linear-gradient(100deg, #60a5fa 0%, #2563eb 55%, #1d4ed8 100%);
+    background: linear-gradient(100deg, #38bdf8 0%, #3b82f6 42%, #6d5ef5 78%, #8e7bff 100%);
     box-shadow:
-      0 0 26px rgba(59, 130, 246, 0.45),
-      0 12px 32px rgba(29, 78, 216, 0.4),
-      inset 0 1px 0 rgba(255, 255, 255, 0.34),
-      inset 0 -1px 0 rgba(6, 16, 52, 0.4);
+      0 0 30px rgba(76, 116, 250, 0.5),
+      0 12px 34px rgba(52, 44, 190, 0.42),
+      inset 0 1px 0 rgba(255, 255, 255, 0.36),
+      inset 0 -1px 0 rgba(8, 14, 52, 0.4);
   }
   .btn-primary:hover {
     filter: brightness(1.1);
     transform: translateY(-1px);
     box-shadow:
-      0 0 38px rgba(59, 130, 246, 0.6),
-      0 16px 40px rgba(29, 78, 216, 0.5),
-      inset 0 1px 0 rgba(255, 255, 255, 0.34);
+      0 0 44px rgba(88, 128, 255, 0.65),
+      0 16px 42px rgba(64, 52, 210, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.36);
   }
   .btn-primary:active {
     transform: scale(0.97);
   }
   .btn-ghost {
-    @apply btn border border-white/[0.12] font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)];
-    background: linear-gradient(160deg, rgba(20, 48, 110, 0.4), rgba(6, 14, 36, 0.55));
+    @apply btn border border-white/[0.14] font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)];
+    background: linear-gradient(160deg, rgba(30, 66, 148, 0.42), rgba(9, 20, 50, 0.58));
     backdrop-filter: blur(12px);
   }
   .btn-ghost:hover {
@@ -234,15 +251,15 @@ body {
     box-shadow: inset 0 2px 6px rgba(0, 2, 10, 0.5);
   }
   .seg-btn {
-    @apply flex-1 rounded-full py-2.5 text-[12.5px] font-semibold text-[var(--text-muted)] transition-all duration-300;
+    @apply flex-1 whitespace-nowrap rounded-full px-3 py-2.5 text-[12.5px] font-semibold text-[var(--text-muted)] transition-all duration-300;
   }
   .seg-btn-active {
     color: #fff;
-    background: linear-gradient(120deg, #4f93ff 0%, #1d4ed8 100%);
+    background: linear-gradient(120deg, #4da3ff 0%, #2b62e8 100%);
     box-shadow:
-      0 0 20px rgba(59, 130, 246, 0.5),
-      0 6px 22px rgba(29, 78, 216, 0.45),
-      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+      0 0 24px rgba(72, 134, 255, 0.55),
+      0 6px 24px rgba(29, 78, 216, 0.48),
+      inset 0 1px 0 rgba(220, 240, 255, 0.38);
   }
 
   /* ---------- chips ---------- */
@@ -252,8 +269,8 @@ body {
   .chip-active {
     border-color: transparent;
     color: #fff;
-    background: linear-gradient(120deg, #4f93ff 0%, #1d4ed8 100%);
-    box-shadow: 0 0 18px rgba(59, 130, 246, 0.42), 0 6px 20px rgba(29, 78, 216, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+    background: linear-gradient(120deg, #4da3ff 0%, #2b62e8 100%);
+    box-shadow: 0 0 22px rgba(72, 134, 255, 0.48), 0 6px 22px rgba(29, 78, 216, 0.42), inset 0 1px 0 rgba(220, 240, 255, 0.34);
   }
 
   /* ---------- progress ---------- */
@@ -278,8 +295,8 @@ body {
      obviously visible - solid color change, not just a border hint) */
   .chip-on {
     @apply border-transparent text-white;
-    background: linear-gradient(120deg, rgba(79, 147, 255, 0.85) 0%, rgba(29, 78, 216, 0.85) 100%);
-    box-shadow: 0 0 18px rgba(79, 147, 255, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    background: linear-gradient(120deg, rgba(77, 163, 255, 0.92) 0%, rgba(43, 98, 232, 0.92) 100%);
+    box-shadow: 0 0 22px rgba(72, 134, 255, 0.5), inset 0 1px 0 rgba(220, 240, 255, 0.32);
   }
   .chip-off {
     @apply border-white/[0.09] bg-white/[0.02] text-txt-low;
