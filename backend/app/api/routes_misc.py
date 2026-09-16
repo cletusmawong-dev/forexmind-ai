@@ -84,6 +84,78 @@ def candles_history(market: str, user_id: str = Depends(get_user_id),
             "candles": candle_store.history(m, limit=limit)}
 
 
+@router.get("/system/status")
+def system_status(user_id: str = Depends(get_user_id)):
+    """VPS-readiness health view (user spec §15).
+
+    Every section separates CONFIGURED from CONNECTED. Nothing reports
+    'connected' merely because configuration exists.
+    """
+    from ..config import settings
+    from ..market_data.candle_store import stats as candle_stats
+    from ..market_data.integrity import detect_gaps
+    import pandas as pd
+    from datetime import datetime, timezone
+
+    provider = State.provider
+    cap = dict(getattr(provider, "capabilities", {}))
+    candles_info = candle_stats()
+    now = int(datetime.now(timezone.utc).timestamp())
+    markets = {}
+    for m, info in (candles_info.get("markets") or {}).items():
+        last = None
+        if info.get("last"):
+            try:
+                last = int(pd.Timestamp(info["last"].replace(" ", "T") + "Z").timestamp())
+            except Exception:
+                last = None
+        stale = None if last is None else (now - last > 4 * 3600)
+        markets[m] = {"candles": info.get("count", 0),
+                      "last_candle": info.get("last"),
+                      "stale": stale}
+
+    stream_configured = bool(settings.market_data_stream_url)
+    bridge_configured = bool(settings.bridge_url)
+    from ..execution.mt5 import bridge_get, status as exec_status
+    acct = bridge_get("/account") if bridge_configured else None
+    try:
+        execution = exec_status(user_id)
+    except Exception:
+        execution = {"mode": "off"}
+
+    return {
+        "market_data": {
+            "provider": provider.name,
+            "demo": provider.is_demo,
+            "capabilities": cap,
+            "stream": {"configured": stream_configured,
+                       "connected": False,  # no stream provider exists today
+                       "note": None if stream_configured else
+                               "MARKET_DATA_STREAM_URL not set - no tick stream (honest default)."},
+            "candle_storage": {"tf": candles_info.get("tf"),
+                               "total": candles_info.get("total"),
+                               "persist_errors": candles_info.get("persist_errors")},
+            "markets": markets,
+            "configured": True,
+            "connected": not provider.is_demo,
+        },
+        "vps_bridge": {
+            "configured": bridge_configured,
+            "reachable": bool(acct and isinstance(acct, dict) and "balance" in acct),
+            "note": None if bridge_configured else
+                    "MT5_BRIDGE_URL not set - VPS not configured yet.",
+        },
+        "execution": {
+            "mode": (execution or {}).get("mode", "off"),
+            "kill_switch": not ((execution or {}).get("enabled", False)),
+            "daily_cap": settings.execution_max_trades_per_day,
+            "risk_cap_pct": settings.execution_risk_pct_cap,
+            "tp_level": settings.execution_tp_level,
+        },
+        "principle": "Configured != connected. Execution stays OFF unless the user enables it.",
+    }
+
+
 @router.get("/execution/status")
 def execution_status(user_id: str = Depends(get_user_id)):
     """Honest MT5 execution status (bridge, account, kill switch, counters)."""

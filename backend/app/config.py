@@ -34,6 +34,11 @@ class Settings:
     # (Yahoo keyless, Twelve Data when TWELVEDATA_API_KEY is configured).
     market_data_provider: str = os.getenv("MARKET_DATA_PROVIDER", "historical_demo")
     twelvedata_api_key: str = os.getenv("TWELVEDATA_API_KEY", "")
+    # Future tick-stream provider (VPS). Empty = no stream exists; the app
+    # NEVER claims streaming capability while this is empty.
+    market_data_stream_url: str = os.getenv("MARKET_DATA_STREAM_URL", "")
+    market_data_stream_api_key: str = os.getenv("MARKET_DATA_STREAM_API_KEY", "")
+    data_timezone: str = os.getenv("DATA_TIMEZONE", "UTC")
     # Optional broker-grade feed (free practice account at oanda.com).
     # Covers FX, gold and NAS100 CFDs; "practice" uses no real money.
     oanda_api_token: str = os.getenv("OANDA_API_TOKEN", "")
@@ -54,6 +59,10 @@ class Settings:
     execution_mode: str = os.getenv("EXECUTION_MODE", "off")
     bridge_url: str = os.getenv("MT5_BRIDGE_URL", "")
     bridge_token: str = os.getenv("MT5_BRIDGE_TOKEN", "")
+    # Kill switch default for users without an explicit setting. SAFE default:
+    # blocked. EXECUTION_KILL_SWITCH=false pre-allows execution after the user
+    # has finished VPS setup - flipping this env is a deliberate act.
+    execution_kill_switch_default: bool = os.getenv("EXECUTION_KILL_SWITCH", "true").lower() != "false"
     execution_max_trades_per_day: int = int(os.getenv("EXECUTION_MAX_TRADES_PER_DAY", "6"))
     execution_risk_pct_cap: float = float(os.getenv("EXECUTION_RISK_PCT_CAP", "1.0"))
     execution_tp_level: int = int(os.getenv("EXECUTION_TP_LEVEL", "2"))   # take-profit level used on the order

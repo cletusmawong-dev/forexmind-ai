@@ -55,6 +55,12 @@ UA = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, 
 class LiveProvider(MarketDataProvider):
     name = "live"
     is_demo = False
+    capabilities = {
+        "candles": True,
+        "ticks": False,            # candle REST feeds only today - no tick API wired
+        "streaming": False,        # no websocket provider configured (free tiers)
+        "historical_range": True,  # TwelveData serves arbitrary start/end ranges
+    }
 
     def __init__(self):
         self._lock = threading.RLock()
@@ -254,6 +260,42 @@ class LiveProvider(MarketDataProvider):
         with self._lock:
             self._cache[key] = (now, df if df is not None and len(df) else None)
         return df.tail(limit).copy() if df is not None and len(df) else None
+
+    def fetch_historical_candles(self, market: str, timeframe: str,
+                                 start, end) -> Optional[pd.DataFrame]:
+        """Closed candles for an arbitrary UTC range via TwelveData.
+
+        Used by the future VPS stream for gap backfill. Returns None
+        honestly when TD is not configured or the request fails - a
+        backfill never invents candles."""
+        if not self.td_key or not self._td_symbol(market):
+            return None
+        interval = {"5M": "5min", "15M": "15min", "30M": "30min",
+                    "1H": "1h", "4H": "4h", "1D": "1day"}.get(timeframe)
+        if not interval:
+            return None
+        try:
+            self._td_throttle()
+            r = requests.get(
+                "https://api.twelvedata.com/time_series",
+                params={"symbol": self._td_symbol(market), "interval": interval,
+                        "start_date": str(start), "end_date": str(end),
+                        "timezone": "UTC", "apikey": self.td_key},
+                timeout=20)
+            d = r.json()
+            values = d.get("values")
+            if not values:
+                return None
+            df = pd.DataFrame(values)
+            df["datetime"] = pd.to_datetime(df["datetime"])
+            df = df.set_index("datetime").sort_index()
+            df = df.rename(columns={"open": "open", "high": "high",
+                                    "low": "low", "close": "close"})[["open", "high", "low", "close"]]
+            df = df.apply(pd.to_numeric, errors="coerce").dropna()
+            df["volume"] = 0.0
+            return df
+        except Exception:
+            return None
 
     # ------------------------------------------------------------------
     # MarketDataProvider interface

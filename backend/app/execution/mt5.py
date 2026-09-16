@@ -75,7 +75,10 @@ def _goals_update(user_id: str, patch: dict) -> None:
 
 
 def execution_enabled(user_id: str) -> bool:
-    return bool((_goals_doc(user_id) or {}).get("execution_enabled", True))
+    """Kill switch. SAFE DEFAULT: blocked (spec: EXECUTION_KILL_SWITCH=true).
+    Users with no explicit setting are treated as killed."""
+    return bool((_goals_doc(user_id) or {}).get(
+        "execution_enabled", not settings.execution_kill_switch_default))
 
 
 def set_execution_enabled(user_id: str, enabled: bool) -> None:

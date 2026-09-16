@@ -43,6 +43,23 @@ class SignalEngine:
                       f"({0 if df is None else len(df)} bars). Signal generation paused.",
                       kind="DATA", market=market)
             return []
+        # Data-gap protection (VPS-readiness): an unresolved hole in the
+        # recent candle series invalidates EMA/crossover continuity. No
+        # candles are fabricated and no signal is generated - the gap is
+        # logged and backfill resolves it. Weekend/holiday spans are
+        # market closure, not gaps (integrity handles that).
+        try:
+            from ..market_data.integrity import series_is_trustworthy
+            check = series_is_trustworthy([int(pd.Timestamp(x).timestamp())
+                                           for x in df.index], timeframe, 300)
+            if not check["ok"] and check["reason"] in ("data_gap", "malformed_series"):
+                self._log(f"Data integrity: {check['reason']} on {market} {timeframe} "
+                          f"({check['detail']}). Signal generation paused - "
+                          "waiting for clean candles.",
+                          kind="DATA", market=market)
+                return []
+        except Exception:
+            pass  # integrity is a safety ADD-ON; never break scanning on its failure
         higher = self.provider.higher_frames(market, timeframe)
         session = session_of(pd.Timestamp(df.index[-1]).hour)
 

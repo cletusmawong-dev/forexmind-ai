@@ -1,0 +1,26 @@
+# ForexMind AI - local/VPS compose (user spec §27: only services with a real
+# benefit; today that is exactly one: the api, which contains the agent loop).
+#
+# Local development:  docker compose up --build   (then http://localhost:8000/api/health)
+# Dev without Docker is unchanged:  cd backend && uvicorn app.main:app --reload
+#
+# VPS: the same compose file runs on the VPS; the Windows MT5 terminal +
+# ForexMind bridge run beside it (see docs/VPS_MIGRATION.md). The bridge is a
+# separate Windows-side component and is intentionally NOT containerized
+# (MetaTrader 5 is a Windows GUI application).
+
+services:
+  api:
+    build: .
+    env_file: .env
+    environment:
+      - PORT=8000            # Render injects its own; compose pins 8000
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import requests; assert requests.get('http://localhost:8000/api/health', timeout=5).ok"]
+      interval: 60s
+      timeout: 10s
+      retries: 3

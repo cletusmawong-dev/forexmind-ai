@@ -115,6 +115,12 @@ def record(market: str, df: Optional[pd.DataFrame]) -> int:
         last_ts = cur[-1][0] if cur else 0
         fresh = [r for r in rows if r[0] > last_ts]
         if fresh:
+            # honest gap logging (weekend closures are not gaps)
+            step = 900  # storage TF is fixed 15M
+            from .integrity import detect_gaps
+            if last_ts and detect_gaps([last_ts, fresh[0][0]], TF,
+                                       source=f"candle_store:{m}"):
+                pass  # detect_gaps already logged DATA_GAP_DETECTED
             cur.extend(fresh)
             del _mem[m][: max(0, len(cur) - KEEP)]
         new = len(fresh)
