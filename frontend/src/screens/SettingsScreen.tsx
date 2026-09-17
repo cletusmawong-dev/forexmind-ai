@@ -29,6 +29,12 @@ export function SettingsScreen() {
     }
   }, [goals.data]);
   const [timeframes, setTimeframes] = useState<string[]>(["15M"]);
+  const [acctType, setAcctType] = useState<"personal" | "propfirm">("personal");
+  const [propDaily, setPropDaily] = useState("5");
+  const [propTotal, setPropTotal] = useState("10");
+  const [propTarget, setPropTarget] = useState("8");
+  const [propBuffer, setPropBuffer] = useState("20");
+  const [propStart, setPropStart] = useState("");
   useEffect(() => {
     if (risk.data) {
       setRiskPct(String(risk.data.risk_per_trade_pct));
@@ -36,6 +42,14 @@ export function SettingsScreen() {
       setMaxSignals(String(risk.data.max_signals_per_day));
       setMinRR(String(risk.data.min_rr));
       setTimeframes(risk.data.signal_timeframes ?? ["15M"]);
+      const at = risk.data.account_type === "propfirm" ? "propfirm" : "personal";
+      setAcctType(at);
+      const pr = risk.data.prop_rules ?? {};
+      if (pr.daily_drawdown_pct != null) setPropDaily(String(pr.daily_drawdown_pct));
+      if (pr.max_total_drawdown_pct != null) setPropTotal(String(pr.max_total_drawdown_pct));
+      if (pr.profit_target_pct != null) setPropTarget(String(pr.profit_target_pct));
+      if (pr.daily_dd_buffer_pct != null) setPropBuffer(String(pr.daily_dd_buffer_pct));
+      if (pr.account_start_balance) setPropStart(String(pr.account_start_balance));
     }
   }, [risk.data]);
 
@@ -66,14 +80,27 @@ export function SettingsScreen() {
   };
   const saveRisk = async () => {
     try {
+      const propRules: Record<string, number> | null = acctType === "propfirm"
+        ? {
+            daily_drawdown_pct: parseFloat(propDaily) || 5,
+            max_total_drawdown_pct: parseFloat(propTotal) || 10,
+            profit_target_pct: parseFloat(propTarget) || 8,
+            daily_dd_buffer_pct: propBuffer === "" ? 20 : parseFloat(propBuffer),
+            ...(propStart !== "" ? { account_start_balance: parseFloat(propStart) || 0 } : {}),
+          }
+        : null;
       await api.patch(endpoints.settings, {
         risk_per_trade_pct: parseFloat(riskPct),
         max_daily_loss_pct: parseFloat(maxLoss),
         max_signals_per_day: parseInt(maxSignals),
         min_rr: parseFloat(minRR),
         signal_timeframes: timeframes,
+        account_type: acctType,
+        prop_rules: propRules,
       });
-      flash(`Saved. The bot now enters on: ${timeframes.join(", ")}.`);
+      flash(acctType === "propfirm"
+        ? `Saved. PROP MODE - the engine stops new signals at ${100 - (parseFloat(propBuffer) || 20)}% of your ${propDaily || 5}% daily drawdown.`
+        : `Saved. Personal account - daily limit ${maxLoss}%.`);
     } catch (e: any) {
       flash(e.message);
       return;
@@ -113,6 +140,51 @@ export function SettingsScreen() {
 
       {/* ---- risk ---- */}
       <Eyebrow className="mt-9">Risk management</Eyebrow>
+      <Glass className="mt-2">
+        <div className="eyebrow !text-[9px] mb-2.5">Account type - how should the engine guard this account?</div>
+        <Segmented
+          value={acctType}
+          onChange={(k) => setAcctType(k as "personal" | "propfirm")}
+          options={[
+            { key: "personal", label: "Personal" },
+            { key: "propfirm", label: "Prop firm" },
+          ]}
+        />
+        {acctType === "propfirm" ? (
+          <>
+            <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-3">
+              <div>
+                <div className="eyebrow !text-[9px] mb-1.5">Daily drawdown %</div>
+                <input className="input-mini" inputMode="decimal" value={propDaily} onChange={(e) => setPropDaily(e.target.value)} aria-label="Daily drawdown percent" />
+              </div>
+              <div>
+                <div className="eyebrow !text-[9px] mb-1.5">Max total drawdown %</div>
+                <input className="input-mini" inputMode="decimal" value={propTotal} onChange={(e) => setPropTotal(e.target.value)} aria-label="Max total drawdown percent" />
+              </div>
+              <div>
+                <div className="eyebrow !text-[9px] mb-1.5">Profit target %</div>
+                <input className="input-mini" inputMode="decimal" value={propTarget} onChange={(e) => setPropTarget(e.target.value)} aria-label="Profit target percent" />
+              </div>
+              <div>
+                <div className="eyebrow !text-[9px] mb-1.5">Safety buffer %</div>
+                <input className="input-mini" inputMode="decimal" value={propBuffer} onChange={(e) => setPropBuffer(e.target.value)} aria-label="Safety buffer percent" />
+              </div>
+              <div className="col-span-2">
+                <div className="eyebrow !text-[9px] mb-1.5">Start balance $ (optional - for drawdown math)</div>
+                <input className="input-mini" inputMode="decimal" value={propStart} onChange={(e) => setPropStart(e.target.value)} placeholder="0 = use your balance above" aria-label="Account start balance" />
+              </div>
+            </div>
+            <p className="mt-3 text-[10.5px] leading-relaxed text-txt-faint">
+              PROP MODE: the engine stops suggesting new signals once today's result reaches {propBuffer === "" ? 80 : 100 - (parseFloat(propBuffer) || 20)}% of your {propDaily || 5}% daily drawdown, and fully stops at the {(parseFloat(propTotal) || 10)}% total drawdown wall - so the firm's rule is never breached. Target: {propTarget || 8}%. Signals already tracking always run to completion.
+            </p>
+          </>
+        ) : (
+          <p className="mt-3 text-[10.5px] leading-relaxed text-txt-faint">
+            Personal mode: the engine guards signals with the daily loss limit, session and market rules below. Switch to Prop firm to add challenge rules (daily drawdown, max drawdown, profit target).
+          </p>
+        )}
+      </Glass>
+      <p className="mb-1 mt-6 px-1 text-[11px] leading-relaxed text-txt-faint">Entry timeframes - the bot only enters on these</p>
       <p className="mb-3 mt-1 px-1 text-[11px] text-txt-faint">Signal filtering and guidance - the app never executes.</p>
       <Glass>
         <div className="eyebrow !text-[9px] mb-2.5">Entry timeframes - the bot only enters on these</div>

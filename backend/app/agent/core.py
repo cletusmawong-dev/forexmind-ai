@@ -28,6 +28,8 @@ DEFAULT_RISK = {
     "sessions": ["London", "NewYork", "Asian", "Late"],
     "allowed_markets": ["XAUUSD", "NAS100", "EURUSD", "GBPUSD", "USDJPY"],
     "signal_timeframes": ["15M"],
+    "account_type": "personal",
+    "prop_rules": None,
 }
 
 
@@ -74,17 +76,55 @@ def patch_risk(user_id: str, patch: Dict[str, Any]) -> Dict[str, Any]:
     doc = store.list("settings", filters={"userId": user_id, "kind": "risk"}, limit=1)[0]
     allowed = {"risk_per_trade_pct", "max_daily_loss_pct", "max_consecutive_losses",
                "max_signals_per_day", "min_rr", "sessions", "allowed_markets",
-               "signal_timeframes"}
+               "signal_timeframes", "account_type", "prop_rules"}
     clean_keys = {k: v for k, v in patch.items() if k in allowed}
     if "signal_timeframes" in clean_keys:
         tfs = clean_keys["signal_timeframes"]
         if not isinstance(tfs, list) or not tfs or \
                 any(t not in ("15M", "1H", "4H", "1D") for t in tfs):
             raise ValueError("signal_timeframes must be a non-empty list from: 15M, 1H, 4H, 1D")
+    if "account_type" in clean_keys:
+        at = str(clean_keys["account_type"] or "personal").strip().lower()
+        if at not in ("personal", "propfirm"):
+            raise ValueError("account_type must be 'personal' or 'propfirm'")
+        clean_keys["account_type"] = at
+    if "prop_rules" in clean_keys:
+        pr = clean_keys["prop_rules"]
+        if pr is None:
+            clean_keys["prop_rules"] = None
+        else:
+            if not isinstance(pr, dict):
+                raise ValueError("prop_rules must be an object with prop-firm fields")
+            clean: Dict[str, Any] = {}
+            for k in ("daily_drawdown_pct", "max_total_drawdown_pct", "profit_target_pct",
+                      "daily_dd_buffer_pct", "account_start_balance"):
+                if pr.get(k) is None:
+                    continue
+                try:
+                    clean[k] = float(pr[k])
+                except (TypeError, ValueError):
+                    raise ValueError(f"prop_rules.{k} must be a number")
+            if "daily_drawdown_pct" in clean and not (0 < clean["daily_drawdown_pct"] <= 50):
+                raise ValueError("prop_rules.daily_drawdown_pct must be within (0, 50]")
+            if "max_total_drawdown_pct" in clean and not (0 < clean["max_total_drawdown_pct"] <= 90):
+                raise ValueError("prop_rules.max_total_drawdown_pct must be within (0, 90]")
+            if "profit_target_pct" in clean and not (0 < clean["profit_target_pct"] <= 200):
+                raise ValueError("prop_rules.profit_target_pct must be within (0, 200]")
+            if "daily_dd_buffer_pct" in clean and not (0 <= clean["daily_dd_buffer_pct"] <= 50):
+                raise ValueError("prop_rules.daily_dd_buffer_pct must be within [0, 50]")
+            if "account_start_balance" in clean and clean["account_start_balance"] < 0:
+                raise ValueError("prop_rules.account_start_balance cannot be negative")
+            clean_keys["prop_rules"] = clean or None
     clean = {}
+    numeric = {"risk_per_trade_pct", "max_daily_loss_pct", "min_rr"}
+    ints = {"max_consecutive_losses", "max_signals_per_day"}
     for k, v in clean_keys.items():
-        clean[k] = v if isinstance(v, list) else (
-            int(v) if k in ("max_consecutive_losses", "max_signals_per_day") else float(v))
+        if k in ints:
+            clean[k] = int(v)
+        elif k in numeric:
+            clean[k] = float(v)
+        else:  # lists, dicts (prop_rules), strings (account_type), None
+            clean[k] = v
     return store.update("settings", doc["id"], clean)
 
 

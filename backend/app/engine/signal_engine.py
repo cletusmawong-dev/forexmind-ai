@@ -107,7 +107,19 @@ class SignalEngine:
         if candidate.rr_primary < float(risk.get("min_rr", 1.5)) and \
                 candidate.strategy_id == "strategy_1_zero_lag":
             return False, f"R:R 1:{candidate.rr_primary:.1f} below minimum"
-        # daily loss limit
+        # daily loss limit - prop-firm aware (user request 2026-09-17)
+        acct_type = str(risk.get("account_type", "personal") or "personal").lower()
+        prop = risk.get("prop_rules") or {}
+        personal_limit = abs(float(risk.get("max_daily_loss_pct", 3.0)))
+        if acct_type == "propfirm":
+            dd = abs(float(prop.get("daily_drawdown_pct", 5.0) or 5.0))
+            buf = min(max(float(prop.get("daily_dd_buffer_pct", 20.0) or 0.0), 0.0), 50.0)
+            # the tighter of: the user's personal daily limit, the prop daily DD
+            # with its safety buffer applied (stop before breaching the rule)
+            eff_daily_limit = min(personal_limit, dd * (1.0 - buf / 100.0))
+        else:
+            eff_daily_limit = personal_limit
+
         goals = store.list("agent_goals", filters={"userId": user_id}, limit=1)
         if goals:
             completed = store.list("signals", filters={"userId": user_id, "day": today,
@@ -115,10 +127,27 @@ class SignalEngine:
             daily_r = sum(s.get("r_multiple", 0.0) for s in completed)
             risk_pct = float(risk.get("risk_per_trade_pct", 1.0))
             daily_pl_pct = daily_r * risk_pct
-            if daily_pl_pct <= -abs(float(risk.get("max_daily_loss_pct", 3.0))):
+            if daily_pl_pct <= -eff_daily_limit:
+                if acct_type == "propfirm":
+                    self._log("Prop daily drawdown protection: today's result is at "
+                              "the safety buffer of the daily limit. No new signals "
+                              "today - the account rule stays intact.", kind="RISK")
+                    return False, "prop daily drawdown buffer reached"
                 self._log("Maximum daily loss reached. Capital protected - no new "
                           "signals today.", kind="RISK")
                 return False, "max daily loss reached"
+            if acct_type == "propfirm":
+                tdd = abs(float(prop.get("max_total_drawdown_pct", 10.0) or 10.0))
+                all_completed = store.list("signals", filters={"userId": user_id,
+                                                               "completed": True},
+                                           limit=1000)
+                total_pl_pct = sum(s.get("r_multiple", 0.0) for s in all_completed) * risk_pct
+                buf = min(max(float(prop.get("daily_dd_buffer_pct", 20.0) or 0.0), 0.0), 50.0)
+                if total_pl_pct <= -tdd * (1.0 - buf / 100.0):
+                    self._log("Prop maximum drawdown protection reached. Signal "
+                              "generation stopped - review the account phase.",
+                              kind="RISK")
+                    return False, "prop max drawdown buffer reached"
         return True, ""
 
     # ------------------------------------------------------------------
