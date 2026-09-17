@@ -1,17 +1,46 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Bell, ChevronRight, Shield, Target, TrendingUp, TrendingDown } from "lucide-react";
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
 import type { ActivityItem, AgentStatus, MarketCard, Signal } from "../lib/types";
 import { AnimatedNumber, DemoTag, Divider, Glass, Logo, ProgressBar, SectionHeader, Spinner, StatusDot, WaveGraphic, HeroArt, ConnectionState } from "../components/ui";
-import heroBull from "../assets/hero-bull.webp";
+import bullIvory from "../assets/hero-bull.webp";
+import bullNavy from "../assets/bull-navy.png";
+import bullOnyx from "../assets/bull-onyx.png";
+import bullSlate from "../assets/bull-slate.png";
+
+/* each theme has its own bull design (user request 2026-09-17) */
+const BULLS: Record<string, string> = {
+  ivory: bullIvory,
+  navy: bullNavy,
+  onyx: bullOnyx,
+  slate: bullSlate,
+};
+
+/* blend tuned per bull art: dark-bg bulls screen in; navy's light-bg bull multiplies in */
+const HERO_BLEND: Record<string, "screen" | "multiply"> = {
+  ivory: "screen", navy: "multiply", onyx: "screen", slate: "screen",
+};
 import { fmtPct, fmtPrice, fmtTime, greeting, shortAgo } from "../lib/format";
 import { SignalRow } from "../components/SignalRow";
 import { AgentPulse } from "../components/AgentPulse";
 import { MorningBriefCard } from "../components/MorningBriefCard";
 
+function useActiveTheme() {
+  const [t, setT] = useState(document.documentElement.getAttribute("data-theme") ?? "ivory");
+  useEffect(() => {
+    const mo = new MutationObserver(() =>
+      setT(document.documentElement.getAttribute("data-theme") ?? "ivory"));
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => mo.disconnect();
+  }, []);
+  return t;
+}
+
 export function HomeScreen() {
+  const activeTheme = useActiveTheme();
+  const heroBull = BULLS[activeTheme] ?? bullIvory;
   const navigate = useNavigate();
   const [refreshKey, setRefreshKey] = useState(0);
   const refresh = useCallback(() => setRefreshKey((k) => k + 1), []);
@@ -101,7 +130,7 @@ export function HomeScreen() {
         <Glass className="hero-card relative overflow-hidden" pad={false}>
           <img src={heroBull} alt="" aria-hidden="true"
                className="pointer-events-none absolute right-0 top-0 h-full w-[74%] object-cover object-right opacity-80"
-               style={{ mixBlendMode: "screen", maskImage: "linear-gradient(to right, transparent 8%, black 52%)", WebkitMaskImage: "linear-gradient(to right, transparent 8%, black 52%)" }} />
+               style={{ mixBlendMode: HERO_BLEND[activeTheme] ?? "screen", maskImage: "linear-gradient(to right, transparent 8%, black 52%)", WebkitMaskImage: "linear-gradient(to right, transparent 8%, black 52%)" }} />
           <HeroArt className="right-0 top-0 h-full w-[46%] opacity-75 [mask-image:linear-gradient(to_right,transparent,black_55%)] [-webkit-mask-image:linear-gradient(to_right,transparent,black_55%)]" />
           <div className="relative p-6">
             <p className="text-[13px] font-medium text-[var(--text-secondary)]">{greeting()}</p>

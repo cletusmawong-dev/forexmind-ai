@@ -8,10 +8,11 @@
       // apply saved theme before first paint (no flash)
       try {
         var t = localStorage.getItem("fm_theme");
-        if (t === "navy" || t === "onyx") {
-          document.documentElement.setAttribute("data-theme", t);
+        var bar = { ivory: "#f7f1e3", navy: "#cdd4e0", onyx: "#0a0a0c", slate: "#2e3c55" };
+        if (t && bar[t]) {
+          if (t !== "ivory") document.documentElement.setAttribute("data-theme", t);
           var m = document.querySelector('meta[name="theme-color"]');
-          if (m) m.setAttribute("content", t === "navy" ? "#cdd4e0" : "#0a0a0c");
+          if (m) m.setAttribute("content", bar[t]);
         }
       } catch (e) {}
     </script>

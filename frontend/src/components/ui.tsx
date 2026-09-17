@@ -463,7 +463,7 @@ export function HeroArt({ className = "" }: { className?: string }) {
       <defs>
         <linearGradient id="hx1" x1="0" y1="0" x2="0.7" y2="1">
           <stop offset="0%" stopColor="var(--c-p2)" stopOpacity="0.9" />
-          <stop offset="55%" stopColor="#f2695c" stopOpacity="0.75" />
+          <stop offset="55%" stopColor="var(--hero-warm)" stopOpacity="0.75" />
           <stop offset="100%" stopColor="var(--c-gold)" stopOpacity="0.65" />
         </linearGradient>
         <linearGradient id="hx2" x1="0" y1="0" x2="1" y2="0">
@@ -472,8 +472,8 @@ export function HeroArt({ className = "" }: { className?: string }) {
           <stop offset="100%" stopColor="var(--c-mag)" stopOpacity="0.9" />
         </linearGradient>
         <radialGradient id="hx3" cx="0.7" cy="0.25" r="0.8">
-          <stop offset="0%" stopColor="#f2695c" stopOpacity="0.5" />
-          <stop offset="100%" stopColor="#f2695c" stopOpacity="0" />
+          <stop offset="0%" stopColor="var(--hero-warm)" stopOpacity="0.5" />
+          <stop offset="100%" stopColor="var(--hero-warm)" stopOpacity="0" />
         </radialGradient>
       </defs>
       <rect x="0" y="0" width="220" height="160" fill="url(#hx3)" />
