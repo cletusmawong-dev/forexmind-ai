@@ -8,9 +8,10 @@ export default {
         base: { DEFAULT: "#f7f1e3", 2: "#f2e9d5", 3: "#fdf9ef" },
         txt: { hi: "#232a3b", mid: "#4c5670", low: "#6a7186", faint: "#98a0b0" },
         acc: { DEFAULT: "#0f8f78", cyan: "#b8912f", violet: "#f2695c", magenta: "#d94fb8" },
-        pos: "#129b7f",
-        neg: "#ee5f4b",
-        warn: "#d98324",
+        /* themed via CSS vars - each theme defines these in index.css */
+        pos: "var(--accent-green)",
+        neg: "var(--accent-red)",
+        warn: "var(--accent-amber)",
       },
       fontFamily: {
         sans: [

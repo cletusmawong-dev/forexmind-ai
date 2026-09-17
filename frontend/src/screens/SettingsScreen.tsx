@@ -12,18 +12,20 @@ export function SettingsScreen() {
   const info = usePolling<any>(() => api.get(endpoints.systemInfo), 30000);
   const me = usePolling<any>(() => api.get(endpoints.me), 30000);
   const [toast, setToast] = useState("");
-  const [theme, setThemeState] = useState<"ivory" | "navy">(
-    () => (localStorage.getItem("fm_theme") === "navy" ? "navy" : "ivory"));
+  const [theme, setThemeState] = useState<"ivory" | "navy" | "onyx">(() => {
+    const t = localStorage.getItem("fm_theme");
+    return t === "navy" || t === "onyx" ? t : "ivory";
+  });
 
-  const setTheme = (t: "ivory" | "navy") => {
+  const setTheme = (t: "ivory" | "navy" | "onyx") => {
     setThemeState(t);
     localStorage.setItem("fm_theme", t);
-    if (t === "navy") {
-      document.documentElement.setAttribute("data-theme", "navy");
-      document.querySelector('meta[name="theme-color"]')?.setAttribute("content", "#cdd4e0");
-    } else {
+    if (t === "ivory") {
       document.documentElement.removeAttribute("data-theme");
       document.querySelector('meta[name="theme-color"]')?.setAttribute("content", "#f7f1e3");
+    } else {
+      document.documentElement.setAttribute("data-theme", t);
+      document.querySelector('meta[name="theme-color"]')?.setAttribute("content", t === "navy" ? "#cdd4e0" : "#0a0a0c");
     }
   };
 
@@ -143,23 +145,25 @@ export function SettingsScreen() {
       <Eyebrow>Appearance</Eyebrow>
       <Glass className="mt-2">
         <div className="eyebrow !text-[9px] mb-2.5">Design - applies instantly, saved on this device</div>
-        <div className="grid grid-cols-2 gap-2.5">
-          {([["ivory", "Ivory", "Warm cream - teal & gold accents"], ["navy", "Navy & Gold", "Cool silver-blue - navy & gold"]] as const).map(([k, label, desc]) => (
+        <div className="grid grid-cols-3 gap-2">
+          {([["ivory", "Ivory", "Cream + teal", "#f7f1e3", "#1aa98c"],
+             ["navy", "Navy", "Silver + navy", "#cdd4e0", "#1d4f8f"],
+             ["onyx", "Onyx", "Black + gold", "#141419", "#d4af37"]] as const).map(([k, label, desc, dotA, dotB]) => (
             <button
               key={k}
               onClick={() => setTheme(k)}
               aria-pressed={theme === k}
-              className={`tap min-h-[76px] rounded-2xl border p-3 text-left ${
+              className={`tap min-h-[84px] rounded-2xl border p-2.5 text-left ${
                 theme === k ? "chip-on" : "chip-off"
               }`}
             >
-              <span className="flex items-center gap-1.5">
-                <span className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ background: k === "ivory" ? "#f7f1e3" : "#cdd4e0" }} />
-                <span className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ background: k === "ivory" ? "#1aa98c" : "#1d4f8f" }} />
-                <span className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ background: "#b8912f" }} />
+              <span className="flex items-center gap-1">
+                <span className="h-3 w-3 rounded-full border border-black/10" style={{ background: dotA }} />
+                <span className="h-3 w-3 rounded-full border border-black/10" style={{ background: dotB }} />
+                <span className="h-3 w-3 rounded-full border border-black/10" style={{ background: "#b8912f" }} />
               </span>
-              <span className="mt-2 block text-[12.5px] font-bold">{label}</span>
-              <span className={`mt-0.5 block text-[10px] leading-snug ${theme === k ? "text-white/85" : "text-txt-faint"}`}>{desc}</span>
+              <span className="mt-1.5 block text-[12px] font-bold">{label}</span>
+              <span className={`mt-0.5 block text-[9.5px] leading-snug ${theme === k ? "text-[var(--on-desc)]" : "text-txt-faint"}`}>{desc}</span>
             </button>
           ))}
         </div>
