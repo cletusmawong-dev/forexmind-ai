@@ -26,11 +26,20 @@ export function CircleDirIcon({ dir, size = 44 }: { dir: "BUY" | "SELL"; size?: 
 }
 
 /** Premium signal card matching the reference.
- *  variant "list" (Signals page): pair line + strategy - ID, chevron only.
+ *  variant "list" (Signals page): pair line + strategy - ID - age, chevron only.
  *  variant "home": adds bold entry price + live result under it. */
 export function SignalRow({ signal: s, variant = "list", onClick }: { signal: Signal; variant?: "list" | "home"; onClick?: () => void }) {
   const buy = s.direction === "BUY";
   const open = !s.completed;
+  const age = (() => {
+    if (!s.createdAt) return "";
+    const m = Math.floor((Date.now() - new Date(s.createdAt).getTime()) / 60000);
+    if (!Number.isFinite(m) || m < 0) return "";
+    if (m < 60) return `${m}m ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h ago`;
+    return `${Math.floor(h / 24)}d ago`;
+  })();
   return (
     <button
       onClick={onClick}
@@ -50,7 +59,7 @@ export function SignalRow({ signal: s, variant = "list", onClick }: { signal: Si
           <span className="text-[10.5px] font-medium text-[var(--text-muted)]">{s.timeframe}</span>
         </div>
         <div className="mt-1.5 truncate text-[11px] text-[var(--text-muted)]">
-          {s.strategy_name} - {s.signal_id}
+          {s.strategy_name} - {s.signal_id}{age ? ` - ${age}` : ""}
         </div>
       </div>
       {variant === "home" && (
