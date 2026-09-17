@@ -40,7 +40,7 @@ export function LoginScreen({ onAuthed }: { onAuthed: () => void }) {
           <div className="relative mb-7">
             <div
               className="absolute -inset-9 rounded-full blur-3xl opacity-35 animate-breathe"
-              style={{ background: "conic-gradient(from 200deg, #4d7cfe, #8e7bff, #33d6f6, #4d7cfe)" }}
+              style={{ background: "conic-gradient(from 200deg, #4d7cfe, #f2695c, #33d6f6, #4d7cfe)" }}
             />
             <svg width="64" height="64" viewBox="0 0 48 48" fill="none">
               <defs>
@@ -62,13 +62,13 @@ export function LoginScreen({ onAuthed }: { onAuthed: () => void }) {
         </div>
 
         <div className="glass p-6">
-          <div className="mb-5 flex rounded-full border border-white/[0.06] bg-white/[0.02] p-1">
+          <div className="mb-5 flex rounded-full border border-[rgba(122,92,34,0.07)] bg-[rgba(122,92,34,0.035)] p-1">
             {(["login", "register"] as const).map((m) => (
               <button
                 key={m}
                 onClick={() => setMode(m)}
                 className={`flex-1 rounded-full py-2 text-[12px] font-medium transition-all duration-300 ${
-                  mode === m ? "bg-white/[0.09] text-txt-hi shadow-soft" : "text-txt-low"
+                  mode === m ? "bg-[rgba(122,92,34,0.10)] text-txt-hi shadow-soft" : "text-txt-low"
                 }`}
               >
                 {m === "login" ? "Sign in" : "Create account"}

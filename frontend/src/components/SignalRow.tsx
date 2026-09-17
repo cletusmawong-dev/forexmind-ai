@@ -12,11 +12,11 @@ export function CircleDirIcon({ dir, size = 44 }: { dir: "BUY" | "SELL"; size?: 
       style={{
         width: size,
         height: size,
-        border: `1.5px solid ${buy ? "rgba(47,217,138,0.55)" : "rgba(251,77,106,0.55)"}`,
+        border: `1.5px solid ${buy ? "rgba(18,155,127,0.55)" : "rgba(238,95,75,0.55)"}`,
         background: buy
-          ? "radial-gradient(circle at 35% 30%, rgba(47,217,138,0.22), rgba(47,217,138,0.05) 70%)"
-          : "radial-gradient(circle at 35% 30%, rgba(251,77,106,0.22), rgba(251,77,106,0.05) 70%)",
-        boxShadow: buy ? "0 0 22px rgba(47,217,138,0.3)" : "0 0 22px rgba(251,77,106,0.3)",
+          ? "radial-gradient(circle at 35% 30%, rgba(18,155,127,0.22), rgba(18,155,127,0.05) 70%)"
+          : "radial-gradient(circle at 35% 30%, rgba(238,95,75,0.22), rgba(238,95,75,0.05) 70%)",
+        boxShadow: buy ? "0 0 22px rgba(18,155,127,0.3)" : "0 0 22px rgba(238,95,75,0.3)",
       }}
       aria-hidden="true"
     >

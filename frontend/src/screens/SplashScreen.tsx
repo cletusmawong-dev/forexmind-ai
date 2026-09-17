@@ -7,7 +7,7 @@ export function Splash() {
         <div className="relative">
           <div
             className="absolute -inset-10 rounded-full blur-3xl opacity-40 animate-breathe"
-            style={{ background: "conic-gradient(from 200deg, #4d7cfe, #8e7bff, #33d6f6, #4d7cfe)" }}
+            style={{ background: "conic-gradient(from 200deg, #4d7cfe, #f2695c, #33d6f6, #4d7cfe)" }}
           />
           <svg width="76" height="76" viewBox="0 0 48 48" fill="none">
             <defs>
@@ -34,7 +34,7 @@ export function Splash() {
           </div>
           <div className="mt-1.5 text-[11.5px] font-normal tracking-wide text-txt-low">Your Personal AI Trading Research Agent</div>
         </div>
-        <div className="h-[2px] w-28 overflow-hidden rounded-full bg-white/[0.06]">
+        <div className="h-[2px] w-28 overflow-hidden rounded-full bg-[rgba(122,92,34,0.07)]">
           <div className="h-full w-1/2 animate-shimmerX rounded-full bg-gradient-to-r from-transparent via-acc to-transparent bg-[length:200%_100%]" />
         </div>
       </div>

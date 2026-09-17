@@ -73,7 +73,7 @@ export function AnalyticsScreen() {
               {i > 0 && <Divider />}
               <div className="flex items-center gap-4 py-3.5">
                 <span className="w-28 text-[12px] text-txt-low">{label}</span>
-                <div className="h-[3px] flex-1 overflow-hidden rounded-full bg-white/[0.06]">
+                <div className="h-[3px] flex-1 overflow-hidden rounded-full bg-[rgba(122,92,34,0.07)]">
                   <div className={`h-full rounded-full ${tone === "neg" ? "bg-neg/70" : "bg-pos/70"}`} style={{ width: `${v ?? 0}%` }} />
                 </div>
                 <span className="num w-10 text-right text-[12px] font-medium text-txt-hi">{v ?? 0}%</span>
@@ -109,7 +109,7 @@ export function AnalyticsScreen() {
         {(a?.experiments ?? []).length === 0 ? (
           <p className="text-[12px] text-txt-faint">No experiments yet.</p>
         ) : (
-          <div className="divide-y divide-white/[0.05]">
+          <div className="divide-y divide-[rgba(122,92,34,0.06)]">
             {(a?.experiments ?? []).map((e: any, i: number) => (
               <div key={i} className="flex items-center justify-between py-3">
                 <span className="text-[12px] text-txt-mid">

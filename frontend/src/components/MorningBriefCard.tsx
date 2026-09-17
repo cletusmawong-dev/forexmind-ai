@@ -31,8 +31,8 @@ export function MorningBriefCard() {
   return (
     <Glass pad={false} className="!p-5">
       <div className="flex items-center justify-between">
-        <span className="flex items-center gap-2 text-[13.5px] font-bold text-white">
-          <Newspaper size={14} className="text-[#8fb4ff]" /> Morning Brief
+        <span className="flex items-center gap-2 text-[13.5px] font-bold text-[var(--text-primary)]">
+          <Newspaper size={14} className="text-[#1b69b8]" /> Morning Brief
         </span>
         <StatusDot tone="blue" size={6} pulse={false} />
       </div>
@@ -44,7 +44,7 @@ export function MorningBriefCard() {
       )}
 
       {events.length > 0 && (
-        <div className="mt-4 space-y-2 border-t border-white/[0.06] pt-3.5">
+        <div className="mt-4 space-y-2 border-t border-[rgba(122,92,34,0.07)] pt-3.5">
           <div className="text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">
             High-impact news - next 48h
           </div>

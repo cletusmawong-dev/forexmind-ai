@@ -21,7 +21,7 @@ export class ErrorBoundary extends React.Component<{ children: React.ReactNode }
             <p className="mt-2 text-[12px] leading-relaxed text-txt-low">
               The interface hit an unexpected error. Your data is safe - the server keeps researching while you reload.
             {this.state.error && <span className="mt-1 block text-[10.5px] text-txt-faint">Detail: {String(this.state.error.message || this.state.error)}</span>}</p>
-            <pre className="mt-4 max-h-24 overflow-auto rounded-2xl border border-white/[0.06] bg-white/[0.03] p-3 text-left text-[10px] leading-relaxed text-txt-faint">
+            <pre className="mt-4 max-h-24 overflow-auto rounded-2xl border border-[rgba(122,92,34,0.07)] bg-[rgba(122,92,34,0.045)] p-3 text-left text-[10px] leading-relaxed text-txt-faint">
               {String(this.state.error?.message || this.state.error || "Unknown error")}
             </pre>
             <button className="btn-primary mt-5 w-full" onClick={() => window.location.reload()}>

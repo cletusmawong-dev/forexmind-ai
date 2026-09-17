@@ -58,7 +58,7 @@ export function JournalScreen() {
               <div className="mt-2 flex items-baseline gap-3">
                 <span
                   className={`num text-[42px] font-extrabold leading-none tracking-[-0.03em] lg:text-[48px] ${weekR >= 0 ? "text-pos" : "text-neg"}`}
-                  style={{ textShadow: weekR >= 0 ? "0 0 34px rgba(47,217,138,0.45)" : "0 0 34px rgba(251,77,106,0.4)" }}
+                  style={{ textShadow: weekR >= 0 ? "0 0 34px rgba(18,155,127,0.45)" : "0 0 34px rgba(238,95,75,0.4)" }}
                 >
                   {fmtR(weekR)}
                 </span>
@@ -78,7 +78,7 @@ export function JournalScreen() {
 
             {/* strategy performance - quiet rows */}
             <Eyebrow className="mb-1 mt-9">By strategy</Eyebrow>
-            <Glass pad={false} className="mt-2 divide-y divide-white/[0.05] !p-0">
+            <Glass pad={false} className="mt-2 divide-y divide-[rgba(122,92,34,0.06)] !p-0">
               {Object.entries(j?.by_strategy ?? {}).map(([name, v]: [string, any]) => (
                 <div key={name} className="flex items-center justify-between px-5 py-4">
                   <span className="text-[12.5px] text-txt-mid">{name}</span>
@@ -90,7 +90,7 @@ export function JournalScreen() {
             </Glass>
           </div>
 
-          <div className="mt-10 lg:col-span-5 lg:mt-0 lg:border-l lg:border-white/[0.05] lg:pl-10">
+          <div className="mt-10 lg:col-span-5 lg:mt-0 lg:border-l lg:border-[rgba(122,92,34,0.06)] lg:pl-10">
             <Eyebrow className="mb-3">Daily R - last 14 days</Eyebrow>
             <Glass pad={false} className="!p-5">
               <div className="flex h-24 items-end gap-[5px]">
@@ -162,7 +162,7 @@ function EquityChart({ curve }: { curve: { i: number; cum: number }[] }) {
         <AreaChart data={curve} margin={{ top: 6, right: 6, bottom: 0, left: 0 }}>
           <defs>
             <linearGradient id="jrnl" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#5b9bff" stopOpacity={0.32} />
+              <stop offset="0%" stopColor="#17a98c" stopOpacity={0.32} />
               <stop offset="100%" stopColor="#6C9EFF" stopOpacity={0} />
             </linearGradient>
           </defs>
@@ -172,7 +172,7 @@ function EquityChart({ curve }: { curve: { i: number; cum: number }[] }) {
             formatter={(v: any) => [fmtR(v), "Cumulative"]}
             labelFormatter={() => ""}
           />
-          <Area type="monotone" dataKey="cum" stroke="#6ea2ff" strokeWidth={2} fill="url(#jrnl)" dot={false} activeDot={{ r: 4, fill: "#fff", stroke: "#5b9bff", strokeWidth: 2 }} />
+          <Area type="monotone" dataKey="cum" stroke="#d94fb8" strokeWidth={2} fill="url(#jrnl)" dot={false} activeDot={{ r: 4, fill: "#fff", stroke: "#17a98c", strokeWidth: 2 }} />
         </AreaChart>
       </ResponsiveContainer>
     </div>
@@ -235,10 +235,10 @@ function tradeLog(signals: LogSignal[], navigate: (p: string) => void) {
         <div className="flex items-center gap-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] border text-[13px] font-bold"
             style={{
-              borderColor: win ? "rgba(47,217,138,0.45)" : "rgba(251,77,106,0.45)",
-              background: win ? "rgba(47,217,138,0.1)" : "rgba(251,77,106,0.1)",
+              borderColor: win ? "rgba(18,155,127,0.45)" : "rgba(238,95,75,0.45)",
+              background: win ? "rgba(18,155,127,0.1)" : "rgba(238,95,75,0.1)",
               color: win ? "var(--accent-green)" : "var(--accent-red)",
-              boxShadow: win ? "0 0 16px rgba(47,217,138,0.25)" : "0 0 16px rgba(251,77,106,0.25)",
+              boxShadow: win ? "0 0 16px rgba(18,155,127,0.25)" : "0 0 16px rgba(238,95,75,0.25)",
             }} aria-hidden="true">
             {s.direction === "BUY" ? <ArrowUpRight size={16} strokeWidth={2.4} /> : <ArrowDownRight size={16} strokeWidth={2.4} />}
           </span>
@@ -260,18 +260,18 @@ function tradeLog(signals: LogSignal[], navigate: (p: string) => void) {
         <div className="mt-3 flex gap-1.5">
           {tps.map((tp, i) => (
             <div key={i} className={`num flex-1 rounded-lg border px-2 py-1.5 text-center text-[9.5px] font-semibold ${
-              i < tpCount ? "border-[rgba(47,217,138,0.4)] bg-[rgba(47,217,138,0.08)] text-pos" : "border-white/[0.07] bg-white/[0.02] text-txt-faint"}`}>
+              i < tpCount ? "border-[rgba(18,155,127,0.4)] bg-[rgba(18,155,127,0.08)] text-pos" : "border-[rgba(122,92,34,0.08)] bg-[rgba(122,92,34,0.035)] text-txt-faint"}`}>
               TP{i + 1} {i < tpCount ? "hit" : "miss"}
             </div>
           ))}
           <div className={`num flex-1 rounded-lg border px-2 py-1.5 text-center text-[9.5px] font-semibold ${
-            s.status === "SL_HIT" ? "border-[rgba(251,77,106,0.4)] bg-[rgba(251,77,106,0.08)] text-neg" : "border-white/[0.07] bg-white/[0.02] text-txt-faint"}`}>
+            s.status === "SL_HIT" ? "border-[rgba(238,95,75,0.4)] bg-[rgba(238,95,75,0.08)] text-neg" : "border-[rgba(122,92,34,0.08)] bg-[rgba(122,92,34,0.035)] text-txt-faint"}`}>
             SL {s.status === "SL_HIT" ? "hit" : "safe"}
           </div>
         </div>
 
         {/* row 3: prices + times */}
-        <div className="mt-3 grid grid-cols-4 gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5">
+        <div className="mt-3 grid grid-cols-4 gap-2 rounded-xl border border-[rgba(122,92,34,0.07)] bg-[rgba(122,92,34,0.035)] px-3 py-2.5">
           <div><div className="text-[8px] uppercase tracking-wide text-txt-faint">Entry</div><div className="num text-[11px] font-semibold text-txt-hi">{fmtPx(s.entry)}</div></div>
           <div><div className="text-[8px] uppercase tracking-wide text-txt-faint">Close</div><div className="num text-[11px] font-semibold text-txt-hi">{fmtPx(s.exit_price)}</div></div>
           <div><div className="text-[8px] uppercase tracking-wide text-txt-faint">Opened</div><div className="num text-[10px] font-medium text-txt-mid">{fmtTime(s.candle_time)}</div></div>

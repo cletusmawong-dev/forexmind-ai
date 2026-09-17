@@ -27,7 +27,7 @@ export function PositionSizeCard({ signal: s }: { signal: Signal }) {
   return (
     <Glass className="mt-4">
       <div className="flex items-center gap-2">
-        <Calculator size={14} className="text-[#8fb4ff]" />
+        <Calculator size={14} className="text-[#1b69b8]" />
         <span className="text-[13.5px] font-semibold">MT5 position size</span>
       </div>
 
@@ -54,16 +54,16 @@ export function PositionSizeCard({ signal: s }: { signal: Signal }) {
 
       {r.ok ? (
         <>
-          <div className="mt-4 flex items-end justify-between rounded-2xl border border-[rgba(77,124,254,0.25)] bg-[rgba(77,124,254,0.08)] px-4 py-3.5">
+          <div className="mt-4 flex items-end justify-between rounded-2xl border border-[rgba(18,155,127,0.25)] bg-[rgba(18,155,127,0.08)] px-4 py-3.5">
             <div>
               <div className="text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Trade this size</div>
-              <div className="num mt-1 text-[30px] font-extrabold leading-none text-white" style={{ textShadow: "0 0 24px rgba(77,124,254,0.5)" }}>
+              <div className="num mt-1 text-[30px] font-extrabold leading-none text-[var(--text-primary)]" style={{ textShadow: "0 0 24px rgba(18,155,127,0.5)" }}>
                 {r.lots.toFixed(2)} <span className="text-[14px] font-semibold text-[var(--text-secondary)]">lots</span>
               </div>
             </div>
             <div className="text-right text-[10.5px] leading-relaxed text-[var(--text-secondary)]">
-              <div><span className="num font-semibold text-white">{r.pips}</span> pips to SL</div>
-              <div>risking <span className="num font-semibold text-white">${r.riskUSD.toFixed(2)}</span></div>
+              <div><span className="num font-semibold text-[var(--text-primary)]">{r.pips}</span> pips to SL</div>
+              <div>risking <span className="num font-semibold text-[var(--text-primary)]">${r.riskUSD.toFixed(2)}</span></div>
               <div>${r.pipValue.toFixed(2)} / pip / lot</div>
             </div>
           </div>

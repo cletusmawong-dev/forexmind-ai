@@ -73,24 +73,24 @@ export function HomeScreen() {
             </div>
             <Link
               to="/notifications"
-              className="tap relative flex h-10 w-10 items-center justify-center rounded-full border border-[rgba(120,175,255,0.28)] bg-[rgba(10,22,56,0.55)] text-[var(--text-secondary)] backdrop-blur-xl transition-all duration-300 hover:border-[rgba(120,175,255,0.5)] hover:text-white"
-              style={{ boxShadow: "inset 0 1px 0 rgba(190,220,255,0.12)" }}
+              className="tap relative flex h-10 w-10 items-center justify-center rounded-full border border-[rgba(18,155,127,0.28)] bg-[rgba(240,231,210,0.55)] text-[var(--text-secondary)] backdrop-blur-xl transition-all duration-300 hover:border-[rgba(18,155,127,0.5)] hover:text-[var(--text-primary)]"
+              style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.12)" }}
               aria-label="Notifications"
             >
               <Bell size={16} />
               {!!notifs.data?.unread && (
-                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full border-2 border-[var(--bg-primary)] bg-[var(--accent-blue)] px-0.5 text-[8px] font-bold text-white" style={{ boxShadow: "0 0 10px rgba(77,124,254,0.9)" }}>{notifs.data.unread}</span>
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full border-2 border-[var(--bg-primary)] bg-[var(--accent-blue)] px-0.5 text-[8px] font-bold text-[var(--text-primary)]" style={{ boxShadow: "0 0 10px rgba(18,155,127,0.9)" }}>{notifs.data.unread}</span>
               )}
             </Link>
             <div className="flex items-center gap-2">
               <div className="hidden min-[380px]:block text-right leading-tight">
                 <div className="text-[9.5px] text-[var(--text-muted)]">Welcome Back</div>
                 <div className="flex items-center justify-end gap-1 text-[11.5px] font-bold text-txt-hi">
-                  Trader <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-green)] anim-pulse" style={{ boxShadow: "0 0 8px rgba(47,217,138,0.9)" }} />
+                  Trader <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-green)] anim-pulse" style={{ boxShadow: "0 0 8px rgba(18,155,127,0.9)" }} />
                 </div>
               </div>
-              <div className="flex h-9 w-9 items-center justify-center rounded-full border border-[rgba(120,175,255,0.5)] text-[12px] font-bold text-[#dce9ff]"
-                   style={{ background: "linear-gradient(145deg, rgba(59,110,245,0.55), rgba(18,46,112,0.75))", boxShadow: "0 0 18px rgba(64,120,250,0.4), inset 0 1px 0 rgba(210,232,255,0.3)" }}
+              <div className="flex h-9 w-9 items-center justify-center rounded-full border border-[rgba(18,155,127,0.5)] text-[12px] font-bold text-[#2c3548]"
+                   style={{ background: "linear-gradient(145deg, rgba(59,110,245,0.55), rgba(35,42,59,0.75))", boxShadow: "0 0 18px rgba(18,155,127,0.4), inset 0 1px 0 rgba(255,255,255,0.3)" }}
                    aria-hidden="true">T</div>
             </div>
           </div>
@@ -117,9 +117,9 @@ export function HomeScreen() {
               <span
                 className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold"
                 style={{
-                  borderColor: up ? "rgba(47,217,138,0.3)" : "rgba(251,77,106,0.3)",
+                  borderColor: up ? "rgba(18,155,127,0.3)" : "rgba(238,95,75,0.3)",
                   color: up ? "var(--accent-green)" : "var(--accent-red)",
-                  background: up ? "rgba(47,217,138,0.08)" : "rgba(251,77,106,0.08)",
+                  background: up ? "rgba(18,155,127,0.08)" : "rgba(238,95,75,0.08)",
                 }}
               >
                 {up ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
@@ -137,10 +137,10 @@ export function HomeScreen() {
           <div className="flex items-center justify-between px-5 pb-4 pt-5">
             <div className="flex items-center gap-2.5">
               <span
-                className="flex h-9 w-9 items-center justify-center rounded-[13px] border border-[rgba(77,124,254,0.4)]"
-                style={{ background: "linear-gradient(145deg, rgba(77,124,254,0.3), rgba(77,124,254,0.08))", boxShadow: "0 0 18px rgba(77,124,254,0.35), inset 0 1px 0 rgba(255,255,255,0.2)" }}
+                className="flex h-9 w-9 items-center justify-center rounded-[13px] border border-[rgba(18,155,127,0.4)]"
+                style={{ background: "linear-gradient(145deg, rgba(18,155,127,0.3), rgba(18,155,127,0.08))", boxShadow: "0 0 18px rgba(18,155,127,0.35), inset 0 1px 0 rgba(255,255,255,0.2)" }}
               >
-                <Target size={15} className="text-[#a8c4ff]" />
+                <Target size={15} className="text-[#2c3548]" />
               </span>
               <span className="text-[13.5px] font-semibold">Today's Goal</span>
             </div>
@@ -171,7 +171,7 @@ export function HomeScreen() {
         </div>
 
         {/* ---- active signals ---- */}
-        <SectionHeader className="mt-8" right={<Link to="/signals" className="text-[11.5px] font-semibold text-[#8fb4ff] transition hover:text-[var(--accent-cyan)]">View all</Link>}>
+        <SectionHeader className="mt-8" right={<Link to="/signals" className="text-[11.5px] font-semibold text-[#1b69b8] transition hover:text-[var(--accent-cyan)]">View all</Link>}>
           Active Signals
         </SectionHeader>
         <div className="space-y-3">
@@ -191,7 +191,7 @@ export function HomeScreen() {
       </div>
 
       {/* ---- right column (desktop) / below (mobile) ---- */}
-      <div className="mt-10 lg:col-span-5 lg:mt-0 lg:border-l lg:border-white/[0.06] lg:pl-10 lg:pt-2">
+      <div className="mt-10 lg:col-span-5 lg:mt-0 lg:border-l lg:border-[rgba(122,92,34,0.07)] lg:pl-10 lg:pt-2">
         <MorningBriefCard />
 
         <SectionHeader className="mt-8" right={<DemoTag />}>Market Watch</SectionHeader>
@@ -199,7 +199,7 @@ export function HomeScreen() {
           {marketList.length === 0 && <div className="px-4 py-6 text-center text-[12px] text-[var(--text-muted)]">Loading markets...</div>}
           <div className="space-y-1">
             {marketList.map((m) => (
-              <div key={m.symbol} className="tap flex items-center gap-3 rounded-2xl px-3.5 py-3 transition hover:bg-white/[0.03]">
+              <div key={m.symbol} className="tap flex items-center gap-3 rounded-2xl px-3.5 py-3 transition hover:bg-[rgba(122,92,34,0.045)]">
                 <div className="min-w-0 flex-1">
                   <div className="text-[13px] font-bold tracking-tight">{m.symbol}</div>
                   <div className="mt-1 flex items-center gap-1">
@@ -209,7 +209,7 @@ export function HomeScreen() {
                           key={tf}
                           title={`${tf} ${["Bearish", "Neutral", "Bullish"][v + 1]}`}
                           className={`h-1 w-3.5 rounded-full ${
-                            v === 1 ? "bg-[var(--accent-green)]/70" : v === -1 ? "bg-[var(--accent-red)]/70" : "bg-white/15"
+                            v === 1 ? "bg-[var(--accent-green)]/70" : v === -1 ? "bg-[var(--accent-red)]/70" : "bg-[rgba(122,92,34,0.18)]"
                           }`}
                         />
                       ))}
@@ -232,17 +232,17 @@ export function HomeScreen() {
           </div>
         </Glass>
 
-        <SectionHeader className="mt-8" right={<Link to="/agent" className="text-[11.5px] font-semibold text-[#8fb4ff]">Agent</Link>}>
+        <SectionHeader className="mt-8" right={<Link to="/agent" className="text-[11.5px] font-semibold text-[#1b69b8]">Agent</Link>}>
           AI Activity
         </SectionHeader>
         <Glass pad={false} className="!p-5">
           <div className="relative space-y-4">
-            <span className="absolute bottom-1 left-[4px] top-1 w-px bg-gradient-to-b from-[rgba(77,124,254,0.35)] to-transparent" />
+            <span className="absolute bottom-1 left-[4px] top-1 w-px bg-gradient-to-b from-[rgba(18,155,127,0.35)] to-transparent" />
             {(activity.data?.activity ?? []).slice(0, 6).map((a, i) => (
               <div key={a.id} className="relative flex items-start gap-4 anim-fadeUp" style={{ animationDelay: `${i * 60}ms` }}>
                 <span className="relative mt-[5px] flex h-[9px] w-[9px] shrink-0">
                   {i === 0 && <span className="absolute inset-0 rounded-full bg-[var(--accent-blue)] opacity-50 anim-pulse" style={{ transform: "scale(2)" }} />}
-                  <span className={`relative h-[9px] w-[9px] rounded-full ${i === 0 ? "bg-[var(--accent-blue)]" : "bg-white/20"}`} style={i === 0 ? { boxShadow: "0 0 12px rgba(77,124,254,0.9)" } : {}} />
+                  <span className={`relative h-[9px] w-[9px] rounded-full ${i === 0 ? "bg-[var(--accent-blue)]" : "bg-[rgba(122,92,34,0.22)]"}`} style={i === 0 ? { boxShadow: "0 0 12px rgba(18,155,127,0.9)" } : {}} />
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-[12px] leading-snug text-[var(--text-secondary)]">{a.message}</div>

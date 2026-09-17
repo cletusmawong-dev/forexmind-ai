@@ -50,15 +50,15 @@ export function AgentPulse() {
   return (
     <Glass pad={false} className="!p-5">
       <div className="flex items-center justify-between">
-        <span className="flex items-center gap-2 text-[13.5px] font-bold text-white">
-          <Radio size={14} className="text-[#8fb4ff]" /> Agent Pulse
+        <span className="flex items-center gap-2 text-[13.5px] font-bold text-[var(--text-primary)]">
+          <Radio size={14} className="text-[var(--accent-cyan)]" /> Agent Pulse
         </span>
         <span
           className="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.12em]"
           style={{
-            borderColor: live ? "rgba(47,217,138,0.35)" : "rgba(245,184,77,0.35)",
+            borderColor: live ? "rgba(18,155,127,0.35)" : "rgba(217,131,36,0.35)",
             color: live ? "var(--accent-green)" : "var(--accent-amber)",
-            background: live ? "rgba(47,217,138,0.08)" : "rgba(245,184,77,0.08)",
+            background: live ? "rgba(18,155,127,0.08)" : "rgba(217,131,36,0.08)",
           }}
         >
           <span className={`h-1.5 w-1.5 rounded-full ${live ? "bg-[var(--accent-green)] anim-pulse" : "bg-[var(--accent-amber)]"}`} />
@@ -76,11 +76,11 @@ export function AgentPulse() {
                 height: `${n === 0 ? 3 : Math.max(8, (n / peak) * 68)}px`,
                 background:
                   n === 0
-                    ? "rgba(139,168,255,0.10)"
+                    ? "rgba(184,145,47,0.12)"
                     : i === 23
-                    ? "linear-gradient(to top, #2b5fe3, #6ea6ff)"
-                    : "linear-gradient(to top, rgba(43,95,227,0.55), rgba(110,166,255,0.75))",
-                boxShadow: n > 0 && i === 23 ? "0 0 12px rgba(77,124,254,0.55)" : undefined,
+                    ? "linear-gradient(to top, #0e8f78, #35c1a4)"
+                    : "linear-gradient(to top, rgba(184,145,47,0.45), rgba(212,175,55,0.85))",
+                boxShadow: n > 0 && i === 23 ? "0 0 12px rgba(18,155,127,0.55)" : undefined,
               }}
               title={hourLabel(i)}
             />
@@ -95,10 +95,10 @@ export function AgentPulse() {
 
       <Divider className="my-4" />
 
-      <div className="grid grid-cols-3 divide-x divide-white/[0.06]">
-        <PulseStat label="Events - 24h" value={total24} tone="text-[#a8c4ff]" />
+      <div className="grid grid-cols-3 divide-x divide-[rgba(122,92,34,0.07)]">
+        <PulseStat label="Events - 24h" value={total24} tone="text-[#2c3548]" />
         <PulseStat label="Signals today" value={status.data?.signals_today ?? "-"} />
-        <PulseStat label="Lessons" value={status.data?.lessons ?? "-"} tone="text-[#b3a6ff]" />
+        <PulseStat label="Lessons" value={status.data?.lessons ?? "-"} tone="text-[#c94a3d]" />
       </div>
 
       <p className="mt-3 text-[10.5px] text-[var(--text-muted)]">
@@ -111,7 +111,7 @@ export function AgentPulse() {
 function PulseStat({ label, value, tone }: { label: string; value: number | string; tone?: string }) {
   return (
     <div className="px-2 text-center">
-      <div className={`num text-[19px] font-bold ${tone || "text-white"}`}>{value}</div>
+      <div className={`num text-[19px] font-bold ${tone || "text-[var(--text-primary)]"}`}>{value}</div>
       <div className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.13em] text-[var(--text-muted)]">{label}</div>
     </div>
   );

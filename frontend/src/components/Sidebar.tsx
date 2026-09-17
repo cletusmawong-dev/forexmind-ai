@@ -28,14 +28,14 @@ export function Sidebar() {
               className={({ isActive }) =>
                 `tap flex items-center gap-3 rounded-2xl border px-4 py-3 text-[13.5px] font-medium transition-all duration-300 ${
                   isActive
-                    ? "border-[rgba(77,124,254,0.3)] bg-gradient-to-r from-[rgba(77,124,254,0.22)] to-[rgba(77,124,254,0.06)] text-white glow-blue"
-                    : "border-transparent text-[var(--text-muted)] hover:bg-white/[0.03] hover:text-[var(--text-secondary)]"
+                    ? "border-[rgba(18,155,127,0.3)] bg-gradient-to-r from-[rgba(18,155,127,0.22)] to-[rgba(18,155,127,0.06)] text-[var(--text-primary)] glow-blue"
+                    : "border-transparent text-[var(--text-muted)] hover:bg-[rgba(122,92,34,0.045)] hover:text-[var(--text-secondary)]"
                 }`
               }
             >
               {({ isActive }) => (
                 <>
-                  <Icon size={17.5} strokeWidth={isActive ? 2.1 : 1.7} style={isActive ? { filter: "drop-shadow(0 0 6px rgba(77,124,254,0.8))" } : undefined} />
+                  <Icon size={17.5} strokeWidth={isActive ? 2.1 : 1.7} style={isActive ? { filter: "drop-shadow(0 0 6px rgba(18,155,127,0.8))" } : undefined} />
                   {label}
                 </>
               )}

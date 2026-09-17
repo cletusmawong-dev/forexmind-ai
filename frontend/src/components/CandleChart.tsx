@@ -65,7 +65,7 @@ export function CandleChart({
     return { cs, lo, hi, x, y, cw, markerIdx };
   }, [candles, lines, H, markerTime, showLastPrice]);
 
-  if (!view) return <div className="h-56 animate-pulse rounded-3xl bg-white/[0.03]" />;
+  if (!view) return <div className="h-56 animate-pulse rounded-3xl bg-[rgba(122,92,34,0.045)]" />;
   const { cs, x, y, cw, lo, hi, markerIdx } = view;
   const last = cs[cs.length - 1];
 
@@ -128,7 +128,7 @@ export function CandleChart({
           <circle r={9} fill="none" stroke={markerDirection === "BUY" ? UP : DOWN} strokeWidth={1} opacity={0.35} />
           <path
             d={markerDirection === "BUY" ? "M-2.4 1.2 L0 -2.4 L2.4 1.2" : "M-2.4 -1.2 L0 2.4 L2.4 -1.2"}
-            stroke="#0B0D12"
+            stroke="#f7f1e3"
             strokeWidth={1.4}
             fill="none"
             strokeLinecap="round"

@@ -23,7 +23,7 @@ export function BottomNav() {
             className={({ isActive }) =>
               `tap relative flex h-[52px] w-[52px] flex-col items-center justify-center gap-[3px] rounded-[18px] transition-all duration-300 ${
                 isActive
-                  ? "bg-gradient-to-b from-[rgba(96,150,255,0.5)] to-[rgba(77,124,254,0.14)] text-white shadow-[0_0_22px_rgba(77,124,254,0.4),inset_0_1px_0_rgba(220,240,255,0.3)]"
+                  ? "bg-gradient-to-b from-[rgba(26,169,140,0.5)] to-[rgba(18,155,127,0.14)] text-[var(--text-primary)] shadow-[0_0_22px_rgba(18,155,127,0.4),inset_0_1px_0_rgba(255,255,255,0.3)]"
                   : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
               }`
             }
@@ -34,13 +34,13 @@ export function BottomNav() {
                 <Icon
                   size={19}
                   strokeWidth={isActive ? 2.2 : 1.7}
-                  style={isActive ? { filter: "drop-shadow(0 0 8px rgba(77,124,254,0.9))" } : undefined}
+                  style={isActive ? { filter: "drop-shadow(0 0 8px rgba(18,155,127,0.9))" } : undefined}
                 />
-                <span className={`text-[8px] font-semibold tracking-wide ${isActive ? "text-white" : ""}`}>{label}</span>
+                <span className={`text-[8px] font-semibold tracking-wide ${isActive ? "text-[var(--text-primary)]" : ""}`}>{label}</span>
                 {isActive && (
                   <span
                     className="absolute bottom-[3px] h-[3px] w-5 rounded-full bg-gradient-to-r from-[#3e7bfa] to-[#33d6f6]"
-                    style={{ boxShadow: "0 0 10px rgba(77,124,254,0.9)" }}
+                    style={{ boxShadow: "0 0 10px rgba(18,155,127,0.9)" }}
                   />
                 )}
               </>

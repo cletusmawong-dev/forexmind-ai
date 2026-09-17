@@ -253,7 +253,7 @@ export function SettingsScreen() {
               ) : (
                 <ol className="space-y-2.5 text-[12px] leading-relaxed text-txt-mid">
                   <li><span className="num font-bold text-txt-hi">1.</span> Open <span className="font-semibold text-[var(--accent-cyan)]">t.me/{tg.bot_username || "your_bot"}</span> in Telegram</li>
-                  <li><span className="num font-bold text-txt-hi">2.</span> Send this exact message: <span className="mt-1 block rounded-xl border border-white/[0.08] bg-[rgba(6,11,26,0.6)] px-3 py-2 font-mono text-[11px] text-txt-hi">/start {email}</span></li>
+                  <li><span className="num font-bold text-txt-hi">2.</span> Send this exact message: <span className="mt-1 block rounded-xl border border-[rgba(122,92,34,0.09)] bg-[rgba(6,11,26,0.6)] px-3 py-2 font-mono text-[11px] text-txt-hi">/start {email}</span></li>
                   <li><span className="num font-bold text-txt-hi">3.</span> Tap "Check again" below.</li>
                 </ol>
               )}
@@ -397,7 +397,7 @@ function ExecutionCard() {
 
         {mode === "manual" && (
           <div className="mt-4">
-            <div className={`flex items-center justify-between rounded-2xl border px-4 py-3 ${online ? "border-[rgba(47,217,138,0.3)] bg-[rgba(47,217,138,0.07)]" : "border-white/[0.07] bg-white/[0.02]"}`}>
+            <div className={`flex items-center justify-between rounded-2xl border px-4 py-3 ${online ? "border-[rgba(18,155,127,0.3)] bg-[rgba(18,155,127,0.07)]" : "border-[rgba(122,92,34,0.08)] bg-[rgba(122,92,34,0.035)]"}`}>
               <div className="flex items-center gap-2">
                 <GlowDot tone={online ? "pos" : "warn"} size={7} pulse={online} />
                 <div>
@@ -418,11 +418,11 @@ function ExecutionCard() {
               )}
             </div>
 
-            <div className="mt-3 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
+            <div className="mt-3 rounded-2xl border border-[rgba(122,92,34,0.08)] bg-[rgba(122,92,34,0.035)] p-4">
               <div className="text-[10px] uppercase tracking-wide text-txt-faint">Pairing code</div>
               <div className="mt-1 flex items-center justify-between">
                 <span className="num text-[18px] font-bold tracking-wider text-txt-hi">{code || "..."}</span>
-                <button className="tap rounded-full border border-white/[0.1] px-3 py-1.5 text-[11px] text-txt-mid"
+                <button className="tap rounded-full border border-[rgba(122,92,34,0.12)] px-3 py-1.5 text-[11px] text-txt-mid"
                   onClick={() => { try { navigator.clipboard.writeText(code); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* */ } }}>
                   {copied ? "Copied" : "Copy"}
                 </button>
@@ -441,7 +441,7 @@ function ExecutionCard() {
         )}
 
         {mode === "vps" && s?.bridge_configured && (
-          <div className="mt-4 flex items-center justify-between rounded-2xl border border-white/[0.07] bg-white/[0.02] px-4 py-3">
+          <div className="mt-4 flex items-center justify-between rounded-2xl border border-[rgba(122,92,34,0.08)] bg-[rgba(122,92,34,0.035)] px-4 py-3">
             <div className="flex items-center gap-2">
               <GlowDot tone={s.bridge_online ? "pos" : "warn"} size={7} pulse={s.bridge_online} />
               <span className="text-[12.5px] font-semibold text-txt-hi">{s.bridge_online ? "Bridge online" : "Bridge offline"}</span>
@@ -459,15 +459,15 @@ function ExecutionCard() {
         {mode !== "off" && (
           <>
             <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-              <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] py-2">
+              <div className="rounded-xl border border-[rgba(122,92,34,0.07)] bg-[rgba(122,92,34,0.035)] py-2">
                 <div className="text-[9px] uppercase tracking-wide text-txt-faint">Today</div>
                 <div className="num text-[13px] font-bold text-txt-hi">{s?.trades_today ?? 0}/{s?.max_per_day ?? 6}</div>
               </div>
-              <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] py-2">
+              <div className="rounded-xl border border-[rgba(122,92,34,0.07)] bg-[rgba(122,92,34,0.035)] py-2">
                 <div className="text-[9px] uppercase tracking-wide text-txt-faint">Risk cap</div>
                 <div className="num text-[13px] font-bold text-txt-hi">{s?.risk_cap_pct ?? 1}%</div>
               </div>
-              <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] py-2">
+              <div className="rounded-xl border border-[rgba(122,92,34,0.07)] bg-[rgba(122,92,34,0.035)] py-2">
                 <div className="text-[9px] uppercase tracking-wide text-txt-faint">TP level</div>
                 <div className="num text-[13px] font-bold text-txt-hi">TP{s?.tp_level ?? 2}</div>
               </div>
@@ -520,7 +520,7 @@ function StrategiesCard() {
           <GlowDot tone="acc" size={6} pulse={false} /> {toast}
         </div>
       )}
-      <Glass pad={false} className="divide-y divide-white/[0.05] !p-0">
+      <Glass pad={false} className="divide-y divide-[rgba(122,92,34,0.06)] !p-0">
         {list.loading && !list.data ? (
           <div className="flex justify-center py-6"><Spinner /></div>
         ) : items.length === 0 ? (
@@ -547,9 +547,9 @@ function StrategiesCard() {
                 >
                   <span
                     className={`relative block h-[30px] w-[56px] rounded-full transition-all duration-300 ${
-                      on ? "shadow-[0_0_16px_rgba(52,211,153,0.4)]" : ""
+                      on ? "shadow-[0_0_16px_rgba(26,169,140,0.4)]" : ""
                     }`}
-                    style={{ background: on ? "linear-gradient(120deg, #34d399 0%, #059669 100%)" : "rgba(255,255,255,0.12)" }}
+                    style={{ background: on ? "linear-gradient(120deg, #17a98c 0%, #0c7f6a 100%)" : "rgba(255,255,255,0.12)" }}
                   >
                     <span
                       className="absolute top-[3px] h-[24px] w-[24px] rounded-full bg-white shadow transition-all duration-300"

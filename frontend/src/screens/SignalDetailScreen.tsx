@@ -69,7 +69,7 @@ export function SignalDetailScreen() {
   return (
     <div className="anim-fadeUp">
       <header className="mb-5 flex items-center justify-between">
-        <button onClick={() => navigate(-1)} className="tap -ml-2 flex items-center gap-1.5 rounded-full p-2 text-[13px] font-semibold text-[var(--text-secondary)] transition hover:text-white">
+        <button onClick={() => navigate(-1)} className="tap -ml-2 flex items-center gap-1.5 rounded-full p-2 text-[13px] font-semibold text-[var(--text-secondary)] transition hover:text-[var(--text-primary)]">
           <ArrowLeft size={17} /> Signals
         </button>
         <DemoTag />
@@ -83,10 +83,10 @@ export function SignalDetailScreen() {
             <span
               className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-bold tracking-[0.1em]"
               style={{
-                borderColor: buy ? "rgba(47,217,138,0.4)" : "rgba(251,77,106,0.4)",
+                borderColor: buy ? "rgba(18,155,127,0.4)" : "rgba(238,95,75,0.4)",
                 color: buy ? "var(--accent-green)" : "var(--accent-red)",
-                background: buy ? "rgba(47,217,138,0.1)" : "rgba(251,77,106,0.1)",
-                boxShadow: buy ? "0 0 22px rgba(47,217,138,0.2)" : "0 0 22px rgba(251,77,106,0.2)",
+                background: buy ? "rgba(18,155,127,0.1)" : "rgba(238,95,75,0.1)",
+                boxShadow: buy ? "0 0 22px rgba(18,155,127,0.2)" : "0 0 22px rgba(238,95,75,0.2)",
               }}
             >
               <StatusDot tone={buy ? "green" : "red"} size={6} pulse={false} />
@@ -111,7 +111,7 @@ export function SignalDetailScreen() {
       {/* ---- levels ladder ---- */}
       <Glass className="mt-4 !py-1" pad={false}>
         <div className="px-5">
-          <LadderRow label="Entry" value={fmtPrice(s.entry)} tone="text-[#8fb4ff]" note={s.entry_zone && s.entry_zone[0] !== s.entry_zone[1] ? `zone ${fmtPrice(s.entry_zone[0])}-${fmtPrice(s.entry_zone[1])}` : undefined} />
+          <LadderRow label="Entry" value={fmtPrice(s.entry)} tone="text-[#1b69b8]" note={s.entry_zone && s.entry_zone[0] !== s.entry_zone[1] ? `zone ${fmtPrice(s.entry_zone[0])}-${fmtPrice(s.entry_zone[1])}` : undefined} />
           <Divider />
           <LadderRow label="Stop loss" value={fmtPrice(s.sl)} tone="text-[var(--accent-red)]" note={`risk ${fmtPrice(s.risk)}`} />
           <Divider />
@@ -135,7 +135,7 @@ export function SignalDetailScreen() {
           {Object.entries(s.mtf).map(([tf, v]) => (
             <span
               key={tf}
-              className={`rounded-full border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-[10px] font-semibold ${
+              className={`rounded-full border border-[rgba(122,92,34,0.09)] bg-[rgba(122,92,34,0.055)] px-3 py-1.5 text-[10px] font-semibold ${
                 v === 1 ? "text-[var(--accent-green)]" : v === -1 ? "text-[var(--accent-red)]" : "text-[var(--text-muted)]"
               }`}
             >
@@ -257,7 +257,7 @@ export function SignalDetailScreen() {
         <div className="mt-4">
           <button onClick={() => setAnalysisOpen(!analysisOpen)} className="glass glass-hover tap flex w-full items-center justify-between px-5 py-4">
             <span className="flex items-center gap-2 text-[13.5px] font-semibold">
-              <NotebookPen size={14} className="text-[#b3a6ff]" /> Result analysis
+              <NotebookPen size={14} className="text-[#c94a3d]" /> Result analysis
             </span>
             <ChevronDown size={16} className={`text-[var(--text-muted)] transition-transform duration-500 ${analysisOpen ? "rotate-180" : ""}`} />
           </button>
@@ -407,7 +407,7 @@ export function SignalDetailScreen() {
             )}
           </div>
           {s.adaptive.historical.status === "OK" ? (
-            <div className="mt-3 flex items-stretch divide-x divide-white/[0.05] rounded-2xl border border-white/[0.05] bg-white/[0.02]">
+            <div className="mt-3 flex items-stretch divide-x divide-[rgba(122,92,34,0.06)] rounded-2xl border border-[rgba(122,92,34,0.06)] bg-[rgba(122,92,34,0.035)]">
               <div className="flex-1 py-3 text-center">
                 <div className="num text-[16px] font-semibold text-pos">{s.adaptive.historical.wins}</div>
                 <div className="mt-0.5 text-[9px] uppercase tracking-[0.12em] text-txt-faint">wins</div>
