@@ -139,11 +139,11 @@ export function StrategiesScreen() {
         </p>
       </Glass>
 
-      <Glass pad={false} className="divide-y divide-[rgba(122,92,34,0.06)] !p-0">
+      <Glass pad={false} className="divide-y divide-[rgba(var(--warm-rgb),0.06)] !p-0">
         {(data?.strategies ?? []).map((s, idx) => (
           <div key={s.id}>
-            <button onClick={() => loadVersions(s.id)} className="tap flex w-full items-center gap-4 px-5 py-5 text-left transition hover:bg-[rgba(122,92,34,0.03)]">
-              {s.status === "ACTIVE" ? <GlowDot tone="pos" /> : s.status === "PAUSED" ? <GlowDot tone="warn" pulse={false} /> : <span className="h-[7px] w-[7px] rounded-full bg-[rgba(122,92,34,0.18)]" />}
+            <button onClick={() => loadVersions(s.id)} className="tap flex w-full items-center gap-4 px-5 py-5 text-left transition hover:bg-[rgba(var(--warm-rgb),0.03)]">
+              {s.status === "ACTIVE" ? <GlowDot tone="pos" /> : s.status === "PAUSED" ? <GlowDot tone="warn" pulse={false} /> : <span className="h-[7px] w-[7px] rounded-full bg-[rgba(var(--warm-rgb),0.18)]" />}
               <div className="min-w-0 flex-1">
                 <div className="text-[14.5px] font-medium tracking-tight text-txt-hi">{s.short_name}</div>
                 <div className="mt-0.5 text-[11px] text-txt-faint">
@@ -159,7 +159,7 @@ export function StrategiesScreen() {
                   <p className="text-[12px] leading-relaxed text-txt-low">{s.description}</p>
 
                   {/* parameters - quiet two-column */}
-                  <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 rounded-2xl border border-[rgba(122,92,34,0.06)] bg-[rgba(122,92,34,0.035)] p-4">
+                  <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 rounded-2xl border border-[rgba(var(--warm-rgb),0.06)] bg-[rgba(var(--warm-rgb),0.035)] p-4">
                     {Object.entries(s.active_params ?? {})
                       .filter(([k]) => k !== "expire_bars")
                       .map(([k, v]) => (
@@ -176,9 +176,9 @@ export function StrategiesScreen() {
                       <Eyebrow className="mb-2">Version history</Eyebrow>
                       <div className="space-y-1.5">
                         {(versions[s.id] ?? []).map((v) => (
-                          <div key={v.id} className="flex items-center justify-between rounded-xl border border-[rgba(122,92,34,0.06)] bg-[rgba(122,92,34,0.035)] px-4 py-3">
+                          <div key={v.id} className="flex items-center justify-between rounded-xl border border-[rgba(var(--warm-rgb),0.06)] bg-[rgba(var(--warm-rgb),0.035)] px-4 py-3">
                             <div className="flex items-center gap-3">
-                              {v.active ? <GlowDot tone="pos" size={6} pulse={false} /> : <span className="h-[6px] w-[6px] rounded-full bg-[rgba(122,92,34,0.18)]" />}
+                              {v.active ? <GlowDot tone="pos" size={6} pulse={false} /> : <span className="h-[6px] w-[6px] rounded-full bg-[rgba(var(--warm-rgb),0.18)]" />}
                               <span className="num text-[12px] font-medium">v{v.version}</span>
                               <span className="text-[10.5px] text-txt-faint">{v.note}</span>
                             </div>
@@ -221,8 +221,8 @@ export function StrategiesScreen() {
       </Glass>
 
       {/* add strategy - part of the interface */}
-      <button className="tap mt-4 flex w-full items-center gap-4 rounded-[24px] border border-dashed border-[rgba(122,92,34,0.12)] px-5 py-5 text-left text-txt-low transition hover:border-[rgba(122,92,34,0.20)] hover:text-txt-mid">
-        <span className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-[rgba(122,92,34,0.045)] text-[15px] font-light">+</span>
+      <button className="tap mt-4 flex w-full items-center gap-4 rounded-[24px] border border-dashed border-[rgba(var(--warm-rgb),0.12)] px-5 py-5 text-left text-txt-low transition hover:border-[rgba(var(--warm-rgb),0.20)] hover:text-txt-mid">
+        <span className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-[rgba(var(--warm-rgb),0.045)] text-[15px] font-light">+</span>
         <span>
           <span className="text-[13px] font-medium">Add a strategy</span>
           <span className="mt-0.5 block text-[10.5px] text-txt-faint">Register a module under backend/app/strategies - it appears everywhere automatically. The AI can never invent strategies.</span>

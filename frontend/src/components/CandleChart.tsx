@@ -65,7 +65,7 @@ export function CandleChart({
     return { cs, lo, hi, x, y, cw, markerIdx };
   }, [candles, lines, H, markerTime, showLastPrice]);
 
-  if (!view) return <div className="h-56 animate-pulse rounded-3xl bg-[rgba(122,92,34,0.045)]" />;
+  if (!view) return <div className="h-56 animate-pulse rounded-3xl bg-[rgba(var(--warm-rgb),0.045)]" />;
   const { cs, x, y, cw, lo, hi, markerIdx } = view;
   const last = cs[cs.length - 1];
 

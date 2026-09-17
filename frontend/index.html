@@ -4,6 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#f7f1e3" />
+    <script>
+      // apply saved theme before first paint (no flash)
+      try {
+        if (localStorage.getItem("fm_theme") === "navy") {
+          document.documentElement.setAttribute("data-theme", "navy");
+          var m = document.querySelector('meta[name="theme-color"]');
+          if (m) m.setAttribute("content", "#cdd4e0");
+        }
+      } catch (e) {}
+    </script>
     <meta name="description" content="ForexMind AI - your personal AI trading research agent. Signals, learning and scientific strategy experiments." />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />

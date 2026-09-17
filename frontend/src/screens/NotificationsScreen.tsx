@@ -33,7 +33,7 @@ export function NotificationsScreen() {
   return (
     <div className="animate-fadeUp">
       <header className="mb-7 flex items-center gap-2">
-        <button onClick={() => navigate(-1)} className="tap -ml-2 flex h-9 w-9 items-center justify-center rounded-full text-txt-mid transition hover:bg-[rgba(122,92,34,0.055)] hover:text-txt-hi">
+        <button onClick={() => navigate(-1)} className="tap -ml-2 flex h-9 w-9 items-center justify-center rounded-full text-txt-mid transition hover:bg-[rgba(var(--warm-rgb),0.055)] hover:text-txt-hi">
           <ArrowLeft size={17} />
         </button>
         <h1 className="text-[22px] font-semibold tracking-tight">Notifications</h1>
@@ -42,7 +42,7 @@ export function NotificationsScreen() {
       {(data?.notifications ?? []).length === 0 ? (
         <Empty title="Nothing yet" sub="New signals, TP/SL hits, lessons and approval requests will land here." />
       ) : (
-        <Glass pad={false} className="divide-y divide-[rgba(122,92,34,0.06)] !p-0">
+        <Glass pad={false} className="divide-y divide-[rgba(var(--warm-rgb),0.06)] !p-0">
           {data!.notifications.map((n) => (
             <div key={n.id} className={`px-5 py-4 ${!n.read ? "" : "opacity-60"}`}>
               <div className="flex items-start gap-3.5">

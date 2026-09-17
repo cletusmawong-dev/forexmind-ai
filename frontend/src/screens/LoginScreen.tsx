@@ -62,13 +62,13 @@ export function LoginScreen({ onAuthed }: { onAuthed: () => void }) {
         </div>
 
         <div className="glass p-6">
-          <div className="mb-5 flex rounded-full border border-[rgba(122,92,34,0.07)] bg-[rgba(122,92,34,0.035)] p-1">
+          <div className="mb-5 flex rounded-full border border-[rgba(var(--warm-rgb),0.07)] bg-[rgba(var(--warm-rgb),0.035)] p-1">
             {(["login", "register"] as const).map((m) => (
               <button
                 key={m}
                 onClick={() => setMode(m)}
                 className={`flex-1 rounded-full py-2 text-[12px] font-medium transition-all duration-300 ${
-                  mode === m ? "bg-[rgba(122,92,34,0.10)] text-txt-hi shadow-soft" : "text-txt-low"
+                  mode === m ? "bg-[rgba(var(--warm-rgb),0.10)] text-txt-hi shadow-soft" : "text-txt-low"
                 }`}
               >
                 {m === "login" ? "Sign in" : "Create account"}

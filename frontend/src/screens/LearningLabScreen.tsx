@@ -192,7 +192,7 @@ export function LearningLabScreen() {
                 </div>
                 {i < FLOW.length - 1 && (
                   <>
-                    <span className="my-1 h-6 w-px bg-gradient-to-b from-[rgba(122,92,34,0.18)] to-[rgba(122,92,34,0.055)] lg:my-0 lg:h-px lg:w-auto lg:flex-1 lg:bg-gradient-to-r" />
+                    <span className="my-1 h-6 w-px bg-gradient-to-b from-[rgba(var(--warm-rgb),0.18)] to-[rgba(var(--warm-rgb),0.055)] lg:my-0 lg:h-px lg:w-auto lg:flex-1 lg:bg-gradient-to-r" />
                     <span className="w-6 lg:hidden" />
                   </>
                 )}
@@ -314,7 +314,7 @@ export function LearningLabScreen() {
                     )}
                   </div>
                   {ad && (
-                    <div className="border-t border-[rgba(122,92,34,0.06)] px-5 py-3">
+                    <div className="border-t border-[rgba(var(--warm-rgb),0.06)] px-5 py-3">
                       <div className="flex flex-wrap items-center justify-between gap-2 text-[10.5px]">
                         <span className={ad.historical.status === "OK" ? "text-txt-mid" : "text-txt-faint"}>
                           {ad.historical.status === "OK"
@@ -379,10 +379,10 @@ export function LearningLabScreen() {
                       <ChevronDown size={13} className={`transition-transform duration-300 ${openEvidence === rh.id ? "rotate-180" : ""}`} />
                     </button>
                     {openEvidence === rh.id && (
-                      <div className="animate-fadeUp mt-3 overflow-hidden rounded-2xl border border-[rgba(122,92,34,0.07)]">
-                        <div className="divide-y divide-[rgba(122,92,34,0.06)]">
+                      <div className="animate-fadeUp mt-3 overflow-hidden rounded-2xl border border-[rgba(var(--warm-rgb),0.07)]">
+                        <div className="divide-y divide-[rgba(var(--warm-rgb),0.06)]">
                           {(rh.evidence ?? []).map((ev, i) => (
-                            <div key={i} className="flex items-center justify-between bg-[rgba(122,92,34,0.035)] px-4 py-2.5 text-[11px]">
+                            <div key={i} className="flex items-center justify-between bg-[rgba(var(--warm-rgb),0.035)] px-4 py-2.5 text-[11px]">
                               <span className="font-mono text-txt-low">{ev.signal_id}</span>
                               <span className={ev.outcome === "WIN" ? "font-semibold text-pos" : ev.outcome === "LOSS" ? "font-semibold text-neg" : "text-txt-faint"}>
                                 {ev.outcome} {ev.r !== null && ev.r !== undefined ? `${ev.r > 0 ? "+" : ""}${ev.r}R` : ""}
@@ -588,7 +588,7 @@ export function LearningLabScreen() {
                   </div>
                 )}
 
-                <div className="mt-4 flex items-stretch divide-x divide-[rgba(122,92,34,0.06)]">
+                <div className="mt-4 flex items-stretch divide-x divide-[rgba(var(--warm-rgb),0.06)]">
                   <Evidence label="Win rate" value={`${e.original_metrics?.win_rate ?? "-"}%`} sub={`${e.experimental_metrics?.win_rate ?? "-"}%`} />
                   <Evidence label="Expectancy" value={`${e.original_metrics?.expectancy ?? "-"}R`} sub={`${e.experimental_metrics?.expectancy ?? "-"}R`} />
                   <Evidence label="Profit factor" value={e.original_metrics?.profit_factor ?? "-"} sub={e.experimental_metrics?.profit_factor ?? "-"} />
@@ -598,14 +598,14 @@ export function LearningLabScreen() {
 
                 {e.split && (
                   <>
-                    <button className="tap w-full border-t border-[rgba(122,92,34,0.06)] px-6 py-3 text-left" onClick={() => setSplitOpen(splitOpen === e.id ? null : e.id)}>
+                    <button className="tap w-full border-t border-[rgba(var(--warm-rgb),0.06)] px-6 py-3 text-left" onClick={() => setSplitOpen(splitOpen === e.id ? null : e.id)}>
                       <span className="flex items-center justify-between text-[10.5px] font-semibold uppercase tracking-[0.14em] text-txt-low">
                         Train / validation split
                         <ChevronDown size={14} className={`transition-transform duration-300 ${splitOpen === e.id ? "rotate-180" : ""}`} />
                       </span>
                     </button>
                     {splitOpen === e.id && (
-                      <div className="animate-fadeUp border-t border-[rgba(122,92,34,0.06)] px-6 pb-5 pt-4">
+                      <div className="animate-fadeUp border-t border-[rgba(var(--warm-rgb),0.06)] px-6 pb-5 pt-4">
                         <SplitTable title="Train (70%)" split={e.split.train} />
                         <div className="mt-4"><SplitTable title="Validation (30%)" split={e.split.validation} /></div>
                         <p className="mt-4 text-[10px] leading-relaxed text-txt-faint">Time-ordered split: the change is validated on the most recent 30% of trades it has never seen. Agreement across both periods lowers overfitting risk.</p>
@@ -663,7 +663,7 @@ export function LearningLabScreen() {
                       <Pill tone="neutral">{l.strategy_name}</Pill>
                     </div>
                     <p className="px-6 pt-3 text-[13px] leading-relaxed text-txt-hi">{l.observation}</p>
-                    <div className="mt-4 flex items-stretch divide-x divide-[rgba(122,92,34,0.06)] border-t border-[rgba(122,92,34,0.06)]">
+                    <div className="mt-4 flex items-stretch divide-x divide-[rgba(var(--warm-rgb),0.06)] border-t border-[rgba(var(--warm-rgb),0.06)]">
                       <EvCell label="Evidence" value={String(l.evidence)} />
                       <EvCell label="Win rate" value={`${l.win_rate}%`} delta={`vs ${l.baseline_win_rate}% base`} deltaTone={l.delta_pp >= 0 ? "text-pos" : "text-neg"} />
                       <EvCell label="Delta" value={`${l.delta_pp >= 0 ? "+" : ""}${l.delta_pp}pp`} mid />
@@ -687,11 +687,11 @@ export function LearningLabScreen() {
           ].map((group) => (
             <div key={group.id}>
               <Eyebrow className="mb-2">{group.title}</Eyebrow>
-              <Glass pad={false} className="divide-y divide-[rgba(122,92,34,0.06)] !p-0">
+              <Glass pad={false} className="divide-y divide-[rgba(var(--warm-rgb),0.06)] !p-0">
                 {(group.data ?? []).map((v) => (
                   <div key={v.id} className="flex items-center justify-between px-5 py-4">
                     <div className="flex items-center gap-3.5">
-                      {v.active ? <GlowDot tone="pos" size={7} /> : <span className="h-[7px] w-[7px] rounded-full bg-[rgba(122,92,34,0.18)]" />}
+                      {v.active ? <GlowDot tone="pos" size={7} /> : <span className="h-[7px] w-[7px] rounded-full bg-[rgba(var(--warm-rgb),0.18)]" />}
                       <div>
                         <div className="num text-[13.5px] font-semibold text-txt-hi">v{v.version}</div>
                         <div className="mt-0.5 text-[10.5px] text-txt-faint">{v.note || "Original version"}</div>
@@ -704,7 +704,7 @@ export function LearningLabScreen() {
                         className={`tap rounded-full border px-3.5 py-2 text-[10.5px] font-semibold transition-all duration-300 ${
                           armedRollback === `${group.id}:${v.version}`
                             ? "border-warn/50 bg-warn/10 text-warn"
-                            : "border-[rgba(122,92,34,0.12)] text-txt-low hover:border-[rgba(122,92,34,0.22)] hover:text-txt-mid"
+                            : "border-[rgba(var(--warm-rgb),0.12)] text-txt-low hover:border-[rgba(var(--warm-rgb),0.22)] hover:text-txt-mid"
                         }`}
                         disabled={busy === `${group.id}:${v.version}`}
                         onClick={() => rollback(group.id, v.version)}
@@ -736,7 +736,7 @@ function rank(h: Hypothesis): number {
 function kindTone(kind: string): { dot: string; text: string; pill: "pos" | "warn" | "neutral" } {
   if (kind === "FACT") return { dot: "bg-pos", text: "text-pos", pill: "pos" };
   if (kind === "POSSIBLE_EXPLANATION") return { dot: "bg-warn", text: "text-warn", pill: "warn" };
-  return { dot: "bg-[rgba(122,92,34,0.28)]", text: "text-txt-mid", pill: "neutral" };
+  return { dot: "bg-[rgba(var(--warm-rgb),0.28)]", text: "text-txt-mid", pill: "neutral" };
 }
 
 function ObsCard({ o, open, onToggle }: { o: Observation; open: boolean; onToggle: () => void }) {
@@ -759,10 +759,10 @@ function ObsCard({ o, open, onToggle }: { o: Observation; open: boolean; onToggl
               <ChevronDown size={13} className={`transition-transform duration-300 ${open ? "rotate-180" : ""}`} />
             </button>
             {open && (
-              <div className="animate-fadeUp mt-3 overflow-hidden rounded-2xl border border-[rgba(122,92,34,0.07)]">
-                <div className="divide-y divide-[rgba(122,92,34,0.06)]">
+              <div className="animate-fadeUp mt-3 overflow-hidden rounded-2xl border border-[rgba(var(--warm-rgb),0.07)]">
+                <div className="divide-y divide-[rgba(var(--warm-rgb),0.06)]">
                   {o.evidence.map((ev, i) => (
-                    <div key={i} className="flex items-center justify-between bg-[rgba(122,92,34,0.035)] px-4 py-2.5 text-[11px]">
+                    <div key={i} className="flex items-center justify-between bg-[rgba(var(--warm-rgb),0.035)] px-4 py-2.5 text-[11px]">
                       <span className="font-mono text-txt-low">{ev.signal_id}</span>
                       <span className="flex items-center gap-3">
                         <span className="text-txt-faint">{ev.market} {ev.direction}</span>
@@ -818,7 +818,7 @@ function Evidence({ label, value, sub, suffix, tone = "text-[var(--text-primary)
 
 function EvCell({ label, value, suffix, delta, deltaTone, mid }: { label: string; value: string; suffix?: string; delta?: string; deltaTone?: string; mid?: boolean }) {
   return (
-    <div className={`flex-1 px-3 py-4 text-center ${mid ? "border-x border-[rgba(122,92,34,0.07)]" : ""}`}>
+    <div className={`flex-1 px-3 py-4 text-center ${mid ? "border-x border-[rgba(var(--warm-rgb),0.07)]" : ""}`}>
       <div className="text-[8px] font-semibold uppercase tracking-[0.13em] text-txt-faint">{label}</div>
       <div className="num mt-1.5 text-[15px] font-semibold text-[var(--text-primary)]">
         {value} {suffix && <span className="text-[8.5px] font-medium text-txt-faint">{suffix}</span>}

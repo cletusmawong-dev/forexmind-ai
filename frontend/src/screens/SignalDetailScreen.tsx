@@ -83,10 +83,10 @@ export function SignalDetailScreen() {
             <span
               className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-bold tracking-[0.1em]"
               style={{
-                borderColor: buy ? "rgba(18,155,127,0.4)" : "rgba(238,95,75,0.4)",
+                borderColor: buy ? "rgba(var(--p-rgb),0.4)" : "rgba(var(--neg-rgb),0.4)",
                 color: buy ? "var(--accent-green)" : "var(--accent-red)",
-                background: buy ? "rgba(18,155,127,0.1)" : "rgba(238,95,75,0.1)",
-                boxShadow: buy ? "0 0 22px rgba(18,155,127,0.2)" : "0 0 22px rgba(238,95,75,0.2)",
+                background: buy ? "rgba(var(--p-rgb),0.1)" : "rgba(var(--neg-rgb),0.1)",
+                boxShadow: buy ? "0 0 22px rgba(var(--p-rgb),0.2)" : "0 0 22px rgba(var(--neg-rgb),0.2)",
               }}
             >
               <StatusDot tone={buy ? "green" : "red"} size={6} pulse={false} />
@@ -135,7 +135,7 @@ export function SignalDetailScreen() {
           {Object.entries(s.mtf).map(([tf, v]) => (
             <span
               key={tf}
-              className={`rounded-full border border-[rgba(122,92,34,0.09)] bg-[rgba(122,92,34,0.055)] px-3 py-1.5 text-[10px] font-semibold ${
+              className={`rounded-full border border-[rgba(var(--warm-rgb),0.09)] bg-[rgba(var(--warm-rgb),0.055)] px-3 py-1.5 text-[10px] font-semibold ${
                 v === 1 ? "text-[var(--accent-green)]" : v === -1 ? "text-[var(--accent-red)]" : "text-[var(--text-muted)]"
               }`}
             >
@@ -257,7 +257,7 @@ export function SignalDetailScreen() {
         <div className="mt-4">
           <button onClick={() => setAnalysisOpen(!analysisOpen)} className="glass glass-hover tap flex w-full items-center justify-between px-5 py-4">
             <span className="flex items-center gap-2 text-[13.5px] font-semibold">
-              <NotebookPen size={14} className="text-[#c94a3d]" /> Result analysis
+              <NotebookPen size={14} className="text-[var(--c-negdeep)]" /> Result analysis
             </span>
             <ChevronDown size={16} className={`text-[var(--text-muted)] transition-transform duration-500 ${analysisOpen ? "rotate-180" : ""}`} />
           </button>
@@ -407,7 +407,7 @@ export function SignalDetailScreen() {
             )}
           </div>
           {s.adaptive.historical.status === "OK" ? (
-            <div className="mt-3 flex items-stretch divide-x divide-[rgba(122,92,34,0.06)] rounded-2xl border border-[rgba(122,92,34,0.06)] bg-[rgba(122,92,34,0.035)]">
+            <div className="mt-3 flex items-stretch divide-x divide-[rgba(var(--warm-rgb),0.06)] rounded-2xl border border-[rgba(var(--warm-rgb),0.06)] bg-[rgba(var(--warm-rgb),0.035)]">
               <div className="flex-1 py-3 text-center">
                 <div className="num text-[16px] font-semibold text-pos">{s.adaptive.historical.wins}</div>
                 <div className="mt-0.5 text-[9px] uppercase tracking-[0.12em] text-txt-faint">wins</div>

@@ -56,9 +56,9 @@ export function AgentPulse() {
         <span
           className="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.12em]"
           style={{
-            borderColor: live ? "rgba(18,155,127,0.35)" : "rgba(217,131,36,0.35)",
+            borderColor: live ? "rgba(var(--p-rgb),0.35)" : "rgba(var(--amber-rgb),0.35)",
             color: live ? "var(--accent-green)" : "var(--accent-amber)",
-            background: live ? "rgba(18,155,127,0.08)" : "rgba(217,131,36,0.08)",
+            background: live ? "rgba(var(--p-rgb),0.08)" : "rgba(var(--amber-rgb),0.08)",
           }}
         >
           <span className={`h-1.5 w-1.5 rounded-full ${live ? "bg-[var(--accent-green)] anim-pulse" : "bg-[var(--accent-amber)]"}`} />
@@ -76,11 +76,11 @@ export function AgentPulse() {
                 height: `${n === 0 ? 3 : Math.max(8, (n / peak) * 68)}px`,
                 background:
                   n === 0
-                    ? "rgba(184,145,47,0.12)"
+                    ? "rgba(var(--gold-rgb),0.12)"
                     : i === 23
-                    ? "linear-gradient(to top, #0e8f78, #35c1a4)"
-                    : "linear-gradient(to top, rgba(184,145,47,0.45), rgba(212,175,55,0.85))",
-                boxShadow: n > 0 && i === 23 ? "0 0 12px rgba(18,155,127,0.55)" : undefined,
+                    ? "linear-gradient(to top, var(--c-p2), #35c1a4)"
+                    : "linear-gradient(to top, rgba(var(--gold-rgb),0.45), rgba(var(--goldhi-rgb),0.85))",
+                boxShadow: n > 0 && i === 23 ? "0 0 12px rgba(var(--p-rgb),0.55)" : undefined,
               }}
               title={hourLabel(i)}
             />
@@ -95,10 +95,10 @@ export function AgentPulse() {
 
       <Divider className="my-4" />
 
-      <div className="grid grid-cols-3 divide-x divide-[rgba(122,92,34,0.07)]">
-        <PulseStat label="Events - 24h" value={total24} tone="text-[#2c3548]" />
+      <div className="grid grid-cols-3 divide-x divide-[rgba(var(--warm-rgb),0.07)]">
+        <PulseStat label="Events - 24h" value={total24} tone="text-[var(--c-ink2)]" />
         <PulseStat label="Signals today" value={status.data?.signals_today ?? "-"} />
-        <PulseStat label="Lessons" value={status.data?.lessons ?? "-"} tone="text-[#c94a3d]" />
+        <PulseStat label="Lessons" value={status.data?.lessons ?? "-"} tone="text-[var(--c-negdeep)]" />
       </div>
 
       <p className="mt-3 text-[10.5px] text-[var(--text-muted)]">

@@ -34,7 +34,7 @@ export function Splash() {
           </div>
           <div className="mt-1.5 text-[11.5px] font-normal tracking-wide text-txt-low">Your Personal AI Trading Research Agent</div>
         </div>
-        <div className="h-[2px] w-28 overflow-hidden rounded-full bg-[rgba(122,92,34,0.07)]">
+        <div className="h-[2px] w-28 overflow-hidden rounded-full bg-[rgba(var(--warm-rgb),0.07)]">
           <div className="h-full w-1/2 animate-shimmerX rounded-full bg-gradient-to-r from-transparent via-acc to-transparent bg-[length:200%_100%]" />
         </div>
       </div>

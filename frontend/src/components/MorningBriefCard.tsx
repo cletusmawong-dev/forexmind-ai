@@ -44,7 +44,7 @@ export function MorningBriefCard() {
       )}
 
       {events.length > 0 && (
-        <div className="mt-4 space-y-2 border-t border-[rgba(122,92,34,0.07)] pt-3.5">
+        <div className="mt-4 space-y-2 border-t border-[rgba(var(--warm-rgb),0.07)] pt-3.5">
           <div className="text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">
             High-impact news - next 48h
           </div>

@@ -52,12 +52,12 @@ export function SignalsScreen() {
       {/* live settings gates - exactly what the engine enforces on new signals */}
       {(riskQ.data || stratQ.data) && (
         <div className="glass-2 mb-4 flex items-center gap-2.5 px-4 py-2.5 text-[11px] font-medium text-[var(--accent-cyan)]" role="status">
-          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--accent-cyan)]" style={{ boxShadow: "0 0 8px rgba(184,145,47,0.9)" }} />
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--accent-cyan)]" style={{ boxShadow: "0 0 8px rgba(var(--gold-rgb),0.9)" }} />
           {gateLine}
         </div>
       )}
       {showNote && (
-        <div className="mb-4 flex items-start gap-2.5 rounded-2xl border border-[rgba(217,131,36,0.28)] bg-[rgba(217,131,36,0.07)] px-4 py-3 text-[11px] leading-relaxed text-[#9a6a1f]">
+        <div className="mb-4 flex items-start gap-2.5 rounded-2xl border border-[rgba(var(--amber-rgb),0.28)] bg-[rgba(var(--amber-rgb),0.07)] px-4 py-3 text-[11px] leading-relaxed text-[var(--c-golddeep)]">
           <span aria-hidden="true">i</span>
           <span>
             {stale.length} signal{stale.length === 1 ? "" : "s"} here {stale.length === 1 ? "is" : "are"} older than your current settings. They stay until they hit TP/SL - no new ones like them will be created.

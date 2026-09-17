@@ -6,15 +6,15 @@ import { GraduationCap } from "lucide-react";
 export function LogoMark({ size = 34 }: { size?: number }) {
   return (
     <div
-      className="flex items-center justify-center rounded-[30%] border border-[rgba(122,92,34,0.14)]"
+      className="flex items-center justify-center rounded-[30%] border border-[rgba(var(--warm-rgb),0.14)]"
       style={{
         width: size,
         height: size,
-        background: "linear-gradient(145deg, rgba(18,155,127,0.35), rgba(35,42,59,0.7))",
+        background: "linear-gradient(145deg, rgba(var(--p-rgb),0.35), rgba(35,42,59,0.7))",
         boxShadow: "0 6px 20px rgba(62,124,250,0.3), inset 0 1px 0 rgba(255,255,255,0.15)",
       }}
     >
-      <Brain size={size * 0.62} className="text-[#2c3548]" strokeWidth={2} />
+      <Brain size={size * 0.62} className="text-[var(--c-ink2)]" strokeWidth={2} />
     </div>
   );
 }
@@ -110,19 +110,19 @@ export function StatusDot({
 }
 
 const pillTones: Record<string, string> = {
-  blue: "border-[rgba(18,155,127,0.35)] bg-[rgba(18,155,127,0.12)] text-[#1b69b8]",
-  cyan: "border-[rgba(184,145,47,0.3)] bg-[rgba(184,145,47,0.1)] text-[var(--accent-cyan)]",
-  green: "border-[rgba(18,155,127,0.32)] bg-[rgba(18,155,127,0.1)] text-[var(--accent-green)]",
-  red: "border-[rgba(238,95,75,0.32)] bg-[rgba(238,95,75,0.1)] text-[var(--accent-red)]",
-  purple: "border-[rgba(242,105,92,0.32)] bg-[rgba(242,105,92,0.12)] text-[#c94a3d]",
-  amber: "border-[rgba(217,131,36,0.32)] bg-[rgba(217,131,36,0.1)] text-[var(--accent-amber)]",
-  neutral: "border-[rgba(122,92,34,0.12)] bg-[rgba(122,92,34,0.06)] text-[var(--text-secondary)]",
+  blue: "border-[rgba(var(--p-rgb),0.35)] bg-[rgba(var(--p-rgb),0.12)] text-[#1b69b8]",
+  cyan: "border-[rgba(var(--gold-rgb),0.3)] bg-[rgba(var(--gold-rgb),0.1)] text-[var(--accent-cyan)]",
+  green: "border-[rgba(var(--p-rgb),0.32)] bg-[rgba(var(--p-rgb),0.1)] text-[var(--accent-green)]",
+  red: "border-[rgba(var(--neg-rgb),0.32)] bg-[rgba(var(--neg-rgb),0.1)] text-[var(--accent-red)]",
+  purple: "border-[rgba(242,105,92,0.32)] bg-[rgba(242,105,92,0.12)] text-[var(--c-negdeep)]",
+  amber: "border-[rgba(var(--amber-rgb),0.32)] bg-[rgba(var(--amber-rgb),0.1)] text-[var(--accent-amber)]",
+  neutral: "border-[rgba(var(--warm-rgb),0.12)] bg-[rgba(var(--warm-rgb),0.06)] text-[var(--text-secondary)]",
   /* legacy aliases kept so earlier screens stay on the design system */
-  pos: "border-[rgba(18,155,127,0.32)] bg-[rgba(18,155,127,0.1)] text-[var(--accent-green)]",
-  neg: "border-[rgba(238,95,75,0.32)] bg-[rgba(238,95,75,0.1)] text-[var(--accent-red)]",
-  violet: "border-[rgba(242,105,92,0.32)] bg-[rgba(242,105,92,0.12)] text-[#c94a3d]",
-  warn: "border-[rgba(217,131,36,0.32)] bg-[rgba(217,131,36,0.1)] text-[var(--accent-amber)]",
-  acc: "border-[rgba(18,155,127,0.35)] bg-[rgba(18,155,127,0.12)] text-[#1b69b8]",
+  pos: "border-[rgba(var(--p-rgb),0.32)] bg-[rgba(var(--p-rgb),0.1)] text-[var(--accent-green)]",
+  neg: "border-[rgba(var(--neg-rgb),0.32)] bg-[rgba(var(--neg-rgb),0.1)] text-[var(--accent-red)]",
+  violet: "border-[rgba(242,105,92,0.32)] bg-[rgba(242,105,92,0.12)] text-[var(--c-negdeep)]",
+  warn: "border-[rgba(var(--amber-rgb),0.32)] bg-[rgba(var(--amber-rgb),0.1)] text-[var(--accent-amber)]",
+  acc: "border-[rgba(var(--p-rgb),0.35)] bg-[rgba(var(--p-rgb),0.12)] text-[#1b69b8]",
 };
 export type PillTone = keyof typeof pillTones;
 
@@ -161,16 +161,16 @@ export function DemoTag() {
   if (live) {
     return (
       <Pill tone="green" className="!px-3 !py-1.5 whitespace-nowrap">
-        <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-green)] anim-pulse" style={{ boxShadow: "0 0 8px rgba(18,155,127,0.9)" }} />
+        <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-green)] anim-pulse" style={{ boxShadow: "0 0 8px rgba(var(--p-rgb),0.9)" }} />
         LIVE - REAL-TIME
       </Pill>
     );
   }
   return (
     <Pill tone="amber" className="!px-3 !py-1.5 whitespace-nowrap" style={{
-      background: "linear-gradient(115deg, rgba(217,131,36,0.2), rgba(217,79,184,0.14))",
-      borderColor: "rgba(217,131,36,0.5)",
-      boxShadow: "0 0 18px rgba(217,131,36,0.28), inset 0 1px 0 rgba(255,255,255,0.25)",
+      background: "linear-gradient(115deg, rgba(var(--amber-rgb),0.2), rgba(217,79,184,0.14))",
+      borderColor: "rgba(var(--amber-rgb),0.5)",
+      boxShadow: "0 0 18px rgba(var(--amber-rgb),0.28), inset 0 1px 0 rgba(255,255,255,0.25)",
     }}>
       <Crown size={11} className="text-[var(--accent-gold)]" />
       DEMO - HISTORICAL
@@ -218,8 +218,8 @@ export function Chip({ active, onClick, children }: { active: boolean; onClick: 
 /* ================= progress ================= */
 export function ProgressBar({ pct, tone = "blue" }: { pct: number; tone?: "blue" | "green" }) {
   const p = Math.min(100, Math.max(2, pct));
-  const from = tone === "blue" ? "#17a98c" : "#2fd98a";
-  const to = tone === "blue" ? "#0e8f78" : "#1fae67";
+  const from = tone === "blue" ? "var(--c-p1)" : "#2fd98a";
+  const to = tone === "blue" ? "var(--c-p2)" : "#1fae67";
   return (
     <div className="progress-track" role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100}>
       <div
@@ -237,7 +237,7 @@ export function ProgressBar({ pct, tone = "blue" }: { pct: number; tone?: "blue"
 /* ================= metric grid ================= */
 export function MetricGrid({ items }: { items: { label: string; value: string; sub?: string; tone?: string }[] }) {
   return (
-    <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-[rgba(122,92,34,0.08)] bg-[rgba(122,92,34,0.06)] sm:grid-cols-4">
+    <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-[rgba(var(--warm-rgb),0.08)] bg-[rgba(var(--warm-rgb),0.06)] sm:grid-cols-4">
       {items.map((m, i) => (
         <div key={i} className="bg-[rgba(10,15,30,0.72)] px-3 py-4 text-center">
           <div className="text-[8.5px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">{m.label}</div>
@@ -280,7 +280,7 @@ export function Expandable({
 export function Spinner({ label }: { label?: string }) {
   return (
     <div className="flex flex-col items-center justify-center gap-4 py-20">
-      <div className="h-8 w-8 animate-spin rounded-full border-[2.5px] border-[rgba(122,92,34,0.09)] border-t-[var(--accent-blue)]" />
+      <div className="h-8 w-8 animate-spin rounded-full border-[2.5px] border-[rgba(var(--warm-rgb),0.09)] border-t-[var(--accent-blue)]" />
       {label && <span className="text-[12px] text-[var(--text-secondary)]">{label}</span>}
     </div>
   );
@@ -289,7 +289,7 @@ export function Spinner({ label }: { label?: string }) {
 export function Empty({ title, sub, icon }: { title: string; sub?: string; icon?: React.ReactNode }) {
   return (
     <Glass level={2} className="py-12 text-center">
-      {icon && <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-[rgba(122,92,34,0.09)] bg-[rgba(122,92,34,0.045)] text-[var(--text-muted)]">{icon}</div>}
+      {icon && <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-[rgba(var(--warm-rgb),0.09)] bg-[rgba(var(--warm-rgb),0.045)] text-[var(--text-muted)]">{icon}</div>}
       <div className="text-[14px] font-semibold">{title}</div>
       {sub && <div className="mx-auto mt-1.5 max-w-[280px] text-[12px] leading-relaxed text-[var(--text-muted)]">{sub}</div>}
     </Glass>
@@ -300,8 +300,8 @@ export function ConnectionState({ onRetry, label = "Can't reach your agent" }: {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center anim-fadeIn">
       <div className="relative mb-5">
-        <span className="absolute inset-0 rounded-full bg-[rgba(217,131,36,0.25)] blur-xl anim-pulse" style={{ transform: "scale(1.6)" }} />
-        <span className="relative flex h-11 w-11 items-center justify-center rounded-full border border-[rgba(217,131,36,0.3)] bg-[rgba(217,131,36,0.08)] text-[var(--accent-amber)]">
+        <span className="absolute inset-0 rounded-full bg-[rgba(var(--amber-rgb),0.25)] blur-xl anim-pulse" style={{ transform: "scale(1.6)" }} />
+        <span className="relative flex h-11 w-11 items-center justify-center rounded-full border border-[rgba(var(--amber-rgb),0.3)] bg-[rgba(var(--amber-rgb),0.08)] text-[var(--accent-amber)]">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
             <path d="M2 8.5a15 15 0 0 1 20 0M5.5 12a10 10 0 0 1 13 0M9 15.5a5 5 0 0 1 6 0" />
             <path d="M12 19.2v.1" />
@@ -426,17 +426,17 @@ export function Eyebrow({ children, className = "" }: { children: React.ReactNod
 }
 
 const glowDotTones: Record<string, { bg: string; shadow: string }> = {
-  blue: { bg: "var(--accent-blue)", shadow: "rgba(18,155,127,0.9)" },
-  acc: { bg: "var(--accent-blue)", shadow: "rgba(18,155,127,0.9)" },
-  cyan: { bg: "var(--accent-cyan)", shadow: "rgba(184,145,47,0.9)" },
-  green: { bg: "var(--accent-green)", shadow: "rgba(18,155,127,0.9)" },
-  pos: { bg: "var(--accent-green)", shadow: "rgba(18,155,127,0.9)" },
-  red: { bg: "var(--accent-red)", shadow: "rgba(238,95,75,0.9)" },
-  neg: { bg: "var(--accent-red)", shadow: "rgba(238,95,75,0.9)" },
+  blue: { bg: "var(--accent-blue)", shadow: "rgba(var(--p-rgb),0.9)" },
+  acc: { bg: "var(--accent-blue)", shadow: "rgba(var(--p-rgb),0.9)" },
+  cyan: { bg: "var(--accent-cyan)", shadow: "rgba(var(--gold-rgb),0.9)" },
+  green: { bg: "var(--accent-green)", shadow: "rgba(var(--p-rgb),0.9)" },
+  pos: { bg: "var(--accent-green)", shadow: "rgba(var(--p-rgb),0.9)" },
+  red: { bg: "var(--accent-red)", shadow: "rgba(var(--neg-rgb),0.9)" },
+  neg: { bg: "var(--accent-red)", shadow: "rgba(var(--neg-rgb),0.9)" },
   purple: { bg: "var(--accent-purple)", shadow: "rgba(242,105,92,0.9)" },
   violet: { bg: "var(--accent-purple)", shadow: "rgba(242,105,92,0.9)" },
-  amber: { bg: "var(--accent-amber)", shadow: "rgba(217,131,36,0.9)" },
-  warn: { bg: "var(--accent-amber)", shadow: "rgba(217,131,36,0.9)" },
+  amber: { bg: "var(--accent-amber)", shadow: "rgba(var(--amber-rgb),0.9)" },
+  warn: { bg: "var(--accent-amber)", shadow: "rgba(var(--amber-rgb),0.9)" },
 };
 
 /** Glowing status dot used across timelines, toasts and lists. */
@@ -462,14 +462,14 @@ export function HeroArt({ className = "" }: { className?: string }) {
     <svg viewBox="0 0 220 160" preserveAspectRatio="xMaxYMid slice" className={`pointer-events-none absolute ${className}`} aria-hidden="true">
       <defs>
         <linearGradient id="hx1" x1="0" y1="0" x2="0.7" y2="1">
-          <stop offset="0%" stopColor="#0f8f78" stopOpacity="0.9" />
+          <stop offset="0%" stopColor="var(--c-p2)" stopOpacity="0.9" />
           <stop offset="55%" stopColor="#f2695c" stopOpacity="0.75" />
-          <stop offset="100%" stopColor="#b8912f" stopOpacity="0.65" />
+          <stop offset="100%" stopColor="var(--c-gold)" stopOpacity="0.65" />
         </linearGradient>
         <linearGradient id="hx2" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="#b8912f" stopOpacity="0" />
-          <stop offset="60%" stopColor="#b8912f" stopOpacity="0.85" />
-          <stop offset="100%" stopColor="#d94fb8" stopOpacity="0.9" />
+          <stop offset="0%" stopColor="var(--c-gold)" stopOpacity="0" />
+          <stop offset="60%" stopColor="var(--c-gold)" stopOpacity="0.85" />
+          <stop offset="100%" stopColor="var(--c-mag)" stopOpacity="0.9" />
         </linearGradient>
         <radialGradient id="hx3" cx="0.7" cy="0.25" r="0.8">
           <stop offset="0%" stopColor="#f2695c" stopOpacity="0.5" />
@@ -487,7 +487,7 @@ export function HeroArt({ className = "" }: { className?: string }) {
           </g>
         );
       })}
-      <path d="M0 128 C 40 118, 70 134, 105 118 S 170 84, 220 96" fill="none" stroke="url(#hx2)" strokeWidth="2.4" strokeLinecap="round" style={{ filter: "drop-shadow(0 0 6px rgba(184,145,47,0.8))" }} />
+      <path d="M0 128 C 40 118, 70 134, 105 118 S 170 84, 220 96" fill="none" stroke="url(#hx2)" strokeWidth="2.4" strokeLinecap="round" style={{ filter: "drop-shadow(0 0 6px rgba(var(--gold-rgb),0.8))" }} />
       <path d="M0 140 C 46 132, 84 146, 122 130 S 182 104, 220 112" fill="none" stroke="url(#hx1)" strokeWidth="1.6" opacity="0.5" />
     </svg>
   );

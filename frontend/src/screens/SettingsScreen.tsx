@@ -12,6 +12,20 @@ export function SettingsScreen() {
   const info = usePolling<any>(() => api.get(endpoints.systemInfo), 30000);
   const me = usePolling<any>(() => api.get(endpoints.me), 30000);
   const [toast, setToast] = useState("");
+  const [theme, setThemeState] = useState<"ivory" | "navy">(
+    () => (localStorage.getItem("fm_theme") === "navy" ? "navy" : "ivory"));
+
+  const setTheme = (t: "ivory" | "navy") => {
+    setThemeState(t);
+    localStorage.setItem("fm_theme", t);
+    if (t === "navy") {
+      document.documentElement.setAttribute("data-theme", "navy");
+      document.querySelector('meta[name="theme-color"]')?.setAttribute("content", "#cdd4e0");
+    } else {
+      document.documentElement.removeAttribute("data-theme");
+      document.querySelector('meta[name="theme-color"]')?.setAttribute("content", "#f7f1e3");
+    }
+  };
 
   const [balance, setBalance] = useState("");
   const [daily, setDaily] = useState("");
@@ -125,7 +139,33 @@ export function SettingsScreen() {
       {toast && <div className="glass-2 mb-5 px-4 py-3 text-[12px] font-medium text-acc-cyan">{toast}</div>}
 
       {/* ---- objective ---- */}
-      <Eyebrow>Agent objective</Eyebrow>
+      {/* ---- appearance: theme switcher ---- */}
+      <Eyebrow>Appearance</Eyebrow>
+      <Glass className="mt-2">
+        <div className="eyebrow !text-[9px] mb-2.5">Design - applies instantly, saved on this device</div>
+        <div className="grid grid-cols-2 gap-2.5">
+          {([["ivory", "Ivory", "Warm cream - teal & gold accents"], ["navy", "Navy & Gold", "Cool silver-blue - navy & gold"]] as const).map(([k, label, desc]) => (
+            <button
+              key={k}
+              onClick={() => setTheme(k)}
+              aria-pressed={theme === k}
+              className={`tap min-h-[76px] rounded-2xl border p-3 text-left ${
+                theme === k ? "chip-on" : "chip-off"
+              }`}
+            >
+              <span className="flex items-center gap-1.5">
+                <span className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ background: k === "ivory" ? "#f7f1e3" : "#cdd4e0" }} />
+                <span className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ background: k === "ivory" ? "#1aa98c" : "#1d4f8f" }} />
+                <span className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ background: "#b8912f" }} />
+              </span>
+              <span className="mt-2 block text-[12.5px] font-bold">{label}</span>
+              <span className={`mt-0.5 block text-[10px] leading-snug ${theme === k ? "text-white/85" : "text-txt-faint"}`}>{desc}</span>
+            </button>
+          ))}
+        </div>
+      </Glass>
+
+      <Eyebrow className="mt-9">Agent objective</Eyebrow>
       <p className="mb-3 mt-1 px-1 text-[11px] text-txt-faint">Guides the research focus - never a command to trade.</p>
       <Glass>
         <div className="grid grid-cols-3 gap-4">
@@ -253,7 +293,7 @@ export function SettingsScreen() {
               ) : (
                 <ol className="space-y-2.5 text-[12px] leading-relaxed text-txt-mid">
                   <li><span className="num font-bold text-txt-hi">1.</span> Open <span className="font-semibold text-[var(--accent-cyan)]">t.me/{tg.bot_username || "your_bot"}</span> in Telegram</li>
-                  <li><span className="num font-bold text-txt-hi">2.</span> Send this exact message: <span className="mt-1 block rounded-xl border border-[rgba(122,92,34,0.09)] bg-[rgba(6,11,26,0.6)] px-3 py-2 font-mono text-[11px] text-txt-hi">/start {email}</span></li>
+                  <li><span className="num font-bold text-txt-hi">2.</span> Send this exact message: <span className="mt-1 block rounded-xl border border-[rgba(var(--warm-rgb),0.09)] bg-[rgba(6,11,26,0.6)] px-3 py-2 font-mono text-[11px] text-txt-hi">/start {email}</span></li>
                   <li><span className="num font-bold text-txt-hi">3.</span> Tap "Check again" below.</li>
                 </ol>
               )}
@@ -397,7 +437,7 @@ function ExecutionCard() {
 
         {mode === "manual" && (
           <div className="mt-4">
-            <div className={`flex items-center justify-between rounded-2xl border px-4 py-3 ${online ? "border-[rgba(18,155,127,0.3)] bg-[rgba(18,155,127,0.07)]" : "border-[rgba(122,92,34,0.08)] bg-[rgba(122,92,34,0.035)]"}`}>
+            <div className={`flex items-center justify-between rounded-2xl border px-4 py-3 ${online ? "border-[rgba(var(--p-rgb),0.3)] bg-[rgba(var(--p-rgb),0.07)]" : "border-[rgba(var(--warm-rgb),0.08)] bg-[rgba(var(--warm-rgb),0.035)]"}`}>
               <div className="flex items-center gap-2">
                 <GlowDot tone={online ? "pos" : "warn"} size={7} pulse={online} />
                 <div>
@@ -418,11 +458,11 @@ function ExecutionCard() {
               )}
             </div>
 
-            <div className="mt-3 rounded-2xl border border-[rgba(122,92,34,0.08)] bg-[rgba(122,92,34,0.035)] p-4">
+            <div className="mt-3 rounded-2xl border border-[rgba(var(--warm-rgb),0.08)] bg-[rgba(var(--warm-rgb),0.035)] p-4">
               <div className="text-[10px] uppercase tracking-wide text-txt-faint">Pairing code</div>
               <div className="mt-1 flex items-center justify-between">
                 <span className="num text-[18px] font-bold tracking-wider text-txt-hi">{code || "..."}</span>
-                <button className="tap rounded-full border border-[rgba(122,92,34,0.12)] px-3 py-1.5 text-[11px] text-txt-mid"
+                <button className="tap rounded-full border border-[rgba(var(--warm-rgb),0.12)] px-3 py-1.5 text-[11px] text-txt-mid"
                   onClick={() => { try { navigator.clipboard.writeText(code); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* */ } }}>
                   {copied ? "Copied" : "Copy"}
                 </button>
@@ -441,7 +481,7 @@ function ExecutionCard() {
         )}
 
         {mode === "vps" && s?.bridge_configured && (
-          <div className="mt-4 flex items-center justify-between rounded-2xl border border-[rgba(122,92,34,0.08)] bg-[rgba(122,92,34,0.035)] px-4 py-3">
+          <div className="mt-4 flex items-center justify-between rounded-2xl border border-[rgba(var(--warm-rgb),0.08)] bg-[rgba(var(--warm-rgb),0.035)] px-4 py-3">
             <div className="flex items-center gap-2">
               <GlowDot tone={s.bridge_online ? "pos" : "warn"} size={7} pulse={s.bridge_online} />
               <span className="text-[12.5px] font-semibold text-txt-hi">{s.bridge_online ? "Bridge online" : "Bridge offline"}</span>
@@ -459,15 +499,15 @@ function ExecutionCard() {
         {mode !== "off" && (
           <>
             <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-              <div className="rounded-xl border border-[rgba(122,92,34,0.07)] bg-[rgba(122,92,34,0.035)] py-2">
+              <div className="rounded-xl border border-[rgba(var(--warm-rgb),0.07)] bg-[rgba(var(--warm-rgb),0.035)] py-2">
                 <div className="text-[9px] uppercase tracking-wide text-txt-faint">Today</div>
                 <div className="num text-[13px] font-bold text-txt-hi">{s?.trades_today ?? 0}/{s?.max_per_day ?? 6}</div>
               </div>
-              <div className="rounded-xl border border-[rgba(122,92,34,0.07)] bg-[rgba(122,92,34,0.035)] py-2">
+              <div className="rounded-xl border border-[rgba(var(--warm-rgb),0.07)] bg-[rgba(var(--warm-rgb),0.035)] py-2">
                 <div className="text-[9px] uppercase tracking-wide text-txt-faint">Risk cap</div>
                 <div className="num text-[13px] font-bold text-txt-hi">{s?.risk_cap_pct ?? 1}%</div>
               </div>
-              <div className="rounded-xl border border-[rgba(122,92,34,0.07)] bg-[rgba(122,92,34,0.035)] py-2">
+              <div className="rounded-xl border border-[rgba(var(--warm-rgb),0.07)] bg-[rgba(var(--warm-rgb),0.035)] py-2">
                 <div className="text-[9px] uppercase tracking-wide text-txt-faint">TP level</div>
                 <div className="num text-[13px] font-bold text-txt-hi">TP{s?.tp_level ?? 2}</div>
               </div>
@@ -520,7 +560,7 @@ function StrategiesCard() {
           <GlowDot tone="acc" size={6} pulse={false} /> {toast}
         </div>
       )}
-      <Glass pad={false} className="divide-y divide-[rgba(122,92,34,0.06)] !p-0">
+      <Glass pad={false} className="divide-y divide-[rgba(var(--warm-rgb),0.06)] !p-0">
         {list.loading && !list.data ? (
           <div className="flex justify-center py-6"><Spinner /></div>
         ) : items.length === 0 ? (
@@ -547,9 +587,9 @@ function StrategiesCard() {
                 >
                   <span
                     className={`relative block h-[30px] w-[56px] rounded-full transition-all duration-300 ${
-                      on ? "shadow-[0_0_16px_rgba(26,169,140,0.4)]" : ""
+                      on ? "shadow-[0_0_16px_rgba(var(--p2-rgb),0.4)]" : ""
                     }`}
-                    style={{ background: on ? "linear-gradient(120deg, #17a98c 0%, #0c7f6a 100%)" : "rgba(255,255,255,0.12)" }}
+                    style={{ background: on ? "linear-gradient(120deg, var(--c-p1) 0%, var(--c-p3) 100%)" : "rgba(255,255,255,0.12)" }}
                   >
                     <span
                       className="absolute top-[3px] h-[24px] w-[24px] rounded-full bg-white shadow transition-all duration-300"

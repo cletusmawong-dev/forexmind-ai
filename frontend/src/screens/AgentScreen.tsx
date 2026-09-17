@@ -94,12 +94,12 @@ export function AgentScreen() {
                   <div
                     className="flex h-[76px] w-[76px] shrink-0 items-center justify-center rounded-full"
                     style={{
-                      border: "1.5px solid rgba(18,155,127,0.35)",
+                      border: "1.5px solid rgba(var(--p-rgb),0.35)",
                       background: "radial-gradient(circle at 32% 28%, rgba(31,90,70,0.55), rgba(8,14,30,0.95) 74%)",
-                      boxShadow: "0 0 30px rgba(18,155,127,0.22), inset 0 1px 0 rgba(255,255,255,0.1)",
+                      boxShadow: "0 0 30px rgba(var(--p-rgb),0.22), inset 0 1px 0 rgba(255,255,255,0.1)",
                     }}
                   >
-                    <LineChart size={26} style={{ color: "#3ee6a0", filter: "drop-shadow(0 0 8px rgba(18,155,127,0.8))" }} strokeWidth={2.1} />
+                    <LineChart size={26} style={{ color: "#3ee6a0", filter: "drop-shadow(0 0 8px rgba(var(--p-rgb),0.8))" }} strokeWidth={2.1} />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 text-[12px] text-[var(--text-secondary)]">
@@ -113,9 +113,9 @@ export function AgentScreen() {
                 </div>
               </div>
               <Divider />
-              <div className="grid grid-cols-3 divide-x divide-[rgba(122,92,34,0.07)]">
+              <div className="grid grid-cols-3 divide-x divide-[rgba(var(--warm-rgb),0.07)]">
                 <MiniStat label="Signals today" value={st.signals_today} />
-                <MiniStat label="Lessons" value={st.lessons} tone="text-[#c94a3d]" />
+                <MiniStat label="Lessons" value={st.lessons} tone="text-[var(--c-negdeep)]" />
                 <MiniStat label="Approvals" value={st.pending_approvals} tone={st.pending_approvals > 0 ? "text-[var(--accent-amber)]" : ""} />
               </div>
             </Glass>
@@ -159,7 +159,7 @@ export function AgentScreen() {
             </div>
           </div>
 
-          <div className="mt-10 lg:col-span-5 lg:mt-0 lg:border-l lg:border-[rgba(122,92,34,0.07)] lg:pl-10">
+          <div className="mt-10 lg:col-span-5 lg:mt-0 lg:border-l lg:border-[rgba(var(--warm-rgb),0.07)] lg:pl-10">
             <SectionHeader>Live activity</SectionHeader>
             <Glass pad={false} className="!p-5">
               <Timeline items={activity.data?.activity ?? []} />
@@ -173,7 +173,7 @@ export function AgentScreen() {
             >
               Run observation pass
             </button>
-            <div className="mt-4 rounded-2xl border border-[rgba(122,92,34,0.08)] bg-[rgba(122,92,34,0.035)] p-4 text-[10.5px] leading-relaxed text-[var(--text-muted)]">
+            <div className="mt-4 rounded-2xl border border-[rgba(var(--warm-rgb),0.08)] bg-[rgba(var(--warm-rgb),0.035)] p-4 text-[10.5px] leading-relaxed text-[var(--text-muted)]">
               Market data:{" "}
               {st.market_data?.demo === false ? (
                 <>
@@ -206,13 +206,13 @@ export function AgentScreen() {
                 <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"} anim-fadeUp`}>
                   {m.role === "agent" && (
                     <div
-                      className="mr-2.5 mt-1.5 h-6 w-6 shrink-0 rounded-full border border-[rgba(18,155,127,0.4)]"
-                      style={{ background: "radial-gradient(circle at 30% 30%, rgba(18,155,127,0.7), rgba(12,18,38,0.95))", boxShadow: "0 0 14px rgba(62,124,250,0.4)" }}
+                      className="mr-2.5 mt-1.5 h-6 w-6 shrink-0 rounded-full border border-[rgba(var(--p-rgb),0.4)]"
+                      style={{ background: "radial-gradient(circle at 30% 30%, rgba(var(--p-rgb),0.7), rgba(12,18,38,0.95))", boxShadow: "0 0 14px rgba(62,124,250,0.4)" }}
                     />
                   )}
                   <div
                     className={`max-w-[82%] whitespace-pre-wrap rounded-[20px] px-4 py-3 text-[12.5px] leading-relaxed ${
-                      m.role === "user" ? "rounded-br-md text-[var(--text-primary)]" : "rounded-bl-md border border-[rgba(122,92,34,0.09)] bg-[rgba(122,92,34,0.055)] text-[var(--text-secondary)]"
+                      m.role === "user" ? "rounded-br-md text-[var(--text-primary)]" : "rounded-bl-md border border-[rgba(var(--warm-rgb),0.09)] bg-[rgba(var(--warm-rgb),0.055)] text-[var(--text-secondary)]"
                     }`}
                     style={m.role === "user" ? { background: "linear-gradient(120deg,#3e7bfa,#2bb8ec)", boxShadow: "0 8px 24px rgba(62,124,250,0.3)" } : undefined}
                   >
@@ -222,7 +222,7 @@ export function AgentScreen() {
               ))}
               {thinking && (
                 <div className="flex justify-start">
-                  <div className="ml-[34px] flex gap-1.5 rounded-[20px] rounded-bl-md border border-[rgba(122,92,34,0.09)] bg-[rgba(122,92,34,0.055)] px-4 py-3.5">
+                  <div className="ml-[34px] flex gap-1.5 rounded-[20px] rounded-bl-md border border-[rgba(var(--warm-rgb),0.09)] bg-[rgba(var(--warm-rgb),0.055)] px-4 py-3.5">
                     {[0, 1, 2].map((i) => (
                       <span key={i} className="h-1.5 w-1.5 rounded-full bg-[var(--accent-blue)] anim-pulse" style={{ animationDelay: `${i * 0.35}s` }} />
                     ))}
@@ -232,7 +232,7 @@ export function AgentScreen() {
             </div>
             <div className="no-scrollbar mb-3 flex gap-2 overflow-x-auto px-1">
               {QUICK.map((q) => (
-                <button key={q} onClick={() => send(q)} className="shrink-0 rounded-full border border-[rgba(122,92,34,0.09)] bg-[rgba(122,92,34,0.045)] px-3.5 py-2 text-[10.5px] text-[var(--text-muted)] transition hover:text-[var(--text-secondary)]">
+                <button key={q} onClick={() => send(q)} className="shrink-0 rounded-full border border-[rgba(var(--warm-rgb),0.09)] bg-[rgba(var(--warm-rgb),0.045)] px-3.5 py-2 text-[10.5px] text-[var(--text-muted)] transition hover:text-[var(--text-secondary)]">
                   {q}
                 </button>
               ))}
@@ -262,12 +262,12 @@ function MiniStat({ label, value, tone }: { label: string; value: number | strin
 function Timeline({ items }: { items: ActivityItem[] }) {
   return (
     <div className="relative space-y-4">
-      <span className="absolute bottom-1 left-[4.5px] top-1 w-px bg-gradient-to-b from-[rgba(18,155,127,0.4)] via-[rgba(18,155,127,0.12)] to-transparent" />
+      <span className="absolute bottom-1 left-[4.5px] top-1 w-px bg-gradient-to-b from-[rgba(var(--p-rgb),0.4)] via-[rgba(var(--p-rgb),0.12)] to-transparent" />
       {items.slice(0, 40).map((a, i) => (
         <div key={a.id} className="relative flex items-start gap-4 anim-fadeUp" style={{ animationDelay: `${Math.min(i * 45, 400)}ms` }}>
           <span className="relative mt-[5px] flex h-[10px] w-[10px] shrink-0">
             {i === 0 && <span className="absolute inset-0 rounded-full bg-[var(--accent-blue)] opacity-40 anim-pulse" style={{ transform: "scale(2.1)" }} />}
-            <span className={`relative h-[10px] w-[10px] rounded-full ${i === 0 ? "bg-[var(--accent-blue)]" : "bg-[rgba(122,92,34,0.22)]"}`} style={i === 0 ? { boxShadow: "0 0 12px rgba(18,155,127,0.95)" } : {}} />
+            <span className={`relative h-[10px] w-[10px] rounded-full ${i === 0 ? "bg-[var(--accent-blue)]" : "bg-[rgba(var(--warm-rgb),0.22)]"}`} style={i === 0 ? { boxShadow: "0 0 12px rgba(var(--p-rgb),0.95)" } : {}} />
           </span>
           <div className="min-w-0 flex-1">
             <div className="text-[12px] leading-snug text-[var(--text-secondary)]">{a.message}</div>
