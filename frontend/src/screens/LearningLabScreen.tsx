@@ -18,6 +18,7 @@ export function LearningLabScreen() {
   const refreshResearch = () => { try { (research as any).refresh?.(); } catch { /* noop */ } };
   const strategies = usePolling<{ strategies: StrategyDoc[] }>(() => api.get(endpoints.strategies), 30000);
   const lessons = usePolling<{ lessons: Lesson[] }>(() => api.get(endpoints.lessons), 8000);
+  const analyzedQ = usePolling<{ count: number }>(() => api.get(`${endpoints.signals}?status=closed&limit=1`), 15000);
   const hyps = usePolling<{ hypotheses: Hypothesis[] }>(() => api.get(endpoints.hypotheses), 6000);
   const exps = usePolling<{ experiments: Experiment[] }>(() => api.get(endpoints.experiments), 8000);
   const versions2 = usePolling<{ versions: StrategyVersion[] }>(() => api.get(endpoints.strategyVersions("strategy_2_ema_atr")), 10000);
@@ -218,6 +219,36 @@ export function LearningLabScreen() {
           ]}
         />
       </div>
+
+      {/* research engine status - makes the learning loop visible (user request 2026-09-17) */}
+      {(() => {
+        const analyzed = analyzedQ.data?.count ?? 0;
+        const findings = research.data?.discovered ?? 0;
+        const times = (research.data?.hypotheses ?? [])
+          .map((h) => (h as any).createdAt)
+          .filter(Boolean)
+          .sort();
+        const lastRun = (() => {
+          if (!times.length) return "";
+          const m = Math.floor((Date.now() - new Date(times[times.length - 1]).getTime()) / 60000);
+          if (!Number.isFinite(m) || m < 0) return "";
+          if (m < 60) return `${m}m ago`;
+          const h = Math.floor(m / 60);
+          if (h < 24) return `${h}h ago`;
+          return `${Math.floor(h / 24)}d ago`;
+        })();
+        return (
+          <div className="glass-2 mt-5 flex items-start gap-2.5 px-4 py-3 text-[11px] leading-relaxed text-[var(--text-secondary)]" role="status">
+            <FlaskConical size={13} className="mt-0.5 shrink-0 text-acc-cyan" />
+            <span>
+              <span className="font-semibold text-acc-cyan">Research engine:</span>{" "}
+              {analyzed} signal{analyzed === 1 ? "" : "s"} analyzed - {findings} finding{findings === 1 ? "" : "s"} -{" "}
+              {pendingCount} test{pendingCount === 1 ? "" : "s"} awaiting your approval
+              {lastRun ? ` - last scan ${lastRun}` : ""}. Re-scans every 6h on its own; a finding needs 10+ signals in a segment before it counts.
+            </span>
+          </div>
+        );
+      })()}
 
       {toast && (
         <div className="glass-2 mt-5 flex items-center gap-2.5 px-4 py-3 text-[12px] font-medium text-acc-cyan animate-fadeUp">
