@@ -543,7 +543,7 @@ export function SettingsScreen() {
       <Eyebrow className="mt-9">System</Eyebrow>
       <Glass className="mt-2 !py-1" pad={false}>
         <div className="px-5">
-          <Row label="Market data" value={info.data?.market_data?.demo ? "Demo - historical replay" : "Live - Twelve Data"} tone={info.data?.market_data?.demo ? "text-warn" : "text-pos"} dot={info.data?.market_data?.demo ? "warn" : "pos"} />
+          <Row label="Market data" value={info.data?.market_data?.demo ? "Demo - historical replay" : info.data?.market_data?.source === "mt5_vps" ? "Live - MT5 via your VPS (broker feed)" : "Live - Twelve Data"} tone={info.data?.market_data?.demo ? "text-warn" : "text-pos"} dot={info.data?.market_data?.demo ? "warn" : "pos"} />
           <StoredHistoryRow />
           <Divider />
           <Row label="AI provider" value={info.data?.ai?.provider === "xkiro" ? "XKiro" : "Grounded analyst"} dot="acc" />

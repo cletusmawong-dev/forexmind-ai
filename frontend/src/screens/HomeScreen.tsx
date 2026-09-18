@@ -80,7 +80,11 @@ export function HomeScreen() {
   }
   const st = status.data;
   const p = st.progress;
-  const balance = st.goals.account_balance * (1 + p.daily_pl_pct / 100);
+  const ex = exec.data;
+  const vpsLive = ex?.mode === "vps" && !!ex?.bridge?.online && ex?.account?.balance != null;
+  const balance = vpsLive
+    ? Number(ex.account.equity ?? ex.account.balance)   // live MT5 equity, broker truth
+    : st.goals.account_balance * (1 + p.daily_pl_pct / 100);
   const goalPct = Math.max(0, (p.daily_pl_pct / Math.max(p.objective_pct, 0.01)) * 100);
   const up = p.daily_pl_pct >= 0;
   const marketList = markets.data?.markets ?? [];
@@ -144,6 +148,11 @@ export function HomeScreen() {
               format={(v) => `$${v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
               className="num mt-2.5 block text-[40px] font-extrabold leading-none tracking-[-0.03em] lg:text-[52px]"
             />
+            <p className="mt-1.5 text-[10px] text-txt-faint">
+              {vpsLive
+                ? `MT5 live equity - ${ex.account.server || "your VPS terminal"}`
+                : "Objective account balance"}
+            </p>
             <div className="mt-3.5 flex items-center gap-2">
               <span
                 className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold"
