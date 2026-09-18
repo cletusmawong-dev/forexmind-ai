@@ -16,6 +16,7 @@ export function SettingsScreen() {
   const [savingGoals, setSavingGoals] = useState(false);
   const [savingRisk, setSavingRisk] = useState(false);
   const [tgBusy, setTgBusy] = useState(false);
+  const [popup, setPopup] = useState<{ kind: "ok" | "fail"; title: string; text: string } | null>(null);
   const touch = () => { lastTouch.current = Date.now(); };
   const [theme, setThemeState] = useState<"ivory" | "navy" | "onyx" | "slate">(() => {
     const t = localStorage.getItem("fm_theme");
@@ -147,11 +148,11 @@ export function SettingsScreen() {
         daily_objective_pct: parseFloat(daily),
         weekly_objective_pct: parseFloat(weekly),
       });
-      flash("Objective updated - saved.");
+      setPopup({ kind: "ok", title: "Settings saved", text: "Your agent objective has been updated." });
       lastTouch.current = 0;
       goals.refresh(); risk.refresh();
     } catch (e: any) {
-      flash(e?.message || "Could not save - check connection and try again.");
+      setPopup({ kind: "fail", title: "Save failed", text: e?.message || "Could not save - check your connection and try again." });
     }
     setSavingGoals(false);
   };
@@ -188,11 +189,11 @@ export function SettingsScreen() {
       });
       lastTouch.current = 0;
       goals.refresh(); risk.refresh();
-      flash(acctType === "propfirm"
-        ? `Saved. PROP MODE - the engine stops new signals at ${100 - (parseFloat(propBuffer) || 20)}% of your ${propDaily || 5}% daily drawdown.`
-        : `Saved. Personal account - daily limit ${maxLoss}%.`);
+      setPopup({ kind: "ok", title: "Settings saved", text: acctType === "propfirm"
+        ? `PROP MODE active - the engine stops new signals at ${100 - (parseFloat(propBuffer) || 20)}% of your ${propDaily || 5}% daily drawdown.`
+        : `Personal account - daily limit ${maxLoss}%. Everything below now applies.` });
     } catch (e: any) {
-      flash(e?.message || "Could not save - check connection and try again.");
+      setPopup({ kind: "fail", title: "Save failed", text: e?.message || "Could not save - check your connection and try again." });
       setSavingRisk(false);
       return;
     }
@@ -203,6 +204,7 @@ export function SettingsScreen() {
 
   return (
     <div className="animate-fadeUp" onPointerDownCapture={touch} onKeyDownCapture={touch} onBlurCapture={touch}>
+      {popup && <SavePopup kind={popup.kind} title={popup.title} text={popup.text} onClose={() => setPopup(null)} />}
       <header className="mb-7 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="icon-chip icon-chip-violet" aria-hidden="true"><Brain size={20} /></span>
@@ -850,5 +852,43 @@ function StrategiesCard() {
       </Glass>
       <Link to="/strategies" className="btn-ghost mt-3 w-full">Strategy Manager - versions &amp; rollback</Link>
     </>
+  );
+}
+
+/** Save-result popup: unambiguous success / failure confirmation (user request). */
+function SavePopup({ kind, title, text, onClose }: {
+  kind: "ok" | "fail"; title: string; text: string; onClose: () => void;
+}) {
+  useEffect(() => {
+    if (kind !== "ok") return;
+    const t = setTimeout(onClose, 3200);
+    return () => clearTimeout(t);
+  }, [kind, onClose]);
+  const ok = kind === "ok";
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-[rgba(4,8,18,0.55)] px-6 backdrop-blur-[2px]"
+         role="dialog" aria-modal="true" onClick={ok ? onClose : undefined}>
+      <div className="glass w-full max-w-[320px] animate-fadeUp rounded-3xl p-6 text-center">
+        <div className={`mx-auto flex h-12 w-12 items-center justify-center rounded-full ${
+          ok ? "bg-[rgba(var(--p-rgb),0.14)] text-pos" : "bg-[rgba(var(--warm-rgb),0.10)] text-[var(--accent-amber)]"
+        }`}>
+          {ok ? (
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M4 12.5l5 5L20 6.5" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          ) : (
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M12 7v6" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" />
+              <circle cx="12" cy="16.6" r="1.4" fill="currentColor" />
+            </svg>
+          )}
+        </div>
+        <div className="mt-3 text-[16px] font-bold tracking-tight">{title}</div>
+        <p className="mt-1.5 text-[12px] leading-relaxed text-txt-mid">{text}</p>
+        <button className={`mt-5 w-full ${ok ? "btn-primary" : "btn-ghost"}`} onClick={onClose} autoFocus>
+          {ok ? "Great" : "Try again"}
+        </button>
+      </div>
+    </div>
   );
 }

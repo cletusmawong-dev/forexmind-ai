@@ -138,6 +138,7 @@ def system_status(user_id: str = Depends(get_user_id)):
         "market_data": {
             "provider": provider.name,
             "demo": provider.is_demo,
+            "source": (provider.data_source() if hasattr(provider, "data_source") else "provider"),
             "capabilities": cap,
             "stream": {"configured": stream_configured,
                        "connected": False,  # no stream provider exists today

@@ -374,6 +374,42 @@ def close(body: dict, x_bridge_token: Optional[str] = Header(None)):
     return {"ok": True, "ticket": res.order}
 
 
+# app timeframe -> MT5 timeframe constant
+APP_TF = {"5M": "M5", "15M": "M15", "30M": "M30", "1H": "H1", "4H": "H4", "1D": "D1",
+          "M5": "M5", "M15": "M15", "M30": "M30", "H1": "H1", "H4": "H4", "D1": "D1"}
+
+
+@app.get("/rates")
+def rates(market: str, tf: str = Query("15M"), count: int = Query(400),
+          x_bridge_token: Optional[str] = Header(None)):
+    """Closed OHLCV candles straight from the terminal (broker ground truth).
+
+    The cloud uses this as the market-data source whenever the VPS bridge is
+    connected, so charts/strategies price off the SAME feed the trades execute
+    on (Twelve Data remains the fallback for non-VPS setups). Only CLOSED
+    candles are returned - the forming bar is dropped here AND re-checked in
+    the cloud."""
+    _auth(x_bridge_token)
+    tfk = APP_TF.get(tf.upper())
+    mt5_tf = getattr(mt5, "TIMEFRAME_" + tfk, None) if tfk else None
+    if mt5_tf is None:
+        raise HTTPException(422, f"unsupported timeframe {tf}")
+    count = max(60, min(int(count), 1500))
+    symbol = resolve_symbol(market)
+    with _mt5_lock:
+        _ensure()
+        mt5.symbol_select(symbol, True)
+        rr = mt5.copy_rates_from_pos(symbol, mt5_tf, 0, count + 1)
+    if rr is None or len(rr) < 60:
+        raise HTTPException(503, f"no rates for {symbol} {tfk}: {mt5.last_error()}")
+    bars = [{"ts": int(r["time"]), "o": float(r["open"]), "h": float(r["high"]),
+             "l": float(r["low"]), "c": float(r["close"]), "v": float(r["tick_volume"] or 0)}
+            for r in rr]
+    if len(bars) > 1:
+        bars = bars[:-1]          # forming candle - never feed it to strategies
+    return {"ok": True, "symbol": symbol, "tf": tfk, "bars": bars}
+
+
 @app.get("/deals")
 def deals(since: int = Query(0), x_bridge_token: Optional[str] = Header(None)):
     _auth(x_bridge_token)

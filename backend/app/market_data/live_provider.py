@@ -67,6 +67,7 @@ class LiveProvider(MarketDataProvider):
         self._cache: Dict[Tuple[str, str], Tuple[float, Optional[pd.DataFrame]]] = {}
         self.td_key = settings.twelvedata_api_key
         self._td_last_call = 0.0
+        self._mt5_ok_ts = 0.0
         self.oanda_token = settings.oanda_api_token
         self.oanda_base = ("https://api-fxtrade.oanda.com" if settings.oanda_env == "live"
                            else "https://api-fxpractice.oanda.com")
@@ -210,6 +211,49 @@ class LiveProvider(MarketDataProvider):
             return None
 
     # ------------------------------------------------------------------
+    # MT5 via the VPS bridge (broker's own feed - first choice when wired)
+    # ------------------------------------------------------------------
+    MT5_TF = {"5M": "M5", "15M": "M15", "30M": "M30", "1H": "H1", "4H": "H4", "1D": "D1"}
+
+    def _fetch_mt5(self, market: str, tf: str, limit: int) -> Optional[pd.DataFrame]:
+        """Closed candles straight from the VPS MT5 terminal (bridge /rates).
+
+        Used FIRST whenever the bridge is configured: charts, scans and
+        execution then price off the same feed the trades run on, and the
+        Twelve Data free-tier cap stops mattering. Any failure falls back
+        to the Twelve Data / Yahoo chain silently (honest, never fake)."""
+        tfk = self.MT5_TF.get(tf)
+        if tfk is None:
+            return None
+        try:
+            from ..execution.mt5 import bridge_get   # lazy: avoids import cycles
+            d = bridge_get(f"/rates?market={market}&tf={tfk}&count={max(int(limit), 300)}",
+                           timeout=25)
+        except Exception:
+            d = None
+        if not d or not d.get("ok"):
+            return None
+        bars = d.get("bars") or []
+        if len(bars) < 60:
+            return None
+        df = pd.DataFrame(bars)
+        idx = pd.DatetimeIndex(pd.to_datetime(df["ts"], unit="s", utc=True)
+                               .dt.tz_convert("UTC").dt.tz_localize(None))
+        df = df.drop(columns=["ts"]).set_axis(idx)
+        df = df.rename(columns={"o": "open", "h": "high", "l": "low",
+                                "c": "close", "v": "volume"})
+        df = df[["open", "high", "low", "close", "volume"]].apply(pd.to_numeric, errors="coerce")
+        df = df.dropna(subset=["open", "high", "low", "close"])
+        self._mt5_ok_ts = time.time()
+        return df if len(df) else None
+
+    def data_source(self) -> str:
+        """Honest label for the UI: which feed actually served recently."""
+        if settings.bridge_url and (time.time() - getattr(self, "_mt5_ok_ts", 0)) < 3600:
+            return "mt5_vps"
+        return "twelvedata"
+
+    # ------------------------------------------------------------------
     def _aligned(self, market: str, tf: str, df: Optional[pd.DataFrame]) -> Optional[pd.DataFrame]:
         """Drop the still-forming candle so only CLOSED bars feed strategies."""
         if df is None or len(df) == 0:
@@ -242,6 +286,13 @@ class LiveProvider(MarketDataProvider):
             if hit and (now - hit[0]) < TTL.get(tf, 60):
                 df = hit[1]
                 return df.tail(limit).copy() if df is not None and len(df) else None
+
+        if settings.bridge_url:   # VPS connected: the MT5 terminal IS the feed
+            df = self._aligned(market, tf, self._fetch_mt5(market, tf, fetch_n))
+            if df is not None:
+                with self._lock:
+                    self._cache[key] = (now, df)
+                return df.tail(limit).copy()
 
         df = self._aligned(market, tf, self._fetch_oanda(market, tf, fetch_n))
         if df is None and self.td_key:

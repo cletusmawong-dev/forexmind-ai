@@ -51,6 +51,7 @@ export function HomeScreen() {
   const signals = usePolling<{ signals: Signal[] }>(() => api.get(`${endpoints.signals}?status=open&limit=3`), 6000, [refreshKey]);
   const notifs = usePolling<{ unread: number }>(() => api.get(endpoints.notifications), 12000, [refreshKey]);
   const daily = usePolling<any>(() => api.get(endpoints.daily), 10000, [refreshKey]);
+  const exec = usePolling<any>(() => api.get("/api/execution/status"), 20000, [refreshKey]);
 
   const pullStart = useRef<number | null>(null);
   const [pulling, setPulling] = useState(0);
@@ -161,6 +162,35 @@ export function HomeScreen() {
             </div>
           </div>
         </Glass>
+
+          {/* ---- MT5 account + VPS online indicator (vps mode) ---- */}
+          {(() => {
+            const ex = exec.data;
+            if (!ex || ex.mode !== "vps") return null;
+            const on = !!ex.enabled;
+            const acct = ex.account || {};
+            return (
+              <div className="glass-2 mt-3 flex items-center justify-between px-4 py-3">
+                <div className="flex items-center gap-2.5">
+                  <StatusDot tone={ex.bridge?.online ? "green" : "amber"} size={7} pulse={!ex.bridge?.online} />
+                  <div>
+                    <div className="text-[12px] font-bold tracking-tight">
+                      MT5 {ex.bridge?.online ? "- online" : "- offline"}
+                      <span className="ml-1.5 font-normal text-[10px] text-txt-faint">{acct.server || ""}</span>
+                    </div>
+                    <div className="text-[9.5px] text-txt-faint">
+                      login {acct.login ?? "-"} - data from MT5
+                      {!on && " - auto-trading stopped"}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="num text-[13px] font-extrabold">{acct.balance != null ? Number(acct.balance).toLocaleString(undefined, { maximumFractionDigits: 2 }) : "-"}</div>
+                  <div className="text-[9px] text-txt-faint">{acct.currency || "USD"} balance</div>
+                </div>
+              </div>
+            );
+          })()}
 
           {(() => {
             const d = daily.data;
