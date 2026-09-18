@@ -3,28 +3,27 @@
 # ForexMind bridge setup for an UBUNTU VPS where MT5 ALREADY RUNS UNDER WINE.
 #
 # WHAT THIS SCRIPT DOES (and does NOT do):
-#   DOES:  detect your EXISTING Wine prefix + MT5 terminal and attach to them;
-#          add Windows Python INSIDE the same Wine prefix if missing (required:
-#          the MetaTrader5 pip package is Windows-only); install the bridge as
-#          a systemd service (auto-start after reboot) + a 1-minute watchdog
-#          timer; open the bridge port in ufw if ufw is active.
-#   NEVER: installs or reinstalls MetaTrader 5, changes Wine configuration,
-#          touches your MT5 account/login, or edits anything inside the MT5
-#          installation directory.
+#   DOES:  detect your EXISTING Wine prefix + MT5 - preferring the RUNNING
+#          MT5 process itself - and attach to it; add Windows Python INSIDE
+#          the same prefix if missing (required: the MetaTrader5 pip package
+#          is Windows-only); install a systemd service (auto-start) + a
+#          1-minute watchdog timer; open the bridge port in ufw if active.
+#   NEVER: installs/reinstalls MetaTrader 5, changes Wine configuration,
+#          touches your MT5 account/login, or edits the MT5 installation.
 #
 # Usage (from the repo root on the VPS):
 #   sudo bash vps/linux_setup.sh --token 'your-long-secret'
-#   sudo bash vps/linux_setup.sh --token '...' --port 8700 --prefix /home/you/.wine
+#   sudo bash vps/linux_setup.sh --token '...' --port 8700 --prefix /path/.wine
 # =============================================================================
 set -euo pipefail
 
-TOKEN="" ; PORT="8700" ; PREFIX_ARG="" ; DISPLAY_VAR=":0"
+TOKEN="" ; PORT="8700" ; PREFIX_ARG="" ; DISPLAY_ARG=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --token)  TOKEN="$2"; shift 2 ;;
-    --port)   PORT="$2"; shift 2 ;;
-    --prefix) PREFIX_ARG="$2"; shift 2 ;;
-    --display) DISPLAY_VAR="$2"; shift 2 ;;
+    --token)   TOKEN="$2"; shift 2 ;;
+    --port)    PORT="$2"; shift 2 ;;
+    --prefix)  PREFIX_ARG="$2"; shift 2 ;;
+    --display) DISPLAY_ARG="$2"; shift 2 ;;
     *) echo "unknown arg $1"; exit 1 ;;
   esac
 done
@@ -38,28 +37,63 @@ BRIDGE_DIR="$REPO_DIR/vps-bridge"
 [[ -f "$BRIDGE_DIR/bridge.py" ]] || { echo "ERROR: bridge.py not found at $BRIDGE_DIR"; exit 1; }
 
 echo "==> [1/7] Detecting your EXISTING Wine prefix + MT5 (nothing is modified)"
-PREFIXES=()
-[[ -n "$PREFIX_ARG" ]] && PREFIXES+=("$PREFIX_ARG")
-[[ -n "${WINEPREFIX:-}" ]] && PREFIXES+=("$WINEPREFIX")
-for d in "$HOME"/.wine "$HOME"/.wine-* /root/.wine /home/*/.wine /home/*/.wine-*; do
-  [[ -d "$d" ]] && PREFIXES+=("$d")
-done
-# unique, existing prefixes that actually contain drive_c
-U=(); for p in "${PREFIXES[@]:-}"; do
-  [[ -n "$p" && -d "$p/drive_c" ]] && [[ ! " ${U[*]} " == *" $p "* ]] && U+=("$p")
-done
-((${#U[@]})) || { echo "ERROR: no Wine prefix found (looked in /home/*/.wine, /root/.wine)."; exit 1; }
 
-TERMINAL="" ; T_PREFIX=""
-for p in "${U[@]}"; do
-  hit="$(find "$p/drive_c" -maxdepth 5 -iname 'terminal64.exe' 2>/dev/null | head -1 || true)"
-  if [[ -n "$hit" ]]; then TERMINAL="$hit"; T_PREFIX="$p"; break; fi
+declare -a CANDS=()      # candidate wine prefixes, best first
+declare -A SEEN=()
+add_cand() { [[ -n "$1" && -d "$1/drive_c" ]] && [[ -z "${SEEN[$1]:-}" ]] && { SEEN[$1]=1; CANDS+=("$1"); }; }
+
+[[ -n "$PREFIX_ARG" ]] && add_cand "$PREFIX_ARG"
+[[ -n "${WINEPREFIX:-}" ]] && add_cand "$WINEPREFIX"
+
+# a) the RUNNING MT5 wins: read WINEPREFIX + DISPLAY from its process env
+DETECTED_DISPLAY=""
+for pid in $(pgrep -f 'terminal64\.exe' 2>/dev/null || true); do
+  env_file="/proc/$pid/environ"
+  [[ -r "$env_file" ]] || continue
+  p="$(tr '\0' '\n' < "$env_file" 2>/dev/null | grep '^WINEPREFIX=' | cut -d= -f2- || true)"
+  d="$(tr '\0' '\n' < "$env_file" 2>/dev/null | grep '^DISPLAY='  | cut -d= -f2- || true)"
+  [[ -n "$d" && -z "$DETECTED_DISPLAY" ]] && DETECTED_DISPLAY="$d"
+  add_cand "$p"
 done
-[[ -n "$TERMINAL" ]] || { echo "ERROR: terminal64.exe not found in any prefix (${U[*]}). MT5 must already be installed."; exit 1; }
-PREFIX="$T_PREFIX"
-WTERMINAL="$(echo "$TERMINAL" | sed "s|^$PREFIX/drive_c|C:|; s|/|\\\\\\\\|g")"
-echo "    Wine prefix : $PREFIX"
-echo "    MT5 terminal: $TERMINAL"
+# also any running wineserver (covers prefixes of running wine apps)
+for pid in $(pgrep -x wineserver 2>/dev/null || true); do
+  env_file="/proc/$pid/environ"
+  [[ -r "$env_file" ]] || continue
+  p="$(tr '\0' '\n' < "$env_file" 2>/dev/null | grep '^WINEPREFIX=' | cut -d= -f2- || true)"
+  add_cand "$p"
+done
+
+# b) common locations
+for d in "$HOME"/.wine "$HOME"/.wine-* /root/.wine /home/*/.wine /home/*/.wine-* \
+         /opt/.wine* /opt/*/.wine* /srv/.wine* /srv/*/.wine*; do
+  [[ -d "$d" ]] && add_cand "$d"
+done
+
+# c) full-disk sweep for terminal64.exe under any drive_c (covers custom paths)
+while IFS= read -r hit; do
+  [[ -n "$hit" ]] || continue
+  add_cand "${hit%%/drive_c/*}"
+done < <(find / -xdev -maxdepth 9 -path '*/drive_c/*' -name 'terminal64.exe' \
+             -not -path '*/system32/*' 2>/dev/null | head -20)
+
+((${#CANDS[@]})) || { echo "ERROR: no Wine prefix with drive_c found anywhere."; exit 1; }
+
+# pick the first candidate that actually contains MT5
+TERMINAL="" ; PREFIX=""
+for p in "${CANDS[@]}"; do
+  hit="$(find "$p/drive_c" -maxdepth 6 -iname 'terminal64.exe' -not -path '*/system32/*' 2>/dev/null | head -1 || true)"
+  if [[ -n "$hit" ]]; then TERMINAL="$hit"; PREFIX="$p"; break; fi
+done
+[[ -n "$TERMINAL" ]] || {
+  echo "ERROR: Wine prefix(es) found (${CANDS[*]}) but none contains terminal64.exe."
+  echo "       If MT5 lives elsewhere: rerun with --prefix /path/to/prefix"
+  exit 1
+}
+if [[ -n "$DISPLAY_ARG" ]]; then DISPLAY_VAL="$DISPLAY_ARG"; else DISPLAY_VAL="${DETECTED_DISPLAY:-${DISPLAY:-:0}}"; fi
+OWNER="$(stat -c '%U' "$PREFIX")"
+echo "    Wine prefix  : $PREFIX  (owner: $OWNER)"
+echo "    MT5 terminal : $TERMINAL"
+echo "    DISPLAY      : $DISPLAY_VAL"
 echo "    (detected only - MT5, Wine and your account are left untouched)"
 
 echo "==> [2/7] Ensuring Windows Python inside the SAME prefix (additive only)"
@@ -73,8 +107,8 @@ if [[ -z "$PYLIN" ]]; then
   PYVER="3.11.9"; PYFILE="python-$PYVER-amd64.exe"
   TMP="$(mktemp -d)"
   wget -q -O "$TMP/$PYFILE" "https://www.python.org/ftp/python/$PYVER/$PYFILE"
-  WINEPREFIX="$PREFIX" wine "$TMP/$PYFILE" /quiet InstallAllUsers=1 PrependPath=1 \
-    Include_test=0 TargetDir='C:\Python311' || true
+  WINEPREFIX="$PREFIX" WINEDEBUG=-all wine "$TMP/$PYFILE" /quiet InstallAllUsers=1 \
+    PrependPath=1 Include_test=0 TargetDir='C:\Python311' || true
   rm -rf "$TMP"
   PYLIN="$PREFIX/drive_c/Python311/python.exe"
 fi
@@ -92,15 +126,17 @@ cat > /etc/forexmind-bridge.env <<EOF
 BRIDGE_TOKEN=$TOKEN
 BRIDGE_PORT=$PORT
 WINEPREFIX=$PREFIX
-DISPLAY=$DISPLAY_VAR
-MT5_TERMINAL_EXE=$WTERMINAL
+DISPLAY=$DISPLAY_VAL
+MT5_TERMINAL_EXE=$TERMINAL
 EOF
 chmod 600 /etc/forexmind-bridge.env
 
-echo "==> [5/7] systemd service forexmind-bridge (auto-start on boot)"
+echo "==> [5/7] systemd service forexmind-bridge (runs as '$OWNER' - your MT5's user)"
+USER_LINES=""
+[[ "$OWNER" != "root" ]] && USER_LINES="User=$OWNER"$'\n'"Environment=HOME=$(getent passwd "$OWNER" | cut -d: -f6)"
 cat > /etc/systemd/system/forexmind-bridge.service <<EOF
 [Unit]
-Description=ForexMind MT5 bridge (Wine)
+Description=ForexMind MT5 bridge (Wine, attaches to the existing MT5)
 After=network-online.target
 Wants=network-online.target
 
@@ -108,6 +144,7 @@ Wants=network-online.target
 Type=simple
 EnvironmentFile=/etc/forexmind-bridge.env
 WorkingDirectory=$BRIDGE_DIR
+$USER_LINES
 ExecStart=/usr/bin/wine "$WYPY" "$WBRIDGE"
 Restart=always
 RestartSec=5
@@ -126,6 +163,7 @@ After=forexmind-bridge.service
 [Service]
 Type=oneshot
 EnvironmentFile=/etc/forexmind-bridge.env
+$USER_LINES
 ExecStart=$REPO_DIR/vps/linux_watchdog.sh
 EOF
 
@@ -140,10 +178,10 @@ OnUnitActiveSec=1min
 [Install]
 WantedBy=timers.target
 EOF
-chmod +x "$REPO_DIR/vps/linux_watchdog.sh" 2>/dev/null || true
+chmod +x "$REPO_DIR/vps/linux_watchdog.sh"
 
 echo "==> [6/7] Firewall (ufw if active) - NOTE: also open TCP $PORT in your"
-echo "    cloud provider's security group (IBM Cloud etc.), ufw alone is not enough."
+echo "    cloud provider's security group, ufw alone is not enough."
 if command -v ufw >/dev/null && ufw status 2>/dev/null | grep -q "Status: active"; then
   ufw allow "$PORT/tcp" >/dev/null && echo "    ufw: TCP $PORT allowed"
 else
@@ -154,15 +192,16 @@ systemctl daemon-reload
 systemctl enable --now forexmind-bridge.service >/dev/null 2>&1 || true
 systemctl enable --now forexmind-watchdog.timer >/dev/null 2>&1 || true
 
-echo "==> [7/7] Health check (MT5 must be running & logged in - it already is)"
-sleep 8
+echo "==> [7/7] Health check (your running MT5 should answer)"
+sleep 10
 if curl -sf -m 8 -H "X-Bridge-Token: $TOKEN" "http://127.0.0.1:$PORT/health"; then
   echo ""
   echo "SUCCESS - bridge is UP and attached to your existing MT5."
 else
-  echo "    bridge not answering yet (Wine/Python first-run can be slow) -"
-  echo "    check: journalctl -u forexmind-bridge -n 50 ; then retry manually:"
-  echo "    curl -s -H 'X-Bridge-Token: ***' http://127.0.0.1:$PORT/health"
+  echo "    not answering yet (Wine/Python first-run can be slow). Check:"
+  echo "      journalctl -u forexmind-bridge -n 50"
+  echo "    then re-test:"
+  echo "      curl -s -H 'X-Bridge-Token: <token>' http://127.0.0.1:$PORT/health"
 fi
 echo ""
-echo "Give the assistant ONLY this confirmation - the token stays on the VPS/Render."
+echo "No secrets to send anywhere - the cloud already has the same token."
