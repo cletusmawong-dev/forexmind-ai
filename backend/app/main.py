@@ -147,6 +147,15 @@ async def live_loop():
             for market in INITIAL_MARKETS:
                 await asyncio.to_thread(State.tracker.update_market, market)
 
+            # AI trade manager (post-entry only; self-gated by ai_manage_enabled)
+            try:
+                from .aimanager.engine import get_manager
+                mgr = get_manager()
+                for uid in _users_cached():
+                    await asyncio.to_thread(mgr.tick, uid)
+            except Exception:
+                pass
+
             # news pre-alerts (Telegram) + daily morning brief - best effort, off the event loop
             def _news_job():
                 from .market_data.calendar import pre_alerts, label as cal_label

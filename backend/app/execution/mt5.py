@@ -445,6 +445,36 @@ def _enforce_on_loss_limit(user_id: str, st: dict) -> None:
         _log(f"Loss-limit protection closed {closed} position(s).", kind="EXEC_WARN")
 
 
+def close_position(user_id: str, ticket: int, reason: str = "") -> dict:
+    """Close a full open position (AI EXIT + loss-limit protection path).
+    Same transports as modify_sl. Never raises."""
+    mode = user_mode(user_id)
+    store = get_store()
+    try:
+        if mode == "off":
+            _log("Close skipped - execution is off.", kind="EXEC_WARN")
+            return {"ok": False, "error": "execution off"}
+        note = f" ({reason})" if reason else ""
+        if mode == "vps":
+            res = bridge_post("/close", {"ticket": int(ticket)}) or {}
+            if res.get("ok"):
+                _log(f"MT5 position #{ticket} closed{note}.", kind="EXEC")
+            else:
+                err = res.get("error") or res.get("detail") or res.get("http_status")
+                _log(f"MT5 close FAILED on #{ticket} - {err}{note}", kind="EXEC_WARN")
+            return res
+        cmd = store.create("exec_commands", {
+            "userId": user_id, "type": "close_full", "status": "PENDING",
+            "payload": {"type": "close_full", "ticket": int(ticket),
+                        "reason": reason[:120]},
+            "createdAt": datetime.now(timezone.utc).isoformat()})
+        _log(f"Close queued for your MT5 PC (#{ticket}){note}.", kind="EXEC")
+        return {"ok": True, "queued": True, "command_id": cmd["id"]}
+    except Exception as exc:
+        _log(f"Close error - {type(exc).__name__}", kind="EXEC_WARN")
+        return {"ok": False, "error": type(exc).__name__}
+
+
 # ---------------------------------------------------------------------------
 # connector command lifecycle (manual mode)
 # ---------------------------------------------------------------------------

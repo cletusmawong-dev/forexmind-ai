@@ -292,6 +292,31 @@ def close_all(cmd: dict) -> dict:
     return {"ok": True, "closed": closed, "errors": errors}
 
 
+def close_full(cmd: dict) -> dict:
+    """Close one whole position by ticket (AI EXIT / management path)."""
+    ticket = int(cmd["ticket"])
+    ps = mt5.positions_get(ticket=ticket) or ()
+    if not ps:
+        return {"ok": False, "error": f"position {ticket} not found"}
+    p = ps[0]
+    tick = mt5.symbol_info_tick(p.symbol)
+    if tick is None:
+        return {"ok": False, "error": f"no tick for {p.symbol}"}
+    is_buy = p.type == 0
+    req = {"action": mt5.TRADE_ACTION_DEAL, "symbol": p.symbol, "volume": p.volume,
+           "type": mt5.ORDER_TYPE_SELL if is_buy else mt5.ORDER_TYPE_BUY,
+           "position": ticket, "price": tick.bid if is_buy else tick.ask,
+           "deviation": 30, "magic": p.magic, "comment": "fxm-manage",
+           "type_time": mt5.ORDER_TIME_GTC, "type_filling": filling_mode(p.symbol)}
+    res = mt5.order_send(req)
+    if res is None:
+        return {"ok": False, "error": f"order_send None: {mt5.last_error()}"}
+    if res.retcode != mt5.TRADE_RETCODE_DONE:
+        return {"ok": False, "error": f"MT5 retcode {res.retcode}: {res.comment}"}
+    return {"ok": True, "ticket": ticket, "closed_volume": float(p.volume),
+            "closes_full": True, "price": res.price}
+
+
 def run_command(cmd: dict) -> dict:
     """Dispatch one cloud command. Entries (no 'type') behave exactly as before."""
     ctype = (cmd.get("type") or "execute").lower()
@@ -301,6 +326,8 @@ def run_command(cmd: dict) -> dict:
         return partial_close(cmd)
     if ctype == "close_all":
         return close_all(cmd)
+    if ctype == "close_full":
+        return close_full(cmd)
     return execute(cmd)
 
 
