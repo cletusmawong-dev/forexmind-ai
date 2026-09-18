@@ -1,4 +1,50 @@
-# VPS RUNBOOK — Windows VPS is the permanent runtime (Phase 2)
+# VPS RUNBOOK — Ubuntu + Wine VPS (CURRENT) / Windows VPS (reference)
+
+> **CURRENT VPS: Ubuntu with MT5 already installed and running under Wine.**
+> Use the Linux path below. The Windows pack (`install.ps1`, Windows
+> watchdog) is kept as reference only.
+>
+> Linux rules honored by `linux_setup.sh`:
+> it **detects and attaches to the EXISTING MT5 installation** — it NEVER
+> reinstalls MT5, NEVER changes Wine configuration, NEVER touches your
+> account/login. Its only additions: Windows Python inside the same Wine
+> prefix (required — the `MetaTrader5` pip package is Windows-only),
+> a systemd service + 1-minute watchdog timer, and a ufw rule if ufw is active.
+
+## Linux (Ubuntu + Wine) — bring-up, about 5 minutes
+
+SSH into the VPS, then:
+
+```bash
+sudo apt-get update -y && sudo apt-get install -y git curl
+sudo git clone https://github.com/cletusmawong-dev/forexmind-ai.git /opt/forexmind
+cd /opt/forexmind
+sudo bash vps/linux_setup.sh --token '<BRIDGE_TOKEN from the assistant>'
+```
+
+What success looks like: `SUCCESS - bridge is UP and attached to your existing MT5.`
+and `/health` shows your logged-in Exness demo account.
+
+Reboot contract: `forexmind-bridge.service` (Restart=always) starts on boot;
+`forexmind-watchdog.timer` runs every minute — restarts the bridge if it
+hangs, starts the existing `terminal64.exe` via wine if the process died.
+Logs: `/var/log/forexmind-watchdog.log`, `journalctl -u forexmind-bridge`.
+
+**Cloud firewall:** ufw is NOT enough — open inbound TCP 8700 in your cloud
+provider's security group (IBM Cloud: Security Groups → Inbound rule).
+
+**Display note:** if the service cannot start the terminal under systemd,
+set `DISPLAY=` in `/etc/forexmind-bridge.env` to the display your MT5 session
+uses (usually `:0`), or install `xvfb`. The bridge itself attaches to the
+already-running terminal and normally needs nothing extra.
+
+Uninstall: `systemctl disable --now forexmind-bridge forexmind-watchdog.timer;
+rm /etc/systemd/system/forexmind-{bridge.service,watchdog.service,watchdog.timer};
+systemctl daemon-reload`
+
+---
+
+# VPS RUNBOOK (reference) — Windows VPS is the permanent runtime (Phase 2)
 
 The VPS is PURCHASED and is now part of the production architecture.
 The user's personal computer is NOT part of the operating design.
