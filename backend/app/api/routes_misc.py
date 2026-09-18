@@ -257,6 +257,7 @@ def system_info():
         "market_data": {
             "provider": State.provider.name,
             "demo": State.provider.is_demo,
+            "source": (State.provider.data_source() if hasattr(State.provider, "data_source") else "provider"),
             "note": ("DEMO / HISTORICAL data - replayed stored datasets. Never presented "
                      "as live prices. Plug a real provider via the MarketDataProvider "
                      "interface.") if State.provider.is_demo else "Live provider connected.",
