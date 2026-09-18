@@ -13,6 +13,7 @@ export function JournalScreen() {
   const [tab, setTab] = useState<"record" | "history">("record");
   const stats = usePolling<any>(() => api.get(endpoints.journal), 8000);
   const signals = usePolling<{ signals: Signal[] }>(() => api.get(`${endpoints.signals}?status=closed&limit=30`), 8000);
+  const mt5 = usePolling<any>(() => api.get("/api/journal/mt5-trades"), 8000);
   const navigate = useNavigate();
 
   if (!stats.data) {
@@ -132,7 +133,8 @@ export function JournalScreen() {
 
       {tab === "history" && (
         <div>
-          <Eyebrow className="mb-2">Trade log - every closed signal, full story</Eyebrow>
+          {mt5Trades(mt5.data?.trades ?? [], navigate, mt5.data?.mode)}
+          <Eyebrow className="mt-8 mb-2">Trade log - every closed signal, full story</Eyebrow>
           <div className="space-y-3">
             {tradeLog(signals.data?.signals ?? [], navigate)}
           </div>
@@ -284,4 +286,73 @@ function tradeLog(signals: LogSignal[], navigate: (p: string) => void) {
       </button>
     );
   });
+}
+
+/** MT5 real-money trades: LIVE rows with floating $, CLOSED with broker-confirmed $. */
+function mt5Trades(trades: any[], navigate: (p: string) => void, mode: string) {
+  if (mode !== "vps" && mode !== "manual") return null;
+  if (!trades.length) {
+    return (
+      <Glass className="px-5 py-6 text-center">
+        <p className="text-[12.5px] text-txt-mid">No MT5-executed trades yet.</p>
+        <p className="mt-1 text-[10.5px] text-txt-faint">Every auto-executed trade lands here with its dollar result - live while open, broker-confirmed when closed.</p>
+      </Glass>
+    );
+  }
+  return (
+    <>
+      <Eyebrow className="mb-2">MT5 trades - real executions, dollar results</Eyebrow>
+      <div className="space-y-2.5">
+        {trades.map((t) => {
+          const live = t.state === "LIVE";
+          const win = (t.pl_usd ?? 0) > 0;
+          const neutral = t.pl_usd == null;
+          return (
+            <button key={t.id || t.ticket} onClick={() => t.id && navigate(`/signals/${t.id}`)}
+              className="glass glass-hover tap block w-full p-4 text-left" aria-label={`MT5 trade ${t.market}`}>
+              <div className="flex items-center gap-3">
+                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] border ${
+                  live ? "border-[rgba(var(--p-rgb),0.45)] bg-[rgba(var(--p-rgb),0.1)] text-pos"
+                    : neutral ? "border-[rgba(var(--warm-rgb),0.15)] bg-[rgba(var(--warm-rgb),0.05)] text-txt-mid"
+                    : win ? "border-[rgba(var(--p-rgb),0.45)] bg-[rgba(var(--p-rgb),0.1)] text-pos"
+                          : "border-[rgba(var(--neg-rgb),0.45)] bg-[rgba(var(--neg-rgb),0.1)] text-neg"
+                }`} aria-hidden="true">
+                  {t.direction === "BUY" ? <ArrowUpRight size={16} strokeWidth={2.4} /> : <ArrowDownRight size={16} strokeWidth={2.4} />}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-[15px] font-bold tracking-tight">{t.market}</span>
+                    <span className={`text-[10.5px] font-bold tracking-wider ${t.direction === "BUY" ? "text-pos" : "text-neg"}`}>{t.direction}</span>
+                    <span className="num text-[9.5px] text-txt-faint">{t.volume ?? "-"} lots</span>
+                    {live && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-[rgba(var(--p-rgb),0.35)] bg-[rgba(var(--p-rgb),0.08)] px-1.5 py-0.5 text-[8px] font-bold tracking-wider text-pos">
+                        <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--accent-green)]" /> LIVE
+                      </span>
+                    )}
+                  </div>
+                  <div className="truncate text-[10px] text-txt-faint">
+                    #{t.ticket} - {t.signal_id}{t.state === "SUBMITTED" ? " - submitted" : ""}
+                  </div>
+                </div>
+                <div className="shrink-0 text-right">
+                  <div className={`num text-[17px] font-bold ${neutral ? "text-txt-low" : win ? "text-pos" : "text-neg"}`}>
+                    {neutral ? "-" : `${(t.pl_usd ?? 0) > 0 ? "+" : ""}$${(t.pl_usd ?? 0).toFixed(2)}`}
+                  </div>
+                  <div className={`text-[8.5px] font-bold uppercase tracking-wider ${neutral ? "text-txt-faint" : win ? "text-pos" : "text-neg"}`}>
+                    {live ? "floating now" : t.state === "SUBMITTED" ? "pending fill" : (t.outcome || (win ? "WIN" : "LOSS")) + " - broker confirmed"}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-2.5 grid grid-cols-4 gap-2 rounded-xl border border-[rgba(var(--warm-rgb),0.07)] bg-[rgba(var(--warm-rgb),0.035)] px-3 py-2 text-center">
+                <div><div className="text-[8px] uppercase tracking-wide text-txt-faint">Open</div><div className="num text-[10.5px] font-semibold">{t.open_price ? Number(t.open_price).toFixed(t.open_price >= 10 ? 3 : 5) : "-"}</div></div>
+                <div><div className="text-[8px] uppercase tracking-wide text-txt-faint">SL</div><div className="num text-[10.5px] font-semibold">{t.sl ? Number(t.sl).toFixed(t.sl >= 10 ? 3 : 5) : "-"}</div></div>
+                <div><div className="text-[8px] uppercase tracking-wide text-txt-faint">TP set</div><div className="num text-[10.5px] font-semibold">{(t.tp2 || t.tp1) ? Number(t.tp2 || t.tp1).toFixed((t.tp2 || t.tp1) >= 10 ? 3 : 5) : "-"}</div></div>
+                <div><div className="text-[8px] uppercase tracking-wide text-txt-faint">{live ? "Opened" : "Closed"}</div><div className="num text-[10.5px] font-medium">{fmtTime(live ? t.opened_at : (t.closed_at || t.opened_at))}</div></div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </>
+  );
 }

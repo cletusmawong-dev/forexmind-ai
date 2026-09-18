@@ -21,6 +21,66 @@ def _completed_signals(user_id: str):
                             limit=2000)
 
 
+@router.get("/journal/mt5-trades")
+def mt5_trades(user_id: str = Depends(get_user_id)):
+    """Real-money log: every MT5-executed trade with its DOLLAR result.
+
+    Open trades show live floating P/L from the bridge (magic-filtered);
+    closed trades show the broker-confirmed result (profit+commission+swap)
+    - the 'TP +$100 / SL -$20' record the user expects in the journal."""
+    store = State.store
+    from ..config import settings as _settings
+    sigs = [s for s in store.list("signals", filters={"userId": user_id}, limit=3000)
+            if s.get("mt5_ticket")]
+    sigs.sort(key=lambda x: str(x.get("createdAt")), reverse=True)
+
+    floating = {}
+    mode = "off"
+    try:
+        from ..execution.mt5 import user_mode, bridge_get, MAGIC
+        mode = user_mode(user_id)
+        if mode == "vps" and _settings.bridge_url:
+            data = bridge_get("/positions", timeout=8) or {}
+            for pos in data.get("positions") or []:
+                if int(pos.get("magic") or 0) == MAGIC:
+                    try:
+                        floating[int(pos.get("ticket"))] = float(pos.get("profit") or 0)
+                    except Exception:
+                        pass
+    except Exception:
+        pass
+
+    out = []
+    for s in sigs[:50]:
+        try:
+            tk = int(s.get("mt5_ticket"))
+        except Exception:
+            tk = None
+        live = floating.get(tk) if tk else None
+        if live is not None:
+            state, pl = "LIVE", round(live, 2)
+        elif s.get("mt5_confirmed"):
+            state, pl = "CLOSED", s.get("mt5_pl")
+        else:
+            state, pl = ("SUBMITTED", None) if not s.get("completed") else ("CLOSED", s.get("mt5_pl"))
+        out.append({
+            "id": s.get("id"), "signal_id": s.get("signal_id"),
+            "market": s.get("market"), "direction": s.get("direction"),
+            "timeframe": s.get("timeframe"),
+            "strategy_name": s.get("strategy_name"),
+            "ticket": tk, "volume": s.get("mt5_volume"),
+            "open_price": s.get("mt5_open_price") or s.get("entry"),
+            "close_price": s.get("mt5_close_price"),
+            "sl": s.get("sl"), "tp1": s.get("tp1"), "tp2": s.get("tp2"), "tp3": s.get("tp3"),
+            "state": state, "pl_usd": pl,
+            "outcome": s.get("outcome"),
+            "r_multiple": s.get("r_multiple"),
+            "opened_at": s.get("createdAt"), "closed_at": s.get("mt5_closed_at"),
+        })
+    return {"trades": out, "count": len(out), "mode": mode,
+            "demo": State.provider.is_demo}
+
+
 @router.get("/journal/stats")
 def journal_stats(user_id: str = Depends(get_user_id)):
     store = State.store
