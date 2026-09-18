@@ -50,6 +50,9 @@ export function SettingsScreen() {
   }, [goals.data]);
   const [timeframes, setTimeframes] = useState<string[]>(["15M"]);
   const [markets, setMarkets] = useState<string[]>([]);
+  const [profitTarget, setProfitTarget] = useState("");
+  const [lossLimitUsd, setLossLimitUsd] = useState("");
+  const [onLossLimit, setOnLossLimit] = useState<"stop_entries" | "stop_and_close">("stop_entries");
   const [sessions, setSessions] = useState<string[]>([]);
   const [marketSessions, setMarketSessions] = useState<Record<string, string[]>>({});
   const [sessionTz, setSessionTz] = useState("UTC");
@@ -68,6 +71,9 @@ export function SettingsScreen() {
       setTimeframes(risk.data.signal_timeframes ?? ["15M"]);
       setMarkets(risk.data.allowed_markets ?? []);
       setSessions(risk.data.sessions ?? ["London", "NewYork", "Asian", "Late"]);
+      setProfitTarget(risk.data.daily_profit_target_usd ? String(risk.data.daily_profit_target_usd) : "");
+      setLossLimitUsd(risk.data.daily_loss_limit_usd ? String(risk.data.daily_loss_limit_usd) : "");
+      setOnLossLimit(risk.data.on_loss_limit === "stop_and_close" ? "stop_and_close" : "stop_entries");
       setMarketSessions(risk.data.market_sessions ?? {});
       setSessionTz(risk.data.session_tz || "UTC");
       const at = risk.data.account_type === "propfirm" ? "propfirm" : "personal";
@@ -148,6 +154,9 @@ export function SettingsScreen() {
         sessions,
         market_sessions: marketSessions,
         session_tz: sessionTz,
+        daily_profit_target_usd: parseFloat(profitTarget) || 0,
+        daily_loss_limit_usd: parseFloat(lossLimitUsd) || 0,
+        on_loss_limit: onLossLimit,
         account_type: acctType,
         prop_rules: propRules,
       });
@@ -378,6 +387,25 @@ export function SettingsScreen() {
         )}
         <p className="mt-2 text-[10px] leading-relaxed text-txt-faint">
           Broker symbol suffixes (XAUUSDm, USTEC...) are resolved automatically on the VPS - configure them with the SYMBOL_ALIASES env on the bridge, not here.
+        </p>
+        <Divider className="my-5" />
+        <div className="eyebrow !text-[9px] mb-2.5">Daily account walls (USD)</div>
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Profit target $" value={profitTarget} onChange={setProfitTarget} />
+          <Field label="Loss limit $" value={lossLimitUsd} onChange={setLossLimitUsd} />
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <button onClick={() => setOnLossLimit("stop_entries")} aria-pressed={onLossLimit === "stop_entries"}
+            className={`tap min-h-[44px] rounded-2xl border px-2 py-2 text-[11px] font-bold ${onLossLimit === "stop_entries" ? "chip-on" : "chip-off"}`}>
+            Limit hit: stop new entries
+          </button>
+          <button onClick={() => setOnLossLimit("stop_and_close")} aria-pressed={onLossLimit === "stop_and_close"}
+            className={`tap min-h-[44px] rounded-2xl border px-2 py-2 text-[11px] font-bold ${onLossLimit === "stop_and_close" ? "chip-on" : "chip-off"}`}>
+            Limit hit: also close all
+          </button>
+        </div>
+        <p className="mt-2 text-[10px] leading-relaxed text-txt-faint">
+          When a wall is hit, the strategy keeps generating and recording signals - they arrive as EXTRA SIGNALS (manual decision), automatic entry is disabled. Resets at your sessions timezone midnight.
         </p>
         <button className="btn-primary mt-5 w-full" onClick={saveRisk}>
           <Sparkles size={14} /> Save settings

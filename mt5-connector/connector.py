@@ -265,6 +265,33 @@ def partial_close(cmd: dict) -> dict:
             "price": res.price}
 
 
+def close_all(cmd: dict) -> dict:
+    """Loss-limit protection (opt-in): close every ForexMind position
+    (magic 20260914). Other positions on the account are never touched."""
+    ps = mt5.positions_get() or ()
+    closed, errors = [], []
+    for p in ps:
+        if int(p.magic) != MAGIC_DEFAULT:
+            continue
+        tick = mt5.symbol_info_tick(p.symbol)
+        if tick is None:
+            errors.append(f"#{p.ticket}: no tick for {p.symbol}")
+            continue
+        is_buy = p.type == 0
+        req = {"action": mt5.TRADE_ACTION_DEAL, "symbol": p.symbol,
+               "volume": p.volume,
+               "type": mt5.ORDER_TYPE_SELL if is_buy else mt5.ORDER_TYPE_BUY,
+               "position": p.ticket, "price": tick.bid if is_buy else tick.ask,
+               "deviation": 30, "magic": p.magic, "comment": "fxm-loss-stop",
+               "type_time": mt5.ORDER_TIME_GTC, "type_filling": filling_mode(p.symbol)}
+        res = mt5.order_send(req)
+        if res is not None and res.retcode == mt5.TRADE_RETCODE_DONE:
+            closed.append(p.ticket)
+        else:
+            errors.append(f"#{p.ticket}: {res.comment if res else mt5.last_error()}")
+    return {"ok": True, "closed": closed, "errors": errors}
+
+
 def run_command(cmd: dict) -> dict:
     """Dispatch one cloud command. Entries (no 'type') behave exactly as before."""
     ctype = (cmd.get("type") or "execute").lower()
@@ -272,6 +299,8 @@ def run_command(cmd: dict) -> dict:
         return modify_sl(cmd)
     if ctype == "partial_close":
         return partial_close(cmd)
+    if ctype == "close_all":
+        return close_all(cmd)
     return execute(cmd)
 
 

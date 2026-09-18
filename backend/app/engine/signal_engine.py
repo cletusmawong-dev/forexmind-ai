@@ -13,6 +13,12 @@ from typing import Any, Dict, List, Optional
 from ..config import session_of, settings
 
 SESSION_NAMES = ("Asian", "London", "NewYork", "Late")
+
+# Walls that turn signals into EXTRA SIGNALS (recorded + notified, never
+# auto-entered - SS22/SS26). The prop MAX-total-drawdown wall is deliberately
+# NOT in this set: a blown account stops signal generation entirely.
+EXTRA_WALL_REASONS = {"daily profit target reached", "daily loss limit reached",
+                      "max daily loss reached", "prop daily drawdown buffer reached"}
 DEFAULT_SESSION_HOURS = {"Asian": (0, 8), "London": (8, 13),
                          "NewYork": (13, 21), "Late": (21, 24)}
 _UTC_LIKE = ("", "UTC", "GMT", "ETC/UTC", "UTC+0")
@@ -116,6 +122,15 @@ class SignalEngine:
 
             ok, reason = self._guards(user_id, candidate, session)
             if not ok:
+                if reason in EXTRA_WALL_REASONS:
+                    # SS22/SS23: still a REAL strategy signal - record it as an
+                    # EXTRA SIGNAL and notify; automatic entry stays disabled
+                    # (the executor refuses it independently - belt & braces).
+                    sig = self._create_signal(user_id, strategy, candidate,
+                                              session, df, wall_reason=reason)
+                    if sig:
+                        created.append(sig)
+                    continue
                 self._log(f"Candidate on {market} {timeframe} rejected: {reason}",
                           kind="REJECTED", market=market)
                 continue
@@ -202,10 +217,28 @@ class SignalEngine:
                               "generation stopped - review the account phase.",
                               kind="RISK")
                     return False, "prop max drawdown buffer reached"
+        # account-level USD walls (SS21-SS26) - computed from real records
+        try:
+            from .daily import daily_state, wall_reason
+            st = daily_state(user_id, risk=risk)
+            wr = wall_reason(st, risk)
+            if wr:
+                if "profit target" in wr:
+                    self._log(f"Daily profit target reached (+${st['total_usd']:,.2f}). "
+                              "Signals continue as EXTRA SIGNALS - automatic entry "
+                              "disabled.", kind="RISK")
+                else:
+                    self._log(f"Daily loss limit reached (${st['total_usd']:,.2f}). "
+                              "Signals continue as EXTRA SIGNALS - automatic entry "
+                              "disabled.", kind="RISK")
+                return False, wr
+        except Exception:
+            pass  # wall accounting must never break signal generation
         return True, ""
 
     # ------------------------------------------------------------------
-    def _create_signal(self, user_id, strategy, cand, session, df) -> Optional[dict]:
+    def _create_signal(self, user_id, strategy, cand, session, df,
+                       wall_reason: str = "") -> Optional[dict]:
         store = get_store()
         dedupe = store.list("signals", filters={
             "strategy_id": cand.strategy_id, "market": cand.market,
@@ -285,6 +318,35 @@ class SignalEngine:
                 evaluate_and_store(store, fresh)
         except Exception:
             pass
+        if wall_reason:
+            try:
+                from .daily import daily_state
+                st = daily_state(user_id)
+                store.update("signals", doc["id"], {
+                    "extra_signal": True,
+                    "entry_blocked_reason": wall_reason,
+                    "daily_pl_at_signal": st.get("total_usd"),
+                    "execution_status": "EXTRA_SIGNAL_NOT_ENTERED",
+                })
+                wall_line = ("Daily profit target has already been reached."
+                             if "profit target" in wall_reason else
+                             "Daily loss limit reached.")
+                tgt = st.get("daily_profit_target_usd") or 0
+                lim = st.get("daily_loss_limit_usd") or 0
+                tps_txt = " - ".join(
+                    f"TP{i} {sig_tp:,.5g}" for i, sig_tp in
+                    enumerate((tps[0], tps[1], tps[2]), start=1) if sig_tp)
+                notify(user_id, "EXTRA_SIGNAL",
+                       f"EXTRA SIGNAL - {cand.market} {cand.direction}",
+                       f"{strategy.short_name} | {signal_id}\n"
+                       f"{wall_line}\n"
+                       f"Target: ${tgt:,.0f}" + (f" | Limit: -${lim:,.0f}" if lim else "") +
+                       f" | Today's P/L: {st.get('total_usd', 0):+,.2f}\n"
+                       f"Automatic entry: DISABLED\n"
+                       f"Entry {cand.entry:,.5g} - SL {cand.sl:,.5g} - {tps_txt}",
+                       signal_id=doc["id"])
+            except Exception:
+                pass
         self._log(f"User notified - {signal_id}.", kind="NOTIFY", market=cand.market)
         try:  # MT5 auto-execution (VPS bridge) - never blocks signal creation
             from ..execution.mt5 import execute_signal

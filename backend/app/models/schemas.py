@@ -71,6 +71,9 @@ class RiskSettings(BaseModel):
     max_signals_per_day: int = 6
     min_rr: float = 1.5
     sessions: List[str] = Field(default_factory=lambda: ["London", "NewYork", "Asian", "Late"])
+    daily_profit_target_usd: float = Field(default=0.0)   # 0 = off (SS21)
+    daily_loss_limit_usd: float = Field(default=0.0)      # 0 = off (SS25)
+    on_loss_limit: str = "stop_entries"                   # | "stop_and_close"
     market_sessions: Dict[str, List[str]] = Field(default_factory=dict)
     session_hours: Dict[str, List[int]] = Field(default_factory=dict)
     session_tz: str = "UTC"
@@ -133,6 +136,22 @@ class RiskSettings(BaseModel):
                 raise ValueError(f"session_hours[{nc}] must satisfy 0 <= start < end <= 24")
             out[nc] = [a, b]
         return out
+
+    @field_validator("daily_profit_target_usd", "daily_loss_limit_usd")
+    @classmethod
+    def _validate_daily_usd(cls, v, info):
+        f = abs(float(v or 0.0))
+        if f > 100000:
+            raise ValueError(f"{info.field_name} must be 0 (off) or <= 100000 USD")
+        return round(f, 2)
+
+    @field_validator("on_loss_limit")
+    @classmethod
+    def _validate_on_loss_limit(cls, v):
+        m = (str(v or "stop_entries")).strip().lower()
+        if m not in ("stop_entries", "stop_and_close"):
+            raise ValueError("on_loss_limit must be 'stop_entries' or 'stop_and_close'")
+        return m
 
     @field_validator("session_tz")
     @classmethod
@@ -199,6 +218,28 @@ class RiskSettings(BaseModel):
 # ---------------------------------------------------------------- signals
 class SignalActionIn(BaseModel):
     action: str  # "entered" | "skipped"
+
+
+class ManualResultIn(BaseModel):
+    """SS24: the user manually took an (EXTRA) signal. Kept SEPARATE from
+    automatically executed trades (user_manual vs execution_status/mt5_*)."""
+    taken: bool = True
+    entry_price: Optional[float] = None
+    sl: Optional[float] = None
+    tp: Optional[float] = None
+    pl: Optional[float] = None
+    result: Optional[str] = None      # WIN | LOSS | BREAK_EVEN | OPEN
+    exit_reason: Optional[str] = None
+
+    @field_validator("result")
+    @classmethod
+    def _validate_result(cls, v):
+        if v is None:
+            return None
+        r = str(v).strip().upper()
+        if r not in ("WIN", "LOSS", "BREAK_EVEN", "OPEN"):
+            raise ValueError("result must be WIN | LOSS | BREAK_EVEN | OPEN")
+        return r
     entry_price: Optional[float] = None
     lot_size: Optional[float] = None
     notes: str = ""

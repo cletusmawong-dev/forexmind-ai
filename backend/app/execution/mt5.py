@@ -204,6 +204,27 @@ def execute_signal(signal: dict, user_id: str) -> None:
     if not execution_enabled(user_id):
         _log("Execution skipped - kill switch is ON (Settings). Signal is advisory only.", market)
         return
+
+    # SS22/SS26: daily walls block automatic NEW entries only - the signal was
+    # already generated, recorded and notified (EXTRA SIGNAL). Never the reverse.
+    try:
+        from ..engine.daily import is_entry_blocked
+        blocked, breason, st = is_entry_blocked(user_id)
+    except Exception:
+        blocked, breason, st = False, None, {}
+    if blocked:
+        store.update("signals", signal["id"], {
+            "execution_status": "EXTRA_SIGNAL_NOT_ENTERED",
+            "entry_blocked_reason": breason,
+            "daily_pl_at_signal": st.get("total_usd")})
+        label = "profit target" if "profit target" in (breason or "") else "loss limit"
+        _log(f"Automatic entry disabled - daily {label} reached "
+             f"(today {st.get('total_usd', 0):+,.2f} USD). Signal kept as EXTRA.",
+             market, kind="EXEC_WARN")
+        cancel_pending_entries(user_id, breason or "daily wall")
+        _enforce_on_loss_limit(user_id, st)
+        return
+
     if _executed_today(user_id) >= settings.execution_max_trades_per_day:
         _log(f"Execution skipped - daily cap reached ({settings.execution_max_trades_per_day}/day).", market)
         return
@@ -350,6 +371,78 @@ def partial_close_position(user_id: str, ticket: int, volume: float = None,
     except Exception as exc:
         _log(f"Partial close error - {type(exc).__name__}", kind="EXEC_WARN")
         return {"ok": False, "error": type(exc).__name__}
+
+
+# ---------------------------------------------------------------------------
+# daily-wall helpers (SS22 cancel pendings / SS27 optional close-all)
+# ---------------------------------------------------------------------------
+def cancel_pending_entries(user_id: str, reason: str) -> int:
+    """Withdraw still-pending automatic ENTRY orders (SS22). Management
+    commands (modify_sl / partial_close / close_all) are never touched."""
+    store = get_store()
+    n = 0
+    for c in store.list("exec_commands", filters={"userId": user_id,
+                                                  "status": "PENDING"}, limit=20):
+        ctype = (c.get("type") or "execute").lower()
+        if ctype != "execute":
+            continue
+        store.update("exec_commands", c["id"], {
+            "status": "CANCELLED_DAILY_WALL", "cancel_reason": str(reason)[:120],
+            "cancelledAt": datetime.now(timezone.utc).isoformat()})
+        sig = store.get("signals", c.get("signal_doc_id") or "")
+        if sig and sig.get("userId") == user_id:
+            store.update("signals", sig["id"], {
+                "execution_status": "CANCELLED_DAILY_WALL"})
+        n += 1
+    if n:
+        _log(f"{n} pending entr{'y' if n == 1 else 'ies'} withdrawn "
+             f"({reason}) - no duplicate orders.", kind="EXEC_WARN")
+    return n
+
+
+def _enforce_on_loss_limit(user_id: str, st: dict) -> None:
+    """SS27 Option B (opt-in): close open positions when the daily LOSS limit
+    is hit. Default is Option A (stop entries only). Runs once per day."""
+    store = get_store()
+    if not st.get("hit_loss"):
+        return
+    goals = _goals_doc(user_id) or {}
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    if goals.get("on_loss_close_done_day") == today:
+        return
+    risk_doc = store.list("settings", filters={"userId": user_id, "kind": "risk"}, limit=1)
+    risk = risk_doc[0] if risk_doc else {}
+    from ..engine.daily import on_loss_limit_mode
+    if on_loss_limit_mode(risk) != "stop_and_close":
+        return
+    _goals_update(user_id, {"on_loss_close_done_day": today})   # once, even on failure
+    mode = user_mode(user_id)
+    closed = 0
+    if mode == "vps":
+        pos = bridge_get("/positions", timeout=8) or {}
+        for p in (pos.get("positions") or []):
+            if int(p.get("magic") or 0) != MAGIC:
+                continue
+            res = bridge_post("/close", {"ticket": p.get("ticket")}) or {}
+            if res.get("ok"):
+                closed += 1
+            else:
+                _log(f"Loss-limit close FAILED on #{p.get('ticket')} - "
+                     f"{res.get('error') or res.get('detail')}", kind="EXEC_WARN")
+    elif mode == "manual":
+        if connector_online(user_id):
+            store.create("exec_commands", {
+                "userId": user_id, "type": "close_all", "status": "PENDING",
+                "payload": {"type": "close_all", "reason": "daily loss limit"},
+                "createdAt": datetime.now(timezone.utc).isoformat()})
+            _log("Close-all queued for your MT5 PC (daily loss limit protection).",
+                 kind="EXEC_WARN")
+            closed = -1   # queued, not confirmed
+        else:
+            _log("Loss limit: close-all NOT possible - PC connector offline.",
+                 kind="EXEC_WARN")
+    if closed > 0:
+        _log(f"Loss-limit protection closed {closed} position(s).", kind="EXEC_WARN")
 
 
 # ---------------------------------------------------------------------------

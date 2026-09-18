@@ -1,13 +1,14 @@
 """Signal routes (SPEC §7, §16, §17, §50)."""
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from ..config import INITIAL_MARKETS, TIMEFRAMES
 from ..learning.analysis import analyze_single_result
-from ..models.schemas import AnalyzeIn, SignalActionIn
+from ..models.schemas import AnalyzeIn, ManualResultIn, SignalActionIn
 from ..notifications.service import notify
 from ..state import State
 from .deps import get_user_id
@@ -97,6 +98,35 @@ def signal_action(signal_id: str, body: SignalActionIn,
     if updated and updated.get("completed"):
         analyze_single_result(user_id, updated)
     return {"signal": updated}
+
+
+@router.post("/{signal_id}/manual-result")
+def manual_result(signal_id: str, body: ManualResultIn,
+                  user_id: str = Depends(get_user_id)):
+    """SS24: mark an (EXTRA) signal as manually taken and record the manual
+    result. Never mixed with automatically executed trades."""
+    store = State.store
+    sig = store.get("signals", signal_id)
+    if not sig or sig.get("userId") != user_id:
+        raise HTTPException(status_code=404, detail="Signal not found")
+    manual = {
+        "taken": bool(body.taken),
+        "marked_at": datetime.now(timezone.utc).isoformat(),
+    }
+    for k in ("entry_price", "sl", "tp", "pl", "result", "exit_reason"):
+        v = getattr(body, k)
+        if v is not None:
+            manual[k] = v
+    store.update("signals", signal_id, {
+        "user_manual": manual,
+        "user_action": "manual_extra" if body.taken else sig.get("user_action"),
+    })
+    if body.taken:
+        notify(user_id, "EXTRA_SIGNAL_TAKEN",
+               f"Manual trade recorded - {sig.get('market')} {sig.get('direction')}",
+               f"{sig.get('strategy_name')} | {sig.get('signal_id')}\n"
+               "Tracked separately from automatic execution.")
+    return {"ok": True, "user_manual": manual}
 
 
 def _user_r(sig: dict, entry: float) -> float:

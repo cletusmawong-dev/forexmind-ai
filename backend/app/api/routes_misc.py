@@ -59,6 +59,13 @@ def patch_settings(body: RiskSettings, user_id: str = Depends(get_user_id)):
 
 
 # ---------------------------------------------------------------- system info
+@router.get("/daily")
+def daily_status(user_id: str = Depends(get_user_id)):
+    """Account-level daily picture: target/limit walls, P/L, entry state."""
+    from ..engine.daily import daily_state
+    return daily_state(user_id)
+
+
 @router.get("/calendar")
 def calendar():
     """Upcoming high-impact economic events (next 48h) + honest feed status."""
