@@ -49,6 +49,7 @@ export function SettingsScreen() {
     }
   }, [goals.data]);
   const [timeframes, setTimeframes] = useState<string[]>(["15M"]);
+  const [markets, setMarkets] = useState<string[]>([]);
   const [acctType, setAcctType] = useState<"personal" | "propfirm">("personal");
   const [propDaily, setPropDaily] = useState("5");
   const [propTotal, setPropTotal] = useState("10");
@@ -62,6 +63,7 @@ export function SettingsScreen() {
       setMaxSignals(String(risk.data.max_signals_per_day));
       setMinRR(String(risk.data.min_rr));
       setTimeframes(risk.data.signal_timeframes ?? ["15M"]);
+      setMarkets(risk.data.allowed_markets ?? []);
       const at = risk.data.account_type === "propfirm" ? "propfirm" : "personal";
       setAcctType(at);
       const pr = risk.data.prop_rules ?? {};
@@ -83,6 +85,11 @@ export function SettingsScreen() {
       return;
     }
     setTimeframes(next);
+  };
+
+  const toggleMk = (mk: string) => {
+    setMarkets((prev) =>
+      prev.includes(mk) ? prev.filter((m) => m !== mk) : [...prev, mk]);
   };
 
   const flash = (m: string) => {
@@ -115,6 +122,7 @@ export function SettingsScreen() {
         max_signals_per_day: parseInt(maxSignals),
         min_rr: parseFloat(minRR),
         signal_timeframes: timeframes,
+        allowed_markets: markets,
         account_type: acctType,
         prop_rules: propRules,
       });
@@ -270,10 +278,27 @@ export function SettingsScreen() {
         </div>
         <div className="eyebrow !text-[9px] mb-2.5 mt-4">Allowed markets</div>
         <div className="flex flex-wrap gap-2">
-          {(risk.data.allowed_markets ?? []).map((mk: string) => (
-            <Pill key={mk} tone="neutral">{mk}</Pill>
+          {(risk.data.available_markets ?? risk.data.allowed_markets ?? []).map((mk: string) => (
+            <button
+              key={mk}
+              onClick={() => toggleMk(mk)}
+              aria-pressed={markets.includes(mk)}
+              className={`tap min-h-[44px] rounded-2xl border px-3 py-2 text-[12px] font-bold tracking-wide ${
+                markets.includes(mk) ? "chip-on" : "chip-off"
+              }`}
+            >
+              {mk}
+            </button>
           ))}
         </div>
+        {markets.length === 0 && (
+          <p className="mt-2 text-[10px] leading-relaxed text-neg">
+            All markets off - no new signals will be generated.
+          </p>
+        )}
+        <p className="mt-2 text-[10px] leading-relaxed text-txt-faint">
+          Broker symbol suffixes (XAUUSDm, USTEC...) are resolved automatically on the VPS - configure them with the SYMBOL_ALIASES env on the bridge, not here.
+        </p>
         <button className="btn-primary mt-5 w-full" onClick={saveRisk}>
           <Sparkles size={14} /> Save settings
         </button>

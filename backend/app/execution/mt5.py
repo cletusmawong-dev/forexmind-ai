@@ -276,7 +276,9 @@ def _apply_fill(store, signal: dict, res: dict, lots: float) -> None:
     store.update("signals", signal["id"], {
         "execution_status": "SUBMITTED", "mt5_ticket": res.get("ticket"),
         "mt5_position_id": res.get("position_id"), "mt5_volume": res.get("volume") or lots,
-        "mt5_open_price": res.get("price"), "mt5_executed_at": datetime.now(timezone.utc).isoformat()})
+        "mt5_open_price": res.get("price"),
+        "mt5_symbol": res.get("symbol"),   # broker-resolved name (suffix/alias included)
+        "mt5_executed_at": datetime.now(timezone.utc).isoformat()})
 
 
 # ---------------------------------------------------------------------------

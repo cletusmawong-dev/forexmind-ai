@@ -4,6 +4,8 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 from pydantic import field_validator, model_validator, BaseModel, Field
 
+from ..config import INITIAL_MARKETS
+
 
 # ---------------------------------------------------------------- auth
 class RegisterIn(BaseModel):
@@ -71,6 +73,26 @@ class RiskSettings(BaseModel):
         default_factory=lambda: ["XAUUSD", "NAS100", "EURUSD", "GBPUSD", "USDJPY"])
     account_type: str = "personal"  # "personal" | "propfirm"
     prop_rules: Optional[PropRules] = None
+
+    @field_validator("allowed_markets")
+    @classmethod
+    def _validate_markets(cls, v):
+        # Normalize user input; broker-suffix names (XAUUSDm) belong to the
+        # bridge layer, not here - a suffix name would never be scanned.
+        # NAS100 is accepted: it is a real app market (server-side off unless
+        # MARKETS_EXTRA is set).
+        known = set(INITIAL_MARKETS) | {"NAS100"}
+        out = []
+        for m in v or []:
+            mu = str(m).strip().upper()
+            if mu not in known:
+                raise ValueError(
+                    f"unknown market {mu!r} - choose from {sorted(known)}. "
+                    "Broker symbol suffixes (e.g. XAUUSDm) are resolved on the "
+                    "VPS bridge, not configured here.")
+            if mu not in out:
+                out.append(mu)
+        return out  # empty list allowed = deliberate pause of all markets
 
     @field_validator("signal_timeframes")
     @classmethod

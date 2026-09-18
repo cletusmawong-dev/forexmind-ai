@@ -64,10 +64,31 @@ def _get(path: str, timeout: int = 30) -> Optional[dict]:
 # --------------------------- MT5 side ---------------------------
 import MetaTrader5 as mt5  # noqa: E402
 
+def parse_symbol_aliases(raw):
+    """SYMBOL_ALIASES env -> dict. Format: "NAS100=USTEC,US100;XAUUSD=XAUUSD.m".
+    Lets broker suffixes/alt names be configured WITHOUT editing code on the
+    VPS. Junk segments are skipped; whitespace tolerated; keys uppercased."""
+    out = {}
+    for seg in (raw or "").split(";"):
+        seg = seg.strip()
+        if not seg or "=" not in seg:
+            continue
+        market, _, names = seg.partition("=")
+        market = market.strip().upper()
+        cands = [n.strip() for n in names.split(",") if n.strip()]
+        if market and cands:
+            out[market] = cands
+    return out
+
+
 ALIASES = {
     "NAS100": ["NAS100", "USTEC", "US100", "NAS100.cash", "USTEC.cash", "NDX100"],
     "XAUUSD": ["XAUUSD", "GOLD", "XAUUSD.m"],
 }
+
+# env-configurable broker suffixes (same format as the bridge):
+# SYMBOL_ALIASES="XAUUSD=XAUUSDm;EURUSD=EURUSDm"
+ALIASES.update(parse_symbol_aliases(os.getenv("SYMBOL_ALIASES", "")))
 _symbol_cache: dict = {}
 _last_deal_ts = int(time.time() - 7 * 86400)
 
