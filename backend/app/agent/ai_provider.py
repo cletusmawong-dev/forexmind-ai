@@ -56,7 +56,8 @@ class AIProvider(ABC):
 class XKiroProvider(AIProvider):
     name = "xkiro"
 
-    def complete(self, user_prompt: str, context: Dict[str, Any]) -> str:
+    def complete(self, user_prompt: str, context: Dict[str, Any],
+                 model: Optional[str] = None) -> str:
         key = settings.xiro_api_key
         if not key:
             raise AIUnavailable("XKiro key not configured")
@@ -65,7 +66,7 @@ class XKiroProvider(AIProvider):
                 f"{settings.xiro_base_url}/chat/completions",
                 headers={"Authorization": f"Bearer {key}"},
                 json={
-                    "model": settings.xiro_model,
+                    "model": model or settings.xiro_model,
                     "messages": [
                         {"role": "system", "content": SYSTEM_PROMPT},
                         {"role": "user",
@@ -131,10 +132,16 @@ def get_ai_provider() -> AIProvider:
 
 def ai_status() -> Dict[str, Any]:
     p = get_ai_provider()
-    return {
+    out = {
         "provider": p.name,
         "configured": p.name == "xkiro",
         "note": ("XKiro connected (server-side key)." if p.name == "xkiro" else
                  "Using the built-in grounded analyst. Add XKIRO_API_KEY to the "
                  "backend environment to enable XKiro. Key stays server-side."),
     }
+    try:  # two-layer router view (models never leak keys, only ids/state)
+        from .router import get_router
+        out["router"] = get_router().status()
+    except Exception:
+        pass
+    return out

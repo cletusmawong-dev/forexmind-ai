@@ -28,6 +28,13 @@ class Settings:
     xiro_api_key: str = os.getenv("XKIRO_API_KEY", "")
     xiro_base_url: str = os.getenv("XKIRO_BASE_URL", "https://api.xkiro.ai/v1")
     xiro_model: str = os.getenv("XKIRO_MODEL", "xkiro-1")
+    # Two-layer AI (master prompt SS6-SS8). IDs verified live on the Xkiro
+    # /models list 2026-09-17; ALWAYS overridable via env - never hard-coded
+    # in engine code.
+    ai_primary_model: str = os.getenv("AI_PRIMARY_MODEL", "qwen/qwen3.7-plus:free")
+    ai_escalation_model: str = os.getenv("AI_ESCALATION_MODEL", "openai/gpt-5.6-sol")
+    ai_escalation_enabled: bool = os.getenv("AI_ESCALATION_ENABLED", "true").lower() != "false"
+    ai_escalation_cooldown_s: int = int(os.getenv("AI_ESCALATION_COOLDOWN_S", "300"))
 
     # --- Market data ----------------------------------------------------------
     # "historical_demo" replays stored datasets; "live" fetches real market data
