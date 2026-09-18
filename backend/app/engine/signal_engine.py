@@ -11,6 +11,46 @@ import pandas as pd
 from typing import Any, Dict, List, Optional
 
 from ..config import session_of, settings
+
+SESSION_NAMES = ("Asian", "London", "NewYork", "Late")
+DEFAULT_SESSION_HOURS = {"Asian": (0, 8), "London": (8, 13),
+                         "NewYork": (13, 21), "Late": (21, 24)}
+_UTC_LIKE = ("", "UTC", "GMT", "ETC/UTC", "UTC+0")
+
+
+def session_windows(risk: dict) -> dict:
+    """Built-in UTC windows overridden by the user's session_hours."""
+    out = dict(DEFAULT_SESSION_HOURS)
+    for k, v in (risk.get("session_hours") or {}).items():
+        if k in out and isinstance(v, (list, tuple)) and len(v) == 2:
+            out[k] = (int(v[0]), int(v[1]))
+    return out
+
+
+def effective_session_name(risk: dict, utc_ts) -> Optional[str]:
+    """Session name for utc_ts under the user's session customization.
+
+    Returns None when the user has NO customization (caller keeps the
+    server-computed default). Returns '' when the instant falls in a gap
+    between configured windows - an honest 'no session', never invented."""
+    tz_name = str(risk.get("session_tz") or "UTC").strip()
+    if not (risk.get("session_hours") or {}) and tz_name.upper() in _UTC_LIKE:
+        return None
+    ts = pd.Timestamp(utc_ts)
+    if ts.tzinfo is None:
+        ts = ts.tz_localize("UTC")
+    if tz_name.upper() not in _UTC_LIKE:
+        try:
+            from zoneinfo import ZoneInfo
+            ts = ts.tz_convert(ZoneInfo(tz_name))
+        except Exception:
+            pass  # tz was validated at the API; eval-time failure falls back to UTC
+    h = int(ts.hour)
+    for name in SESSION_NAMES:
+        a, b = session_windows(risk)[name]
+        if a <= h < b:
+            return name
+    return ""
 from ..db.store import get_store
 from ..learning.versions import active_params, active_version
 from ..notifications.service import notify
@@ -97,7 +137,21 @@ class SignalEngine:
         }
         if candidate.market not in risk.get("allowed_markets", candidate.market):
             return False, "market not in allowed list"
-        if session not in risk.get("sessions", ["London", "NewYork", "Asian", "Late"]):
+        # per-user session customization (tz / custom windows): recompute for
+        # this candle; None = user has no customization, keep server default
+        eff = effective_session_name(risk, getattr(candidate, "candle_time", None))
+        if eff is not None:
+            session = eff
+        # SS31 matrix: a market entry REPLACES the global list; missing = global
+        matrix = risk.get("market_sessions") or {}
+        row = matrix.get(candidate.market)
+        # NOTE: None-check, not `or` - an EMPTY row is an explicit per-market
+        # pause and must NOT fall back to the global session list
+        allowed_sessions = row if row is not None else \
+            risk.get("sessions", ["London", "NewYork", "Asian", "Late"])
+        if session == "" or session not in allowed_sessions:
+            if candidate.market in matrix:
+                return False, f"{session or 'No'} session not enabled for {candidate.market} (per-market rule)"
             return False, f"{session} session not selected"
         today = pd.Timestamp.utcnow().strftime("%Y-%m-%d")
         todays = store.count("signals", filters={"userId": user_id, "day": today})

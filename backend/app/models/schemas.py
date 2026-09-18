@@ -6,6 +6,8 @@ from pydantic import field_validator, model_validator, BaseModel, Field
 
 from ..config import INITIAL_MARKETS
 
+SESSION_NAMES = ("Asian", "London", "NewYork", "Late")
+
 
 # ---------------------------------------------------------------- auth
 class RegisterIn(BaseModel):
@@ -69,10 +71,83 @@ class RiskSettings(BaseModel):
     max_signals_per_day: int = 6
     min_rr: float = 1.5
     sessions: List[str] = Field(default_factory=lambda: ["London", "NewYork", "Asian", "Late"])
+    market_sessions: Dict[str, List[str]] = Field(default_factory=dict)
+    session_hours: Dict[str, List[int]] = Field(default_factory=dict)
+    session_tz: str = "UTC"
     allowed_markets: List[str] = Field(
         default_factory=lambda: ["XAUUSD", "NAS100", "EURUSD", "GBPUSD", "USDJPY"])
     account_type: str = "personal"  # "personal" | "propfirm"
     prop_rules: Optional[PropRules] = None
+
+    @field_validator("sessions")
+    @classmethod
+    def _validate_sessions(cls, v):
+        canon = {n.lower(): n for n in SESSION_NAMES}
+        out = []
+        for s in v or []:
+            sc = canon.get(str(s).strip().lower())
+            if not sc:
+                raise ValueError(f"unknown session {s!r} - choose from {list(SESSION_NAMES)}")
+            if sc not in out:
+                out.append(sc)
+        return out  # empty list allowed = deliberate pause (session gate blocks all)
+
+    @field_validator("market_sessions")
+    @classmethod
+    def _validate_market_sessions(cls, v):
+        """Per-market session matrix (SS31): {market: [sessions]}. An entry
+        REPLACES the global session list for that market; an empty list pauses
+        that market; a missing key follows the global list."""
+        known = set(INITIAL_MARKETS) | {"NAS100"}
+        canon = {n.lower(): n for n in SESSION_NAMES}
+        out = {}
+        for mk, sess in (v or {}).items():
+            mu = str(mk).strip().upper()
+            if mu not in known:
+                raise ValueError(f"unknown market {mu!r} in market_sessions")
+            lst = []
+            for s in sess or []:
+                sc = canon.get(str(s).strip().lower())
+                if not sc:
+                    raise ValueError(f"unknown session {s!r} for {mu} in market_sessions")
+                if sc not in lst:
+                    lst.append(sc)
+            out[mu] = lst
+        return out
+
+    @field_validator("session_hours")
+    @classmethod
+    def _validate_session_hours(cls, v):
+        """Custom session windows in the user's session_tz: {session: [start, end]}."""
+        canon = {n.lower(): n for n in SESSION_NAMES}
+        out = {}
+        for name, win in (v or {}).items():
+            nc = canon.get(str(name).strip().lower())
+            if not nc:
+                raise ValueError(f"unknown session {name!r} in session_hours")
+            try:
+                a, b = int(win[0]), int(win[1])
+            except Exception:
+                raise ValueError(f"session_hours[{nc}] must be [start_hour, end_hour]")
+            if not (0 <= a < b <= 24):
+                raise ValueError(f"session_hours[{nc}] must satisfy 0 <= start < end <= 24")
+            out[nc] = [a, b]
+        return out
+
+    @field_validator("session_tz")
+    @classmethod
+    def _validate_session_tz(cls, v):
+        tz = (str(v) if v is not None else "UTC").strip() or "UTC"
+        from zoneinfo import ZoneInfo
+        try:
+            ZoneInfo(tz)
+        except Exception:
+            try:   # users type lowercase: africa/accra -> Africa/Accra
+                tz = tz.title()
+                ZoneInfo(tz)
+            except Exception:
+                raise ValueError(f"unknown timezone {tz!r} - IANA name expected (e.g. Africa/Accra)")
+        return tz
 
     @field_validator("allowed_markets")
     @classmethod

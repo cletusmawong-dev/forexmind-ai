@@ -26,6 +26,9 @@ DEFAULT_RISK = {
     "max_signals_per_day": 6,
     "min_rr": 1.5,
     "sessions": ["London", "NewYork", "Asian", "Late"],
+    "market_sessions": {},
+    "session_hours": {},
+    "session_tz": "UTC",
     "allowed_markets": ["XAUUSD", "NAS100", "EURUSD", "GBPUSD", "USDJPY"],
     "signal_timeframes": ["15M"],
     "account_type": "personal",
@@ -76,6 +79,7 @@ def patch_risk(user_id: str, patch: Dict[str, Any]) -> Dict[str, Any]:
     doc = store.list("settings", filters={"userId": user_id, "kind": "risk"}, limit=1)[0]
     allowed = {"risk_per_trade_pct", "max_daily_loss_pct", "max_consecutive_losses",
                "max_signals_per_day", "min_rr", "sessions", "allowed_markets",
+               "market_sessions", "session_hours", "session_tz",
                "signal_timeframes", "account_type", "prop_rules"}
     clean_keys = {k: v for k, v in patch.items() if k in allowed}
     if "signal_timeframes" in clean_keys:

@@ -50,6 +50,9 @@ export function SettingsScreen() {
   }, [goals.data]);
   const [timeframes, setTimeframes] = useState<string[]>(["15M"]);
   const [markets, setMarkets] = useState<string[]>([]);
+  const [sessions, setSessions] = useState<string[]>([]);
+  const [marketSessions, setMarketSessions] = useState<Record<string, string[]>>({});
+  const [sessionTz, setSessionTz] = useState("UTC");
   const [acctType, setAcctType] = useState<"personal" | "propfirm">("personal");
   const [propDaily, setPropDaily] = useState("5");
   const [propTotal, setPropTotal] = useState("10");
@@ -64,6 +67,9 @@ export function SettingsScreen() {
       setMinRR(String(risk.data.min_rr));
       setTimeframes(risk.data.signal_timeframes ?? ["15M"]);
       setMarkets(risk.data.allowed_markets ?? []);
+      setSessions(risk.data.sessions ?? ["London", "NewYork", "Asian", "Late"]);
+      setMarketSessions(risk.data.market_sessions ?? {});
+      setSessionTz(risk.data.session_tz || "UTC");
       const at = risk.data.account_type === "propfirm" ? "propfirm" : "personal";
       setAcctType(at);
       const pr = risk.data.prop_rules ?? {};
@@ -76,6 +82,7 @@ export function SettingsScreen() {
   }, [risk.data]);
 
   const TF_OPTIONS = ["15M", "1H", "4H", "1D"];
+  const SESSION_OPTIONS = ["Asian", "London", "NewYork", "Late"];
   const toggleTf = (tf: string) => {
     const next = timeframes.includes(tf)
       ? timeframes.filter((t) => t !== tf)
@@ -90,6 +97,21 @@ export function SettingsScreen() {
   const toggleMk = (mk: string) => {
     setMarkets((prev) =>
       prev.includes(mk) ? prev.filter((m) => m !== mk) : [...prev, mk]);
+  };
+
+  const toggleSession = (sn: string) => {
+    setSessions((prev) =>
+      prev.includes(sn) ? prev.filter((x) => x !== sn) : [...prev, sn]);
+  };
+  const toggleMarketSession = (mk: string, sn: string) => {
+    setMarketSessions((prev) => {
+      const cur = prev[mk] ?? [];
+      const next = cur.includes(sn) ? cur.filter((x) => x !== sn) : [...cur, sn];
+      const out = { ...prev };
+      if (next.length === 0) delete out[mk];   // untick all -> follow global again
+      else out[mk] = next;
+      return out;
+    });
   };
 
   const flash = (m: string) => {
@@ -123,6 +145,9 @@ export function SettingsScreen() {
         min_rr: parseFloat(minRR),
         signal_timeframes: timeframes,
         allowed_markets: markets,
+        sessions,
+        market_sessions: marketSessions,
+        session_tz: sessionTz,
         account_type: acctType,
         prop_rules: propRules,
       });
@@ -271,10 +296,65 @@ export function SettingsScreen() {
         </div>
         <Divider className="my-5" />
         <div className="eyebrow !text-[9px] mb-2.5">Sessions analyzed</div>
-        <div className="flex flex-wrap gap-2">
-          {(risk.data.sessions ?? []).map((s: string) => (
-            <Pill key={s} tone="cyan">{s}</Pill>
+        <div className="grid grid-cols-4 gap-2">
+          {SESSION_OPTIONS.map((sn: string) => (
+            <button
+              key={sn}
+              onClick={() => toggleSession(sn)}
+              aria-pressed={sessions.includes(sn)}
+              className={`tap min-h-[44px] rounded-2xl border px-1 py-2.5 text-[11px] font-bold tracking-wide ${
+                sessions.includes(sn) ? "chip-on" : "chip-off"
+              }`}
+            >
+              {sn === "NewYork" ? "New York" : sn}
+            </button>
           ))}
+        </div>
+        {sessions.length === 0 && (
+          <p className="mt-2 text-[10px] leading-relaxed text-neg">
+            No sessions on - no new signals will be generated.
+          </p>
+        )}
+        {(risk.data.allowed_markets ?? []).length > 0 && (
+          <>
+            <div className="eyebrow !text-[9px] mb-2.5 mt-4">Per-market sessions</div>
+            <div className="space-y-2">
+              {(risk.data.allowed_markets ?? []).map((mk: string) => {
+                const override = marketSessions[mk];
+                return (
+                  <div key={mk} className="glass-2 rounded-2xl px-3 py-2.5">
+                    <div className="mb-1.5 flex items-center justify-between">
+                      <span className="text-[11px] font-bold">{mk}</span>
+                      {!override && <span className="text-[9px] text-txt-faint">follows global</span>}
+                    </div>
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {SESSION_OPTIONS.map((sn: string) => {
+                        const on = override ? override.includes(sn) : sessions.includes(sn);
+                        return (
+                          <button
+                            key={sn}
+                            onClick={() => toggleMarketSession(mk, sn)}
+                            aria-pressed={on}
+                            className={`tap min-h-[36px] rounded-xl border px-1 py-1.5 text-[9.5px] font-bold ${
+                              on ? "chip-on" : "chip-off"
+                            }`}
+                          >
+                            {sn === "NewYork" ? "NY" : sn === "London" ? "LDN" : sn === "Asian" ? "ASIA" : "LATE"}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="mt-2 text-[10px] leading-relaxed text-txt-faint">
+              Tap to give a market its own session rules. Untick all four to follow the global sessions again. Custom hour windows and timezone are editable too (below).
+            </p>
+          </>
+        )}
+        <div className="mt-4">
+          <Field label="Sessions timezone (IANA, e.g. Africa/Accra)" value={sessionTz} onChange={setSessionTz} />
         </div>
         <div className="eyebrow !text-[9px] mb-2.5 mt-4">Allowed markets</div>
         <div className="flex flex-wrap gap-2">
