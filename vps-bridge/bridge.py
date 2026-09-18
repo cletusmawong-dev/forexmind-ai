@@ -180,8 +180,10 @@ def execute(order: OrderIn, x_bridge_token: Optional[str] = Header(None)):
             "volume": normalize_lots(symbol, order.lots),
             "type": mt5.ORDER_TYPE_BUY if is_buy else mt5.ORDER_TYPE_SELL,
             "price": price,
-            "sl": order.sl,
-            "tp": order.tp,
+            # MT5 wants 0.0 for "absent", not None (None -> order_send returns
+            # None with 'Invalid "tp" argument')
+            "sl": float(order.sl or 0.0),
+            "tp": float(order.tp or 0.0),
             "deviation": order.deviation,
             "magic": order.magic,
             "comment": order.signal_id[:31],   # MT5 comment limit
