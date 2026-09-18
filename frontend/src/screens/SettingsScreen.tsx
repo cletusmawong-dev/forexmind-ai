@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import {Sparkles, Send, Brain} from "lucide-react";
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
-import { DemoTag, Divider, Eyebrow, Glass, GlowDot, Pill, Segmented, Spinner } from "../components/ui";
+import { BtnSpinner, DemoTag, Divider, Eyebrow, Glass, GlowDot, Pill, Segmented, Spinner } from "../components/ui";
 import { Logo } from "../components/Logo";
 
 export function SettingsScreen() {
@@ -15,6 +15,7 @@ export function SettingsScreen() {
   const lastTouch = useRef(0);
   const [savingGoals, setSavingGoals] = useState(false);
   const [savingRisk, setSavingRisk] = useState(false);
+  const [tgBusy, setTgBusy] = useState(false);
   const touch = () => { lastTouch.current = Date.now(); };
   const [theme, setThemeState] = useState<"ivory" | "navy" | "onyx" | "slate">(() => {
     const t = localStorage.getItem("fm_theme");
@@ -253,8 +254,8 @@ export function SettingsScreen() {
           <Field label="Daily %" value={daily} onChange={setDaily} />
           <Field label="Weekly %" value={weekly} onChange={setWeekly} />
         </div>
-        <button className="btn-primary mt-5 w-full" disabled={savingGoals} onClick={saveGoals}>
-          <Sparkles size={14} /> {savingGoals ? "Saving..." : "Save objective"}
+        <button className="btn-primary mt-5 flex w-full items-center justify-center gap-2" disabled={savingGoals} onClick={saveGoals}>
+          {savingGoals ? <BtnSpinner /> : <Sparkles size={14} />} {savingGoals ? "Saving..." : "Save objective"}
         </button>
       </Glass>
 
@@ -475,8 +476,8 @@ export function SettingsScreen() {
             </div>
           </>
         )}
-        <button className="btn-primary mt-5 w-full" disabled={savingRisk} onClick={saveRisk}>
-          <Sparkles size={14} /> {savingRisk ? "Saving..." : "Save settings"}
+        <button className="btn-primary mt-5 flex w-full items-center justify-center gap-2" disabled={savingRisk} onClick={saveRisk}>
+          {savingRisk ? <BtnSpinner /> : <Sparkles size={14} />} {savingRisk ? "Saving..." : "Save settings"}
         </button>
       </Glass>
 
@@ -509,18 +510,23 @@ export function SettingsScreen() {
               )}
               <div className="mt-4 flex gap-2.5">
                 {!linked && (
-                  <button className="btn-ghost flex-1" onClick={() => me.refresh()}>Check again</button>
+                  <button className="btn-ghost flex-1" disabled={tgBusy} onClick={async () => { setTgBusy(true); await me.refresh(); setTgBusy(false); }}>
+                    {tgBusy ? "Checking..." : "Check again"}
+                  </button>
                 )}
                 <button
-                  className="btn-primary flex-1"
+                  className="btn-primary flex flex-1 items-center justify-center gap-2"
+                  disabled={tgBusy}
                   onClick={async () => {
+                    setTgBusy(true);
                     try {
                       const r = await api.post<{ sent: boolean }>(endpoints.notificationTest, {});
                       flash(r.sent ? "Test alert sent - check your Telegram" : "Not linked yet - follow the steps above.");
                     } catch (e: any) { flash(e.message || "Failed"); }
+                    setTgBusy(false);
                   }}
                 >
-                  <Send size={13} /> Send test alert
+                  {tgBusy ? <BtnSpinner /> : <Send size={13} />} {tgBusy ? "Sending..." : "Send test alert"}
                 </button>
               </div>
             </>
@@ -613,7 +619,7 @@ function ExecutionCard() {
 
   const setMode = async (m: string) => {
     if (busy || !s || m === mode) return;
-    setBusy(true); setMsg("");
+    setBusy(true); setMsg("Applying...");
     try {
       await api.post("/api/execution/mode", { mode: m });
       setMsg(m === "manual" ? "Manual mode on - pair your PC below." :
@@ -649,7 +655,9 @@ function ExecutionCard() {
     <>
       <Eyebrow className="mt-9">Order execution - MT5</Eyebrow>
       <Glass className="mt-2">
-        <Segmented options={[{key:"off",label:"Off"},{key:"manual",label:"Manual PC"},{key:"vps",label:"VPS"}]} value={mode} onChange={setMode} />
+        <div className={busy ? "pointer-events-none opacity-60" : ""}>
+          <Segmented options={[{key:"off",label:"Off"},{key:"manual",label:"Manual PC"},{key:"vps",label:"VPS"}]} value={mode} onChange={setMode} />
+        </div>
 
         {mode === "manual" && (
           <div className="mt-4">
@@ -746,8 +754,9 @@ function ExecutionCard() {
                 <div className="num text-[13px] font-bold text-txt-hi">TP{s?.tp_level ?? 2}</div>
               </div>
             </div>
-            <button className={`mt-3 w-full ${s?.enabled ? "btn-ghost" : "btn-primary"}`} disabled={busy} onClick={toggle}>
-              {s?.enabled ? "STOP auto-trading (kill switch)" : "RESUME auto-trading"}
+            <button className={`mt-3 flex w-full items-center justify-center gap-2 ${s?.enabled ? "btn-ghost" : "btn-primary"}`} disabled={busy} onClick={toggle}>
+              {busy && <BtnSpinner />}
+              {busy ? (s?.enabled ? "Stopping..." : "Starting...") : s?.enabled ? "STOP auto-trading (kill switch)" : "RESUME auto-trading"}
             </button>
             <p className="mt-2 text-center text-[10px] text-txt-faint">
               {s?.enabled ? "Kill switch stops new orders instantly - open MT5 positions stay managed by their SL/TP." : "Auto-trading is currently stopped."}
@@ -819,8 +828,9 @@ function StrategiesCard() {
                   aria-label={`${s.short_name} on/off`}
                   disabled={busy === s.id}
                   onClick={() => toggle(s)}
-                  className="tap flex min-h-[44px] items-center"
+                  className="tap flex min-h-[44px] items-center gap-2.5"
                 >
+                  {busy === s.id && <BtnSpinner className="text-[var(--accent-cyan)]" />}
                   <span
                     className={`relative block h-[30px] w-[56px] rounded-full transition-all duration-300 ${
                       on ? "shadow-[0_0_16px_rgba(var(--p2-rgb),0.4)]" : ""

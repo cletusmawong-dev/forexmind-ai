@@ -277,6 +277,17 @@ export function Expandable({
 }
 
 /* ================= feedback ================= */
+/** Small inline spinner for buttons/actions - inherits the button's text color. */
+export function BtnSpinner({ className = "" }: { className?: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`inline-block h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 align-[-2px] ${className}`}
+      style={{ borderColor: "color-mix(in srgb, currentColor 22%, transparent)", borderTopColor: "currentColor" }}
+    />
+  );
+}
+
 export function Spinner({ label }: { label?: string }) {
   return (
     <div className="flex flex-col items-center justify-center gap-4 py-20">
