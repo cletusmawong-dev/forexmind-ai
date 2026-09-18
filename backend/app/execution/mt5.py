@@ -280,6 +280,77 @@ def _apply_fill(store, signal: dict, res: dict, lots: float) -> None:
 
 
 # ---------------------------------------------------------------------------
+# position management primitives (Phase 3 - the AI trade manager drives these)
+# ---------------------------------------------------------------------------
+def modify_sl(user_id: str, ticket: int, new_sl: float, reason: str = "") -> dict:
+    """Move the SL of an open position. vps: immediate bridge call.
+    manual: queued for the PC connector (15-min TTL like entries).
+    off: refused. Never raises; the caller decides what to do with the result."""
+    mode = user_mode(user_id)
+    store = get_store()
+    try:
+        if mode == "off":
+            _log("SL change skipped - execution is off.", kind="EXEC_WARN")
+            return {"ok": False, "error": "execution off"}
+        note = f" ({reason})" if reason else ""
+        if mode == "vps":
+            res = bridge_post("/modify_sl",
+                              {"ticket": int(ticket), "sl": float(new_sl)}) or {}
+            if res.get("ok"):
+                _log(f"MT5 SL moved to {new_sl} on #{ticket}{note}.", kind="EXEC")
+            else:
+                err = res.get("error") or res.get("detail") or res.get("http_status")
+                _log(f"MT5 SL change FAILED on #{ticket} - {err}{note}", kind="EXEC_WARN")
+            return res
+        cmd = store.create("exec_commands", {
+            "userId": user_id, "type": "modify_sl", "status": "PENDING",
+            "payload": {"type": "modify_sl", "ticket": int(ticket),
+                        "sl": float(new_sl), "reason": reason[:120]},
+            "createdAt": datetime.now(timezone.utc).isoformat()})
+        _log(f"SL change queued for your MT5 PC (#{ticket} -> {new_sl}){note}.", kind="EXEC")
+        return {"ok": True, "queued": True, "command_id": cmd["id"]}
+    except Exception as exc:
+        _log(f"SL change error - {type(exc).__name__}", kind="EXEC_WARN")
+        return {"ok": False, "error": type(exc).__name__}
+
+
+def partial_close_position(user_id: str, ticket: int, volume: float = None,
+                           fraction: float = None, reason: str = "") -> dict:
+    """Close part of an open position (volume in lots, or fraction 0<f<1).
+    Same transports as modify_sl. Never raises."""
+    mode = user_mode(user_id)
+    store = get_store()
+    try:
+        if mode == "off":
+            _log("Partial close skipped - execution is off.", kind="EXEC_WARN")
+            return {"ok": False, "error": "execution off"}
+        payload = {"ticket": int(ticket)}
+        if volume is not None:
+            payload["volume"] = float(volume)
+        if fraction is not None:
+            payload["fraction"] = float(fraction)
+        note = f" ({reason})" if reason else ""
+        if mode == "vps":
+            res = bridge_post("/partial_close", payload) or {}
+            if res.get("ok"):
+                _log(f"MT5 partial close #{ticket}: closed {res.get('closed_volume')} "
+                     f"lots, {res.get('remaining_volume')} left{note}.", kind="EXEC")
+            else:
+                err = res.get("error") or res.get("detail") or res.get("http_status")
+                _log(f"MT5 partial close FAILED on #{ticket} - {err}{note}", kind="EXEC_WARN")
+            return res
+        cmd = store.create("exec_commands", {
+            "userId": user_id, "type": "partial_close", "status": "PENDING",
+            "payload": {"type": "partial_close", **payload, "reason": reason[:120]},
+            "createdAt": datetime.now(timezone.utc).isoformat()})
+        _log(f"Partial close queued for your MT5 PC (#{ticket}){note}.", kind="EXEC")
+        return {"ok": True, "queued": True, "command_id": cmd["id"]}
+    except Exception as exc:
+        _log(f"Partial close error - {type(exc).__name__}", kind="EXEC_WARN")
+        return {"ok": False, "error": type(exc).__name__}
+
+
+# ---------------------------------------------------------------------------
 # connector command lifecycle (manual mode)
 # ---------------------------------------------------------------------------
 def pull_commands(user_id: str) -> List[dict]:

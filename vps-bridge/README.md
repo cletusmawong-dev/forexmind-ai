@@ -3,6 +3,24 @@
 > Full production runbook (auto-start, watchdog, reboot contract, security):
 > see [`vps/README.md`](../vps/README.md). This file covers the manual quick-start.
 
+## Bridge contract (v2)
+
+All endpoints require the `X-Bridge-Token` header. Symbol names are the app's
+market names (EURUSD, XAUUSD, NAS100) - resolved to broker symbols here.
+
+- `GET  /health`  -> terminal + account snapshot
+- `GET  /account` -> login/balance/equity (used for risk-based lot sizing)
+- `POST /execute` -> open a position `{signal_id, symbol, direction, lots, sl, tp, magic}`
+- `POST /modify_sl` (v2) -> move the stop `{ticket, sl}`; the existing TP is
+  passed through untouched; broker stops-level distance is validated here and
+  an illegal SL is rejected with HTTP 400 (nothing reaches MT5)
+- `POST /partial_close` (v2) -> close part of a position `{ticket, volume|fraction}`;
+  volumes floor to the lot step (never rounded UP), a below-min result is
+  rejected, a position smaller than 2 x min-lot cannot be split
+- `GET  /positions` -> open positions (the cloud reconciles from this after restarts)
+- `POST /close`     -> close a full position `{ticket}`
+- `GET  /deals?since=` -> deal history (confirms real W/L back onto signals)
+
 One-time setup (10-15 min):
 
 1. RDP into your Windows VPS.

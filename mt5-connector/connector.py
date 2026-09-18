@@ -15,6 +15,7 @@ Setup (see README.md): MT5 open + logged in, Python installed, then
 """
 from __future__ import annotations
 
+import math
 import os
 import platform
 import time
@@ -160,6 +161,99 @@ def push_deals() -> None:
         _last_deal_ts = int(time.time()) - 5
 
 
+# ----------------------- position management (v2) -----------------------
+def modify_sl(cmd: dict) -> dict:
+    """Move the SL of an open position. The existing TP is passed through
+    unchanged (TRADE_ACTION_SLTP sets both stops)."""
+    ticket = int(cmd["ticket"])
+    ps = mt5.positions_get(ticket=ticket) or ()
+    if not ps:
+        return {"ok": False, "error": f"position {ticket} not found"}
+    p = ps[0]
+    tick = mt5.symbol_info_tick(p.symbol)
+    if tick is None:
+        return {"ok": False, "error": f"no tick for {p.symbol}"}
+    info = mt5.symbol_info(p.symbol)
+    point = float(getattr(info, "point", 0.0) or 0.0)
+    stops = (float(getattr(info, "trade_stops_level", 0) or 0)) * point
+    new_sl = float(cmd["sl"])
+    is_buy = p.type == 0
+    if new_sl <= 0:
+        return {"ok": False, "error": "sl must be positive"}
+    if is_buy and new_sl >= tick.bid:
+        return {"ok": False, "error": f"SL must be below bid {tick.bid} for BUY"}
+    if (not is_buy) and new_sl <= tick.ask:
+        return {"ok": False, "error": f"SL must be above ask {tick.ask} for SELL"}
+    dist = (tick.bid - new_sl) if is_buy else (new_sl - tick.ask)
+    if dist < stops:
+        return {"ok": False, "error": f"SL too close to price (min {stops})"}
+    req = {"action": mt5.TRADE_ACTION_SLTP, "symbol": p.symbol,
+           "position": ticket, "sl": new_sl, "tp": p.tp}
+    res = mt5.order_send(req)
+    if res is None:
+        return {"ok": False, "error": f"order_send None: {mt5.last_error()}"}
+    if res.retcode != mt5.TRADE_RETCODE_DONE:
+        return {"ok": False, "error": f"MT5 retcode {res.retcode}: {res.comment}"}
+    return {"ok": True, "ticket": ticket, "sl": new_sl, "tp": p.tp}
+
+
+def partial_close(cmd: dict) -> dict:
+    """Close part of an open position (volume in lots, or fraction 0<f<1)."""
+    ticket = int(cmd["ticket"])
+    ps = mt5.positions_get(ticket=ticket) or ()
+    if not ps:
+        return {"ok": False, "error": f"position {ticket} not found"}
+    p = ps[0]
+    info = mt5.symbol_info(p.symbol)
+    tick = mt5.symbol_info_tick(p.symbol)
+    if info is None or tick is None:
+        return {"ok": False, "error": f"symbol/tick unavailable for {p.symbol}"}
+    pos_vol = float(p.volume)
+    vol_req = cmd.get("volume")
+    if vol_req is None and cmd.get("fraction") is not None:
+        fr = float(cmd["fraction"])
+        if not (0.0 < fr < 1.0):
+            return {"ok": False, "error": "fraction must be strictly between 0 and 1"}
+        vol_req = pos_vol * fr
+    if vol_req is None:
+        return {"ok": False, "error": "volume or fraction required"}
+    step = float(info.volume_step or 0.01)
+    vmin = float(info.volume_min or 0.01)
+    # never round a partial UP beyond what was asked (mirror of bridge logic)
+    vol = math.floor(float(vol_req) / step + 1e-9) * step if step > 0 else float(vol_req)
+    vol = min(float(info.volume_max or 100.0), vol)
+    if vol >= pos_vol:
+        vol = pos_vol
+    elif pos_vol < 2 * vmin:
+        return {"ok": False, "error": f"position {pos_vol} too small to split (min lot {vmin})"}
+    elif vol < vmin:
+        return {"ok": False, "error": f"requested volume floors below broker minimum {vmin} - increase it"}
+    is_buy = p.type == 0
+    req = {"action": mt5.TRADE_ACTION_DEAL, "symbol": p.symbol, "volume": vol,
+           "type": mt5.ORDER_TYPE_SELL if is_buy else mt5.ORDER_TYPE_BUY,
+           "position": ticket, "price": tick.bid if is_buy else tick.ask,
+           "deviation": 30, "magic": p.magic, "comment": "fxm-manage",
+           "type_time": mt5.ORDER_TIME_GTC, "type_filling": filling_mode(p.symbol)}
+    res = mt5.order_send(req)
+    if res is None:
+        return {"ok": False, "error": f"order_send None: {mt5.last_error()}"}
+    if res.retcode != mt5.TRADE_RETCODE_DONE:
+        return {"ok": False, "error": f"MT5 retcode {res.retcode}: {res.comment}"}
+    return {"ok": True, "ticket": ticket, "closed_volume": vol,
+            "remaining_volume": round(pos_vol - vol, 8), "closes_full": vol == pos_vol,
+            "price": res.price}
+
+
+def run_command(cmd: dict) -> dict:
+    """Dispatch one cloud command. Entries (no 'type') behave exactly as before."""
+    ctype = (cmd.get("type") or "execute").lower()
+    if ctype == "modify_sl":
+        return modify_sl(cmd)
+    if ctype == "partial_close":
+        return partial_close(cmd)
+    return execute(cmd)
+
+
 def main() -> None:
     if not CODE:
         raise SystemExit("Set PAIRING_CODE (see Settings -> Order execution in the app)")
@@ -177,10 +271,14 @@ def main() -> None:
             data = _get("pull")
             if data:
                 for cmd in data.get("commands") or []:
-                    print(f"-> executing {cmd['signal_id']} {cmd['direction']} "
-                          f"{cmd['lots']} {cmd['symbol']}")
-                    res = execute(cmd)
-                    print(f"   {'FILLED' if res.get('ok') else 'FAILED'}: {res}")
+                    ctype = (cmd.get("type") or "execute").lower()
+                    if ctype == "execute":
+                        print(f"-> executing {cmd.get('signal_id')} {cmd.get('direction')} "
+                              f"{cmd.get('lots')} {cmd.get('symbol')}")
+                    else:
+                        print(f"-> {ctype} ticket {cmd.get('ticket')}")
+                    res = run_command(cmd)
+                    print(f"   {'OK' if res.get('ok') else 'FAILED'}: {res}")
                     _post("ack", {"command_id": cmd["command_id"], **res})
             if time.time() - last_deals > DEALS_EVERY:
                 last_deals = time.time()

@@ -13,11 +13,12 @@ The backend calls:  http://<VPS-IP>:8700/...
 """
 from __future__ import annotations
 
+import math
 import os
 import threading
 import time
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, Tuple
 
 import MetaTrader5 as mt5
 from fastapi import FastAPI, Header, HTTPException, Query
@@ -32,7 +33,10 @@ MAGIC_DEFAULT = 20260914
 app = FastAPI(title="ForexMind MT5 Bridge")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-_mt5_lock = threading.Lock()   # the MT5 API is not thread-safe
+_mt5_lock = threading.RLock()  # REENTRANT: /execute & /partial_close call
+                               # _filling_mode() while holding the lock; a plain
+                               # Lock self-deadlocks the whole bridge (found by
+                               # Phase 3 tests - faulthandler stack proof)
 
 
 def _auth(token: Optional[str]):
@@ -171,6 +175,140 @@ def execute(order: OrderIn, x_bridge_token: Optional[str] = Header(None)):
     return {"ok": True, "ticket": res.order, "position_id": getattr(res, "position", None),
             "volume": res.volume, "price": res.price,
             "symbol": symbol, "retcode": res.retcode}
+
+
+# ---------------------------------------------------------------------------
+# position management (AI trade-manager primitives - cloud drives these)
+# ---------------------------------------------------------------------------
+def validate_sl_modify(is_buy: bool, new_sl: float, bid: float, ask: float,
+                       stops_dist: float) -> Optional[str]:
+    """Broker-rule check for an SL move. Pure function (no MT5 calls).
+
+    stops_dist = (trade_stops_level * point) in PRICE units. Returns an error
+    string, or None when the new SL is legal on the correct side of price."""
+    if new_sl is None or new_sl <= 0:
+        return "sl must be positive"
+    if is_buy:
+        if new_sl >= bid:
+            return f"SL {new_sl} must be below current bid {bid} for a BUY position"
+        if bid - new_sl < stops_dist:
+            return f"SL too close to price - broker minimum distance {stops_dist}"
+    else:
+        if new_sl <= ask:
+            return f"SL {new_sl} must be above current ask {ask} for a SELL position"
+        if new_sl - ask < stops_dist:
+            return f"SL too close to price - broker minimum distance {stops_dist}"
+    return None
+
+
+def split_partial(volume_req: Optional[float], fraction: Optional[float],
+                  pos_vol: float, step: float, vmin: float, vmax: float
+                  ) -> Tuple[float, bool, Optional[str]]:
+    """Decide the volume for a partial close. Pure function.
+
+    Returns (volume, closes_full, error). Floors to the lot step (never rounds
+    a partial UP beyond what was asked), clamps to [vmin, vmax]. A request at
+    or above the position volume closes it fully; a position smaller than
+    2 x vmin cannot be split."""
+    if volume_req is None and fraction is None:
+        return 0.0, False, "volume or fraction required"
+    if volume_req is None:
+        if not (0.0 < float(fraction) < 1.0):
+            return 0.0, False, "fraction must be strictly between 0 and 1"
+        volume_req = pos_vol * float(fraction)
+    volume_req = float(volume_req)
+    if volume_req <= 0:
+        return 0.0, False, "volume must be positive"
+    if pos_vol < 2 * vmin and volume_req < pos_vol:
+        return 0.0, False, f"position {pos_vol} lots is too small to split (broker min lot {vmin})"
+    # NEVER round a partial UP beyond what was asked: floor to the lot step,
+    # cap at vmax; a floored volume below vmin is REJECTED, not bumped up.
+    vol = math.floor(volume_req / step + 1e-9) * step if step > 0 else volume_req
+    vol = min(vmax, vol)
+    if vol >= pos_vol:
+        return pos_vol, True, None
+    if vol < vmin:
+        return 0.0, False, f"requested volume floors below broker minimum {vmin} - increase it"
+    return round(vol, 8), False, None
+
+
+class SLIn(BaseModel):
+    ticket: int
+    sl: float
+
+
+@app.post("/modify_sl")
+def modify_sl(body: SLIn, x_bridge_token: Optional[str] = Header(None)):
+    _auth(x_bridge_token)
+    with _mt5_lock:
+        _ensure()
+        ps = mt5.positions_get(ticket=body.ticket) or ()
+        if not ps:
+            raise HTTPException(404, f"position {body.ticket} not found")
+        p = ps[0]
+        tick = mt5.symbol_info_tick(p.symbol)
+        if tick is None:
+            raise HTTPException(503, f"no tick for {p.symbol}")
+        info = mt5.symbol_info(p.symbol)
+        point = float(getattr(info, "point", 0.0) or 0.0)
+        stops_dist = (float(getattr(info, "trade_stops_level", 0) or 0)) * point
+        err = validate_sl_modify(p.type == 0, body.sl, tick.bid, tick.ask, stops_dist)
+        if err:
+            raise HTTPException(400, err)
+        # TRADE_ACTION_SLTP sets BOTH stops - pass the existing TP through
+        # unchanged so a TP is never accidentally cleared.
+        req = {"action": mt5.TRADE_ACTION_SLTP, "symbol": p.symbol,
+               "position": body.ticket, "sl": body.sl, "tp": p.tp}
+        res = mt5.order_send(req)
+    if res is None:
+        raise HTTPException(503, f"order_send returned None: {mt5.last_error()}")
+    if res.retcode != mt5.TRADE_RETCODE_DONE:
+        raise HTTPException(400, f"MT5 retcode {res.retcode}: {res.comment}")
+    return {"ok": True, "ticket": body.ticket, "sl": body.sl, "tp": p.tp}
+
+
+class PartialCloseIn(BaseModel):
+    ticket: int
+    volume: Optional[float] = None    # absolute lots to close
+    fraction: Optional[float] = None  # 0<f<1 of the position volume
+
+
+@app.post("/partial_close")
+def partial_close(body: PartialCloseIn, x_bridge_token: Optional[str] = Header(None)):
+    _auth(x_bridge_token)
+    with _mt5_lock:
+        _ensure()
+        ps = mt5.positions_get(ticket=body.ticket) or ()
+        if not ps:
+            raise HTTPException(404, f"position {body.ticket} not found")
+        p = ps[0]
+        info = mt5.symbol_info(p.symbol)
+        tick = mt5.symbol_info_tick(p.symbol)
+        if info is None or tick is None:
+            raise HTTPException(503, f"symbol/tick unavailable for {p.symbol}")
+        vol, closes_full, err = split_partial(body.volume, body.fraction,
+                                              float(p.volume),
+                                              float(info.volume_step or 0.01),
+                                              float(info.volume_min or 0.01),
+                                              float(info.volume_max or 100.0))
+        if err:
+            raise HTTPException(400, err)
+        is_buy = p.type == 0
+        req = {"action": mt5.TRADE_ACTION_DEAL, "symbol": p.symbol,
+               "volume": vol,
+               "type": mt5.ORDER_TYPE_SELL if is_buy else mt5.ORDER_TYPE_BUY,
+               "position": body.ticket,
+               "price": tick.bid if is_buy else tick.ask,
+               "deviation": 30, "magic": p.magic, "comment": "fxm-manage",
+               "type_time": mt5.ORDER_TIME_GTC, "type_filling": _filling_mode(p.symbol)}
+        res = mt5.order_send(req)
+    if res is None:
+        raise HTTPException(503, f"order_send returned None: {mt5.last_error()}")
+    if res.retcode != mt5.TRADE_RETCODE_DONE:
+        raise HTTPException(400, f"MT5 retcode {res.retcode}: {res.comment}")
+    return {"ok": True, "ticket": body.ticket, "closed_volume": vol,
+            "remaining_volume": round(float(p.volume) - vol, 8),
+            "closes_full": closes_full, "price": res.price}
 
 
 @app.get("/positions")
