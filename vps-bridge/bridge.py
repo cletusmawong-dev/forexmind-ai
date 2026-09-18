@@ -195,7 +195,11 @@ def execute(order: OrderIn, x_bridge_token: Optional[str] = Header(None)):
         raise HTTPException(503, f"order_send returned None: {mt5.last_error()}")
     if res.retcode != mt5.TRADE_RETCODE_DONE:
         raise HTTPException(400, f"MT5 retcode {res.retcode}: {res.comment}")
-    return {"ok": True, "ticket": res.order, "position_id": getattr(res, "position", None),
+    return {"ok": True, "ticket": res.order,
+            # Exness fills res.order; res.position may be 0/None on market
+            # orders - on hedging accounts the position id equals the
+            # opening order ticket (verified live in the P12 matrix)
+            "position_id": getattr(res, "position", None) or res.order,
             "volume": res.volume, "price": res.price,
             "symbol": symbol, "retcode": res.retcode}
 
