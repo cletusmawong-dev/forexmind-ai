@@ -50,6 +50,9 @@ export function SettingsScreen() {
   }, [goals.data]);
   const [timeframes, setTimeframes] = useState<string[]>(["15M"]);
   const [markets, setMarkets] = useState<string[]>([]);
+  const [aiManage, setAiManage] = useState(false);
+  const [tp1Policy, setTp1Policy] = useState<"ai_decide" | "protect" | "partial">("ai_decide");
+  const [tp3Policy, setTp3Policy] = useState<"close" | "hold_ai">("close");
   const [profitTarget, setProfitTarget] = useState("");
   const [lossLimitUsd, setLossLimitUsd] = useState("");
   const [onLossLimit, setOnLossLimit] = useState<"stop_entries" | "stop_and_close">("stop_entries");
@@ -72,6 +75,9 @@ export function SettingsScreen() {
       setMarkets(risk.data.allowed_markets ?? []);
       setSessions(risk.data.sessions ?? ["London", "NewYork", "Asian", "Late"]);
       setProfitTarget(risk.data.daily_profit_target_usd ? String(risk.data.daily_profit_target_usd) : "");
+      setAiManage(!!risk.data.ai_manage_enabled);
+      setTp1Policy(risk.data.tp1_policy === "protect" ? "protect" : risk.data.tp1_policy === "partial" ? "partial" : "ai_decide");
+      setTp3Policy(risk.data.tp3_policy === "hold_ai" ? "hold_ai" : "close");
       setLossLimitUsd(risk.data.daily_loss_limit_usd ? String(risk.data.daily_loss_limit_usd) : "");
       setOnLossLimit(risk.data.on_loss_limit === "stop_and_close" ? "stop_and_close" : "stop_entries");
       setMarketSessions(risk.data.market_sessions ?? {});
@@ -154,6 +160,9 @@ export function SettingsScreen() {
         sessions,
         market_sessions: marketSessions,
         session_tz: sessionTz,
+        ai_manage_enabled: aiManage,
+        tp1_policy: tp1Policy,
+        tp3_policy: tp3Policy,
         daily_profit_target_usd: parseFloat(profitTarget) || 0,
         daily_loss_limit_usd: parseFloat(lossLimitUsd) || 0,
         on_loss_limit: onLossLimit,
@@ -407,6 +416,45 @@ export function SettingsScreen() {
         <p className="mt-2 text-[10px] leading-relaxed text-txt-faint">
           When a wall is hit, the strategy keeps generating and recording signals - they arrive as EXTRA SIGNALS (manual decision), automatic entry is disabled. Resets at your sessions timezone midnight.
         </p>
+        <Divider className="my-5" />
+        <div className="eyebrow !text-[9px] mb-2.5">AI trade manager (post-entry)</div>
+        <div className="grid grid-cols-2 gap-2">
+          <button onClick={() => setAiManage(false)} aria-pressed={!aiManage}
+            className={`tap min-h-[44px] rounded-2xl border px-2 py-2 text-[11px] font-bold ${!aiManage ? "chip-on" : "chip-off"}`}>
+            Manager OFF
+          </button>
+          <button onClick={() => setAiManage(true)} aria-pressed={aiManage}
+            className={`tap min-h-[44px] rounded-2xl border px-2 py-2 text-[11px] font-bold ${aiManage ? "chip-on" : "chip-off"}`}>
+            Manager ON
+          </button>
+        </div>
+        <p className="mt-2 text-[10px] leading-relaxed text-txt-faint">
+          Manages OPEN positions only (protect profit / partial / exit). It never opens, sizes or vetoes entries. TP2 hard rule: SL moves to TP1 no matter what. Requires Order execution ON.
+        </p>
+        {aiManage && (
+          <>
+            <div className="eyebrow !text-[9px] mb-2 mt-4">When TP1 is hit</div>
+            <div className="grid grid-cols-3 gap-2">
+              {([["ai_decide", "AI decides"], ["protect", "SL to entry"], ["partial", "Close 50%"]] as const).map(([v, label]) => (
+                <button key={v} onClick={() => setTp1Policy(v)} aria-pressed={tp1Policy === v}
+                  className={`tap min-h-[44px] rounded-2xl border px-1 py-2 text-[10.5px] font-bold ${tp1Policy === v ? "chip-on" : "chip-off"}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div className="eyebrow !text-[9px] mb-2 mt-4">When TP3 is hit</div>
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={() => setTp3Policy("close")} aria-pressed={tp3Policy === "close"}
+                className={`tap min-h-[44px] rounded-2xl border px-2 py-2 text-[11px] font-bold ${tp3Policy === "close" ? "chip-on" : "chip-off"}`}>
+                Close remaining
+              </button>
+              <button onClick={() => setTp3Policy("hold_ai")} aria-pressed={tp3Policy === "hold_ai"}
+                className={`tap min-h-[44px] rounded-2xl border px-2 py-2 text-[11px] font-bold ${tp3Policy === "hold_ai" ? "chip-on" : "chip-off"}`}>
+                Let AI manage
+              </button>
+            </div>
+          </>
+        )}
         <button className="btn-primary mt-5 w-full" onClick={saveRisk}>
           <Sparkles size={14} /> Save settings
         </button>

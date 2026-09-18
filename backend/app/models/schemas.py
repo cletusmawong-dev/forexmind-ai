@@ -73,7 +73,10 @@ class RiskSettings(BaseModel):
     sessions: List[str] = Field(default_factory=lambda: ["London", "NewYork", "Asian", "Late"])
     daily_profit_target_usd: float = Field(default=0.0)   # 0 = off (SS21)
     daily_loss_limit_usd: float = Field(default=0.0)      # 0 = off (SS25)
-    on_loss_limit: str = "stop_entries"                   # | "stop_and_close"
+    on_loss_limit: str = "stop_entries"
+    ai_manage_enabled: bool = False                    # AI trade manager opt-in
+    tp1_policy: str = "ai_decide"                      # | "protect" | "partial"
+    tp3_policy: str = "close"                          # final-profit behavior                   # | "stop_and_close"
     market_sessions: Dict[str, List[str]] = Field(default_factory=dict)
     session_hours: Dict[str, List[int]] = Field(default_factory=dict)
     session_tz: str = "UTC"
@@ -144,6 +147,16 @@ class RiskSettings(BaseModel):
         if f > 100000:
             raise ValueError(f"{info.field_name} must be 0 (off) or <= 100000 USD")
         return round(f, 2)
+
+    @field_validator("tp1_policy", "tp3_policy")
+    @classmethod
+    def _validate_tp_policies(cls, v, info):
+        val = (str(v or "")).strip().lower()
+        allowed = {"tp1_policy": ("ai_decide", "protect", "partial"),
+                   "tp3_policy": ("close", "hold_ai")}[info.field_name]
+        if val not in allowed:
+            raise ValueError(f"{info.field_name} must be one of {allowed}")
+        return val
 
     @field_validator("on_loss_limit")
     @classmethod

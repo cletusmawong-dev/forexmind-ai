@@ -30,6 +30,9 @@ DEFAULT_RISK = {
     "daily_profit_target_usd": 0.0,
     "daily_loss_limit_usd": 0.0,
     "on_loss_limit": "stop_entries",
+    "ai_manage_enabled": False,
+    "tp1_policy": "ai_decide",
+    "tp3_policy": "close",
     "session_hours": {},
     "session_tz": "UTC",
     "allowed_markets": ["XAUUSD", "NAS100", "EURUSD", "GBPUSD", "USDJPY"],
@@ -84,6 +87,7 @@ def patch_risk(user_id: str, patch: Dict[str, Any]) -> Dict[str, Any]:
                "max_signals_per_day", "min_rr", "sessions", "allowed_markets",
                "market_sessions", "session_hours", "session_tz",
                "daily_profit_target_usd", "daily_loss_limit_usd", "on_loss_limit",
+               "ai_manage_enabled", "tp1_policy", "tp3_policy",
                "signal_timeframes", "account_type", "prop_rules"}
     clean_keys = {k: v for k, v in patch.items() if k in allowed}
     if "signal_timeframes" in clean_keys:
