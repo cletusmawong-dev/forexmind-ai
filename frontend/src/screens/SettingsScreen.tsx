@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {Sparkles, Send, Brain} from "lucide-react";
 import { api, endpoints } from "../lib/api";
@@ -7,11 +7,15 @@ import { DemoTag, Divider, Eyebrow, Glass, GlowDot, Pill, Segmented, Spinner } f
 import { Logo } from "../components/Logo";
 
 export function SettingsScreen() {
-  const goals = usePolling<any>(() => api.get(endpoints.goals), 10000);
-  const risk = usePolling<any>(() => api.get(endpoints.settings), 10000);
+  const goals = usePolling<any>(() => api.get(endpoints.goals), 60000);
+  const risk = usePolling<any>(() => api.get(endpoints.settings), 60000);
   const info = usePolling<any>(() => api.get(endpoints.systemInfo), 30000);
   const me = usePolling<any>(() => api.get(endpoints.me), 30000);
   const [toast, setToast] = useState("");
+  const lastTouch = useRef(0);
+  const [savingGoals, setSavingGoals] = useState(false);
+  const [savingRisk, setSavingRisk] = useState(false);
+  const touch = () => { lastTouch.current = Date.now(); };
   const [theme, setThemeState] = useState<"ivory" | "navy" | "onyx" | "slate">(() => {
     const t = localStorage.getItem("fm_theme");
     return t === "navy" || t === "onyx" || t === "slate" ? t : "ivory";
@@ -66,6 +70,9 @@ export function SettingsScreen() {
   const [propBuffer, setPropBuffer] = useState("20");
   const [propStart, setPropStart] = useState("");
   useEffect(() => {
+    // Guard: if the user interacted recently, do NOT clobber their unsaved
+    // edits with polled server state (this was reverting toggles mid-edit).
+    if (Date.now() - lastTouch.current < 120000) return;
     if (risk.data) {
       setRiskPct(String(risk.data.risk_per_trade_pct));
       setMaxLoss(String(risk.data.max_daily_loss_pct));
@@ -132,14 +139,23 @@ export function SettingsScreen() {
   };
 
   const saveGoals = async () => {
-    await api.patch(endpoints.goals, {
-      account_balance: parseFloat(balance),
-      daily_objective_pct: parseFloat(daily),
-      weekly_objective_pct: parseFloat(weekly),
-    });
-    flash("Objective updated.");
+    setSavingGoals(true);
+    try {
+      await api.patch(endpoints.goals, {
+        account_balance: parseFloat(balance),
+        daily_objective_pct: parseFloat(daily),
+        weekly_objective_pct: parseFloat(weekly),
+      });
+      flash("Objective updated - saved.");
+      lastTouch.current = 0;
+      goals.refresh(); risk.refresh();
+    } catch (e: any) {
+      flash(e?.message || "Could not save - check connection and try again.");
+    }
+    setSavingGoals(false);
   };
   const saveRisk = async () => {
+    setSavingRisk(true);
     try {
       const propRules: Record<string, number> | null = acctType === "propfirm"
         ? {
@@ -169,19 +185,23 @@ export function SettingsScreen() {
         account_type: acctType,
         prop_rules: propRules,
       });
+      lastTouch.current = 0;
+      goals.refresh(); risk.refresh();
       flash(acctType === "propfirm"
         ? `Saved. PROP MODE - the engine stops new signals at ${100 - (parseFloat(propBuffer) || 20)}% of your ${propDaily || 5}% daily drawdown.`
         : `Saved. Personal account - daily limit ${maxLoss}%.`);
     } catch (e: any) {
-      flash(e.message);
+      flash(e?.message || "Could not save - check connection and try again.");
+      setSavingRisk(false);
       return;
     }
+    setSavingRisk(false);
   };
 
   if (!goals.data || !risk.data) return <Spinner label="Loading settings..." />;
 
   return (
-    <div className="animate-fadeUp">
+    <div className="animate-fadeUp" onPointerDownCapture={touch} onKeyDownCapture={touch} onBlurCapture={touch}>
       <header className="mb-7 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="icon-chip icon-chip-violet" aria-hidden="true"><Brain size={20} /></span>
@@ -233,8 +253,8 @@ export function SettingsScreen() {
           <Field label="Daily %" value={daily} onChange={setDaily} />
           <Field label="Weekly %" value={weekly} onChange={setWeekly} />
         </div>
-        <button className="btn-primary mt-5 w-full" onClick={saveGoals}>
-          <Sparkles size={14} /> Save objective
+        <button className="btn-primary mt-5 w-full" disabled={savingGoals} onClick={saveGoals}>
+          <Sparkles size={14} /> {savingGoals ? "Saving..." : "Save objective"}
         </button>
       </Glass>
 
@@ -455,8 +475,8 @@ export function SettingsScreen() {
             </div>
           </>
         )}
-        <button className="btn-primary mt-5 w-full" onClick={saveRisk}>
-          <Sparkles size={14} /> Save settings
+        <button className="btn-primary mt-5 w-full" disabled={savingRisk} onClick={saveRisk}>
+          <Sparkles size={14} /> {savingRisk ? "Saving..." : "Save settings"}
         </button>
       </Glass>
 
@@ -607,11 +627,17 @@ function ExecutionCard() {
 
   const toggle = async () => {
     if (busy || !s) return;
-    setBusy(true);
+    setBusy(true); setMsg("");
+    const turningOn = !s.enabled;
     try {
-      await api.post("/api/execution/toggle", { enabled: !s.enabled });
+      await api.post("/api/execution/toggle", { enabled: turningOn });
+      setMsg(turningOn
+        ? "Auto-trading ON - qualifying signals will execute."
+        : "Auto-trading STOPPED - kill switch engaged.");
       st.refresh?.();
-    } catch { /* keep */ }
+    } catch (e: any) {
+      setMsg(e?.response?.data?.detail || e?.message || "Could not change - check connection and try again.");
+    }
     setBusy(false);
   };
 
@@ -670,13 +696,31 @@ function ExecutionCard() {
           </div>
         )}
 
-        {mode === "vps" && s?.bridge_configured && (
-          <div className="mt-4 flex items-center justify-between rounded-2xl border border-[rgba(var(--warm-rgb),0.08)] bg-[rgba(var(--warm-rgb),0.035)] px-4 py-3">
+        {mode === "vps" && (
+          <div className={`mt-4 flex items-center justify-between rounded-2xl border px-4 py-3 ${
+            s?.bridge?.online
+              ? "border-[rgba(var(--p-rgb),0.3)] bg-[rgba(var(--p-rgb),0.07)]"
+              : "border-[rgba(var(--warm-rgb),0.08)] bg-[rgba(var(--warm-rgb),0.035)]"
+          }`}>
             <div className="flex items-center gap-2">
-              <GlowDot tone={s.bridge_online ? "pos" : "warn"} size={7} pulse={s.bridge_online} />
-              <span className="text-[12.5px] font-semibold text-txt-hi">{s.bridge_online ? "Bridge online" : "Bridge offline"}</span>
+              <GlowDot tone={s?.bridge?.online ? "pos" : "warn"} size={7} pulse={!s?.bridge?.online} />
+              <div>
+                <div className="text-[12.5px] font-semibold text-txt-hi">
+                  {s?.bridge?.online ? "VPS bridge online - MT5 connected" : s?.bridge?.configured ? "Bridge unreachable - check the VPS" : "VPS not configured yet"}
+                </div>
+                {(s?.bridge?.account?.server || s?.bridge?.note) && (
+                  <div className="text-[10.5px] text-txt-faint">
+                    {s?.bridge?.account?.server ? `${s.bridge.account.server} - login ${s.bridge.account.login}` : s.bridge.note}
+                  </div>
+                )}
+              </div>
             </div>
-            {s.account && <span className="num text-[13px] font-bold text-txt-hi">{s.account.balance} {s.account.currency}</span>}
+            {s?.bridge?.account && (
+              <div className="text-right">
+                <div className="num text-[13px] font-bold text-txt-hi">{s.bridge.account.balance}</div>
+                <div className="text-[9px] text-txt-faint">{s.bridge.account.currency} balance</div>
+              </div>
+            )}
           </div>
         )}
 
@@ -710,7 +754,9 @@ function ExecutionCard() {
             </p>
           </>
         )}
-        {msg && <p className="mt-2 text-center text-[11px] font-semibold text-[var(--accent-green)]">{msg}</p>}
+        {msg && (
+          <p className={`mt-2 text-center text-[11px] font-semibold ${/could not|unreachable|not configured|check connection|off - |stopped/i.test(msg) ? "text-[var(--accent-amber)]" : "text-[var(--accent-green)]"}`}>{msg}</p>
+        )}
       </Glass>
     </>
   );

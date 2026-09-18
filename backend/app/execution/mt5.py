@@ -605,11 +605,18 @@ def status(user_id: str) -> dict:
     goals = _goals_doc(user_id) or {}
     mode = user_mode(user_id)
     acct = goals.get("mt5_account")
-    if mode == "vps":
-        acct = bridge_get("/account") or acct
+    bridge_acct = bridge_get("/account") if mode == "vps" else None
+    if bridge_acct:
+        acct = bridge_acct
     return {
         "mode": mode,
         "enabled": execution_enabled(user_id),
+        "bridge": {
+            "configured": bool(settings.bridge_url),
+            "online": bool(bridge_acct and "balance" in bridge_acct),
+            "account": bridge_acct,
+            "note": None if settings.bridge_url else "MT5_BRIDGE_URL not set - finish the VPS setup first.",
+        },
         "pairing_code": ensure_pairing_code(user_id) if mode == "manual" else (goals.get("mt5_pairing_code")),
         "connector_online": connector_online(user_id),
         "connector_last_seen": goals.get("mt5_connector_seen"),
