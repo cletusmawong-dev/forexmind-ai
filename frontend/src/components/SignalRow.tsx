@@ -57,6 +57,11 @@ export function SignalRow({ signal: s, variant = "list", onClick }: { signal: Si
             {s.direction}
           </span>
           <span className="text-[10.5px] font-medium text-[var(--text-muted)]">{s.timeframe}</span>
+          {s.extra_signal && (
+            <span className="rounded-full border border-[var(--accent-amber)] px-1.5 py-0.5 text-[8.5px] font-bold tracking-[0.06em] text-[var(--accent-amber)]">
+              EXTRA - MANUAL ONLY
+            </span>
+          )}
         </div>
         <div className="mt-1.5 truncate text-[11px] text-[var(--text-muted)]">
           {s.strategy_name} - {s.signal_id}{age ? ` - ${age}` : ""}

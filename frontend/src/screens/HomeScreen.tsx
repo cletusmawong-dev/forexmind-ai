@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Bell, ChevronRight, Shield, Target, TrendingUp, TrendingDown } from "lucide-react";
+import { Bell, ChevronRight, Shield, ShieldAlert, Target, TrendingUp, TrendingDown } from "lucide-react";
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
 import type { ActivityItem, AgentStatus, MarketCard, Signal } from "../lib/types";
@@ -50,6 +50,7 @@ export function HomeScreen() {
   const activity = usePolling<{ activity: ActivityItem[] }>(() => api.get(endpoints.agentActivity), 4000, [refreshKey]);
   const signals = usePolling<{ signals: Signal[] }>(() => api.get(`${endpoints.signals}?status=open&limit=3`), 6000, [refreshKey]);
   const notifs = usePolling<{ unread: number }>(() => api.get(endpoints.notifications), 12000, [refreshKey]);
+  const daily = usePolling<any>(() => api.get(endpoints.daily), 10000, [refreshKey]);
 
   const pullStart = useRef<number | null>(null);
   const [pulling, setPulling] = useState(0);
@@ -160,6 +161,51 @@ export function HomeScreen() {
             </div>
           </div>
         </Glass>
+
+          {(() => {
+            const d = daily.data;
+            if (!d) return null;
+            const hasWalls = (d.daily_profit_target_usd || 0) > 0 || (d.daily_loss_limit_usd || 0) > 0;
+            if (!hasWalls) return null;
+            const tgt = d.daily_profit_target_usd || 0;
+            const lim = d.daily_loss_limit_usd || 0;
+            const total = d.total_usd || 0;
+            const tgtPct = tgt ? Math.max(0, Math.min(100, (total / tgt) * 100)) : 0;
+            const lossPct = lim ? Math.max(0, Math.min(100, (-total / lim) * 100)) : 0;
+            const statusWord = d.hit_loss ? "LOSS LIMIT HIT - AUTO ENTRY DISABLED"
+              : d.hit_target ? "TARGET HIT - AUTO ENTRY DISABLED" : "ACTIVE";
+            return (
+              <Glass className="mt-4 px-5 py-4">
+                <div className="flex items-center justify-between">
+                  <span className="eyebrow !text-[9px]">Daily objective</span>
+                  <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold tracking-wide ${d.hit_target || d.hit_loss ? "bg-[var(--accent-amber)] text-[var(--on-desc)]" : "text-pos"}`}>
+                    {statusWord}
+                  </span>
+                </div>
+                <div className="mt-2 flex items-baseline gap-2">
+                  <span className="text-[19px] font-bold tracking-tight">
+                    {(total >= 0 ? "+" : "") + (total || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}$
+                  </span>
+                  <span className="text-[10px] text-txt-faint">
+                    {tgt ? `target ${tgt.toLocaleString()}$` : ""}{tgt && lim ? " - " : ""}{lim ? `limit -${lim.toLocaleString()}$` : ""}
+                  </span>
+                </div>
+                {tgt > 0 && (
+                  <div className="mt-2.5">
+                    <div className="flex items-center gap-1.5 text-[9.5px] text-txt-faint"><TrendingUp size={11} /> profit target</div>
+                    <div className="progress-track mt-1 h-2 w-full overflow-hidden rounded-full"><div className="h-full rounded-full bg-pos" style={{ width: `${tgtPct}%` }} /></div>
+                  </div>
+                )}
+                {lim > 0 && (
+                  <div className="mt-2">
+                    <div className="flex items-center gap-1.5 text-[9.5px] text-txt-faint"><ShieldAlert size={11} /> loss limit</div>
+                    <div className="progress-track mt-1 h-2 w-full overflow-hidden rounded-full"><div className="h-full rounded-full bg-neg" style={{ width: `${lossPct}%` }} /></div>
+                  </div>
+                )}
+                <p className="mt-2 text-[9.5px] leading-relaxed text-txt-faint">{d.realized_basis} - floating: {d.floating_source}</p>
+              </Glass>
+            );
+          })()}
 
         {/* ---- goal ---- */}
         <Glass level={2} className="mt-4" pad={false}>

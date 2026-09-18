@@ -18,6 +18,9 @@ export function SignalDetailScreen() {
   const [entryPrice, setEntryPrice] = useState("");
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manualResult, setManualResult] = useState<"" | "WIN" | "LOSS" | "BREAK_EVEN" | "OPEN">("");
+  const [manualPl, setManualPl] = useState("");
   const [error, setError] = useState("");
 
   const { data } = usePolling<{ signal: Signal }>(() => api.get(endpoints.signal(id!)), 5000);
@@ -189,6 +192,91 @@ export function SignalDetailScreen() {
           </div>
         </div>
       </div>
+
+      {s.extra_signal && (
+        <Glass className="mt-4 border-[var(--accent-amber)]">
+          <div className="flex items-start gap-2.5">
+            <StatusDot tone="amber" size={7} pulse={false} />
+            <div>
+              <div className="text-[12.5px] font-bold text-[var(--accent-amber)]">
+                EXTRA SIGNAL - MANUAL ONLY
+              </div>
+              <p className="mt-1 text-[11px] leading-relaxed text-txt-faint">
+                Generated normally by the strategy, but automatic entry is disabled:
+                {s.entry_blocked_reason || "daily protection active"}.
+                Today's P/L at signal time: {s.daily_pl_at_signal != null ? `${s.daily_pl_at_signal > 0 ? "+" : ""}${s.daily_pl_at_signal}$` : "n/a"}.
+              </p>
+            </div>
+          </div>
+        </Glass>
+      )}
+
+      {s.extra_signal && !s.user_manual?.taken && (
+        <Glass className="mt-4">
+          <div className="eyebrow mb-3">Manual tracking</div>
+          {!manualOpen ? (
+            <button className="btn-ghost w-full" onClick={() => setManualOpen(true)}>
+              I took this trade manually
+            </button>
+          ) : (
+            <div>
+              <div className="grid grid-cols-4 gap-2">
+                {(["WIN", "LOSS", "BREAK_EVEN", "OPEN"] as const).map((r) => (
+                  <button key={r} onClick={() => setManualResult(r)} aria-pressed={manualResult === r}
+                    className={`tap min-h-[40px] rounded-xl border px-1 py-2 text-[10px] font-bold ${manualResult === r ? "chip-on" : "chip-off"}`}>
+                    {r === "BREAK_EVEN" ? "BE" : r}
+                  </button>
+                ))}
+              </div>
+              <input
+                className="input mt-3 w-full"
+                placeholder="Manual P/L in $ (e.g. 85.50)"
+                inputMode="decimal"
+                value={manualPl}
+                onChange={(e) => setManualPl(e.target.value)}
+              />
+              <div className="mt-3 flex gap-2">
+                <button
+                  className="btn-primary flex-1"
+                  disabled={busy || !manualResult}
+                  onClick={async () => {
+                    setBusy(true);
+                    try {
+                      await api.post(endpoints.manualResult(s.id), {
+                        taken: true,
+                        result: manualResult,
+                        pl: manualPl ? parseFloat(manualPl) : undefined,
+                      });
+                      setManualOpen(false);
+                    } catch (e: any) {
+                      setError(e.message);
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                >
+                  Record manual result
+                </button>
+                <button className="btn-ghost" onClick={() => setManualOpen(false)}>Cancel</button>
+              </div>
+            </div>
+          )}
+        </Glass>
+      )}
+      {s.extra_signal && s.user_manual?.taken && (
+        <Glass className="mt-4">
+          <div className="eyebrow mb-2">Manual tracking</div>
+          <div className="flex flex-wrap items-center gap-2 text-[12px] text-txt-mid">
+            <StatusDot tone="green" size={6} pulse={false} />
+            You took this manually -
+            <span className="num font-semibold">{s.user_manual.result || "OPEN"}</span>
+            {s.user_manual.pl != null && (
+              <span className="num font-semibold">{s.user_manual.pl > 0 ? "+" : ""}{s.user_manual.pl}$</span>
+            )}
+            <span className="text-[10.5px] text-txt-faint">(tracked separately from automatic execution)</span>
+          </div>
+        </Glass>
+      )}
 
       {/* ---- your decision ---- */}
       <Glass className="mt-4">

@@ -25,6 +25,7 @@ export function AgentScreen() {
   const [tab, setTab] = useState<"presence" | "timeline" | "chat">("presence");
   const status = usePolling<AgentStatus>(() => api.get(endpoints.agentStatus), 4000);
   const activity = usePolling<{ activity: ActivityItem[] }>(() => api.get(endpoints.agentActivity), 4000);
+  const ai = usePolling<any>(() => api.get(endpoints.aimanager), 8000);
 
   const [messages, setMessages] = useState<ChatMsg[]>([
     {
@@ -118,6 +119,79 @@ export function AgentScreen() {
                 <MiniStat label="Lessons" value={st.lessons} tone="text-[var(--c-negdeep)]" />
                 <MiniStat label="Approvals" value={st.pending_approvals} tone={st.pending_approvals > 0 ? "text-[var(--accent-amber)]" : ""} />
               </div>
+            </Glass>
+
+            {/* ---- AI trade manager status (SS40/SS41) ---- */}
+            <SectionHeader className="mt-8">AI trade manager</SectionHeader>
+            <Glass>
+              {(() => {
+                const a = ai.data;
+                if (!a) return <Spinner label="Loading AI status..." />;
+                const r = a.router || {};
+                const m = a.manager || {};
+                const d = a.daily || {};
+                const state = !r.primary_model ? "AI UNAVAILABLE"
+                  : a.recent_decisions?.length ? "MONITORING"
+                  : m.managed_positions ? "PROTECTING PROFIT"
+                  : "MONITORING";
+                return (
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5 text-[12.5px] font-semibold">
+                        <StatusDot tone={r.escalation_available === false ? "amber" : "green"} size={7} pulse={false} />
+                        {state}
+                      </div>
+                      {m.last_tick_ts ? (
+                        <span className="text-[9.5px] text-txt-faint">checked {shortAgo(new Date(m.last_tick_ts * 1000).toISOString())}</span>
+                      ) : null}
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2.5 text-[11px]">
+                      <div className="glass-2 rounded-2xl px-3 py-2.5">
+                        <div className="text-[9px] uppercase tracking-wide text-txt-faint">Primary AI</div>
+                        <div className="mt-1 truncate font-bold">{r.primary_model || "-"}</div>
+                      </div>
+                      <div className="glass-2 rounded-2xl px-3 py-2.5">
+                        <div className="text-[9px] uppercase tracking-wide text-txt-faint">Escalation AI</div>
+                        <div className="mt-1 truncate font-bold">
+                          {r.escalation_enabled === false ? "disabled"
+                            : r.escalation_model || "unconfigured"}
+                        </div>
+                        {r.escalation_model && (
+                          <div className="mt-0.5 text-[9px] text-txt-faint">
+                            ready in {r.escalation_ready_in_s ?? 0}s
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="mt-2.5 flex flex-wrap gap-2 text-[10px]">
+                      <Pill tone={m.managed_positions ? "cyan" : "neutral"}>
+                        {m.managed_positions || 0} managed position{(m.managed_positions || 0) === 1 ? "" : "s"}
+                      </Pill>
+                      <Pill tone="neutral">{d.status || "walls off"}</Pill>
+                      {r.stats?.escalation_ok > 0 && <Pill tone="green">{r.stats.escalation_ok} escalations</Pill>}
+                      {r.stats?.local_fallbacks > 0 && <Pill tone="amber">{r.stats.local_fallbacks} AI fallbacks</Pill>}
+                    </div>
+                    {(a.recent_decisions || []).length > 0 && (
+                      <div className="mt-3 space-y-1.5">
+                        {a.recent_decisions.slice(0, 4).map((dec: any, i: number) => (
+                          <div key={i} className="glass-2 flex items-center justify-between rounded-xl px-3 py-2 text-[10.5px]">
+                            <span className="truncate text-txt-mid">
+                              {dec.symbol} - {dec.trigger}
+                            </span>
+                            <span className="shrink-0 font-bold">
+                              {dec.action || "-"}
+                              <span className="ml-1.5 font-normal text-txt-faint">
+                                {dec.gate_verdict}
+                              </span>
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <p className="mt-3 text-[9.5px] leading-relaxed text-txt-faint">{a.note}</p>
+                  </div>
+                );
+              })()}
             </Glass>
 
             {/* ---- agent pulse: live activity proof ---- */}

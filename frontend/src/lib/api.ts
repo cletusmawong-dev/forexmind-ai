@@ -85,4 +85,7 @@ export const endpoints = {
   settings: "/api/settings",
   systemInfo: "/api/system/info",
   notificationTest: "/api/notifications/test",
+  daily: "/api/daily",
+  aimanager: "/api/aimanager/status",
+  manualResult: (id: string) => `/api/signals/${id}/manual-result`,
 };

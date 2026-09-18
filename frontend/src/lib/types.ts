@@ -46,6 +46,10 @@ export interface Signal {
   outcome: string | null;
   completed: boolean;
   user_action: string | null;
+  extra_signal?: boolean;
+  entry_blocked_reason?: string | null;
+  daily_pl_at_signal?: number | null;
+  user_manual?: { taken?: boolean; result?: string; pl?: number; entry_price?: number; sl?: number; tp?: number; exit_reason?: string } | null;
   user_entry_price?: number | null;
   user_notes?: string;
   result_analysis?: any;
