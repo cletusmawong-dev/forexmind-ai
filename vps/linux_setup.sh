@@ -121,8 +121,11 @@ if [[ -z "$PYLIN" ]]; then
   PYLIN="$PREFIX/drive_c/Python311/python.exe"
 fi
 [[ -x "$PYLIN" ]] || { echo "ERROR: Windows Python still missing at $PYLIN"; exit 1; }
-WYPY="$(echo "$PYLIN" | sed "s|^$PREFIX/drive_c|C:|; s|/|\\\\\\\\|g")"
-WBRIDGE="Z:$(echo "$BRIDGE_DIR" | sed 's|/|\\\\\\\\|g')\\bridge.py"
+# Forward slashes ON PURPOSE: systemd unescapes backslashes inside unit
+# files (\b = backspace) which corrupted the path to ...x08ridge.py.
+# Wine accepts forward-slash DOS paths (verified live on the VPS).
+WYPY="C:${PYLIN#"$PREFIX/drive_c"}"
+WBRIDGE="Z:$BRIDGE_DIR/bridge.py"
 echo "    python: $PYLIN"
 
 echo "==> [3/7] Installing bridge dependencies (inside the prefix's Python)"
