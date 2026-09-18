@@ -1,5 +1,8 @@
 # ForexMind AI - MT5 bridge (Windows VPS)
 
+> Full production runbook (auto-start, watchdog, reboot contract, security):
+> see [`vps/README.md`](../vps/README.md). This file covers the manual quick-start.
+
 One-time setup (10-15 min):
 
 1. RDP into your Windows VPS.
