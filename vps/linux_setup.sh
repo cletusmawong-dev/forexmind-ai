@@ -40,7 +40,15 @@ echo "==> [1/7] Detecting your EXISTING Wine prefix + MT5 (nothing is modified)"
 
 declare -a CANDS=()      # candidate wine prefixes, best first
 declare -A SEEN=()
-add_cand() { [[ -n "$1" && -d "$1/drive_c" ]] && [[ -z "${SEEN[$1]:-}" ]] && { SEEN[$1]=1; CANDS+=("$1"); }; }
+add_cand() {
+  # NB: must ALWAYS return 0 - under `set -e` a non-zero return from this
+  # function silently kills the whole script when a candidate is missing.
+  if [[ -n "$1" && -d "$1/drive_c" ]] && [[ -z "${SEEN[$1]:-}" ]]; then
+    SEEN[$1]=1
+    CANDS+=("$1")
+  fi
+  return 0
+}
 
 [[ -n "$PREFIX_ARG" ]] && add_cand "$PREFIX_ARG"
 [[ -n "${WINEPREFIX:-}" ]] && add_cand "$WINEPREFIX"
@@ -90,7 +98,7 @@ done
   exit 1
 }
 if [[ -n "$DISPLAY_ARG" ]]; then DISPLAY_VAL="$DISPLAY_ARG"; else DISPLAY_VAL="${DETECTED_DISPLAY:-${DISPLAY:-:0}}"; fi
-OWNER="$(stat -c '%U' "$PREFIX")"
+OWNER="$(stat -c '%U' "$PREFIX" 2>/dev/null || echo root)"
 echo "    Wine prefix  : $PREFIX  (owner: $OWNER)"
 echo "    MT5 terminal : $TERMINAL"
 echo "    DISPLAY      : $DISPLAY_VAL"
