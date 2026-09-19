@@ -170,19 +170,32 @@ class FirestoreStore:
         self._cache: Dict[str, tuple] = {}  # key -> (monotonic_ts, value)
         self._cache_lock = threading.RLock()
         self.quota_mode = False  # True while Firestore daily quota is exhausted
+        self.quota_entered_at: float = 0.0
+        self.QUOTA_PROBE_INTERVAL = 600.0  # s between recovery probes (10 min)
 
     class _QuotaExhausted(Exception):
         pass
 
     def _enter_quota_mode(self):
+        import time as _t
+        if not self.quota_mode:
+            self.quota_entered_at = _t.monotonic()
         self.quota_mode = True
 
     def _check_quota_gate(self):
         """While Firestore's daily quota is exhausted, reads fail fast with a
-        typed exception instead of hammering the API (the app renders honest
-        'quota reached' states; writes still attempt normally)."""
-        if self.quota_mode:
-            raise self._QuotaExhausted()
+        typed exception instead of hammering the API. BUGFIX (2026-09-18):
+        the latch used to hold until process restart even after Google
+        restored quota - now ONE probe call is allowed every 10 minutes, so
+        the app resumes within minutes of the reset (and re-latches
+        immediately if the quota is still exhausted)."""
+        if not self.quota_mode:
+            return
+        import time as _t
+        if _t.monotonic() - self.quota_entered_at >= self.QUOTA_PROBE_INTERVAL:
+            self.quota_mode = False   # probe: let the next real call through
+            return
+        raise self._QuotaExhausted()
 
     def _cache_get(self, key):
         import time as _t
