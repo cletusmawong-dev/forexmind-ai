@@ -154,7 +154,8 @@ export function DemoTag() {
     return (
       <Pill tone="neutral" className="!px-3 !py-1.5 whitespace-nowrap">
         <span className="h-1.5 w-1.5 rounded-full bg-[var(--text-faint)]" />
-        CONNECTING...
+        <span className="hidden min-[420px]:inline">CONNECTING...</span>
+        <span className="min-[420px]:hidden">...</span>
       </Pill>
     );
   }
@@ -162,7 +163,7 @@ export function DemoTag() {
     return (
       <Pill tone="green" className="!px-3 !py-1.5 whitespace-nowrap">
         <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-green)] anim-pulse" style={{ boxShadow: "0 0 8px rgba(var(--p-rgb),0.9)" }} />
-        LIVE - REAL-TIME
+        LIVE<span className="hidden min-[420px]:inline"> - REAL-TIME</span>
       </Pill>
     );
   }

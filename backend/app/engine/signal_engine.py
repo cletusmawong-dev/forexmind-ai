@@ -240,8 +240,13 @@ class SignalEngine:
     def _create_signal(self, user_id, strategy, cand, session, df,
                        wall_reason: str = "") -> Optional[dict]:
         store = get_store()
+        # BUGFIX (2026-09-19): dedupe must be PER USER. The filter used to omit
+        # userId, so once ANY user received a signal for a candle, every other
+        # user's scan was silently deduped - with one shared engine loop the
+        # first-scanned user got everything and the others got nothing (the
+        # owner's 'only gold signals' report). Same guard, scoped to the user.
         dedupe = store.list("signals", filters={
-            "strategy_id": cand.strategy_id, "market": cand.market,
+            "userId": user_id, "strategy_id": cand.strategy_id, "market": cand.market,
             "timeframe": cand.timeframe, "candle_time": cand.candle_time}, limit=1)
         if dedupe:
             return None

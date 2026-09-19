@@ -102,7 +102,7 @@ export function HomeScreen() {
         {/* header */}
         <header className="page-head mb-4 flex items-center justify-between gap-2">
           <span className="lg:hidden"><Logo size={36} /></span>
-          <div className="relative flex items-center gap-2.5">
+          <div className="relative flex min-w-0 items-center gap-2">
             <div className="sm:block">
               <DemoTag />
             </div>
