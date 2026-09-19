@@ -185,7 +185,10 @@ async def live_loop():
                     from .execution.mt5 import expire_stale_commands, sync_deals
                     await asyncio.to_thread(expire_stale_commands)
                     for uid in _users_cached():
-                        await asyncio.to_thread(sync_deals, uid)
+                        try:
+                            await asyncio.to_thread(sync_deals, uid)
+                        except Exception as exc:
+                            print(f"[deal-sync] user {uid} failed: {type(exc).__name__}: {exc}", flush=True)
             except Exception:
                 pass
 

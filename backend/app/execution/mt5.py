@@ -579,15 +579,27 @@ def apply_deals(user_id: str, deals: List[dict]) -> int:
 
 
 def sync_deals(user_id: str) -> int:
-    """VPS mode: pull deals since the last sync from the bridge."""
+    """VPS mode: pull deals since the last sync from the bridge.
+
+    BUGFIX (2026-09-19): the first sweep used to start 'now - 7 days', so if
+    that one sweep failed (e.g. during a quota latch) and a later sweep
+    advanced the cursor, the skipped trades were NEVER confirmed. Now the
+    first successful sweep backfills the WHOLE history (since=0) and only
+    then sets mt5_backfill_done; failures leave the flag unset so the next
+    run retries the full window. apply_deals is idempotent (skips already-
+    confirmed docs)."""
     if user_mode(user_id) != "vps" or not settings.bridge_url:
         return 0
-    since = int((_goals_doc(user_id) or {}).get("mt5_deal_sync_ts") or (time.time() - 7 * 86400))
+    goals = _goals_doc(user_id) or {}
+    since = int(goals.get("mt5_deal_sync_ts") or 0)
+    if not goals.get("mt5_backfill_done"):
+        since = 0
     data = bridge_get(f"/deals?since={since}", timeout=20)
     if not data:
         return 0
     n = apply_deals(user_id, data.get("deals") or [])
-    _goals_update(user_id, {"mt5_deal_sync_ts": int(time.time())})
+    _goals_update(user_id, {"mt5_deal_sync_ts": int(time.time()),
+                            "mt5_backfill_done": True})
     return n
 
 
