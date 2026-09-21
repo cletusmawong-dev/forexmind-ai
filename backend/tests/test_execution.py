@@ -56,7 +56,8 @@ def test_kill_switch_blocks(monkeypatch):
     monkeypatch.setattr(X, "bridge_post", lambda p, payload, timeout=15: sent.append(payload))
     X.execute_signal(SIG, "u1")
     assert sent == []
-    assert X.get_store().get("signals", "sig1").get("execution_status") is None
+    # C-2 (approved 2026-09-21): the branch now stamps a terminal status
+    assert X.get_store().get("signals", "sig1").get("execution_status") == "SKIPPED_KILL_SWITCH"
 
 
 def test_bridge_offline_is_honest(monkeypatch):
@@ -75,7 +76,8 @@ def test_daily_cap(monkeypatch):
                                  "mt5_ticket": 100 + i})
     monkeypatch.setattr(X, "bridge_get", lambda p, timeout=8: {"balance": 1000})
     X.execute_signal(SIG, "u1")
-    assert store.get("signals", "sig1").get("execution_status") is None
+    # C-2 (approved 2026-09-21): the branch now stamps a terminal status
+    assert store.get("signals", "sig1").get("execution_status") == "SKIPPED_EXEC_DAILY_CAP"
 
 
 def test_sync_confirms_closed_trade(monkeypatch):

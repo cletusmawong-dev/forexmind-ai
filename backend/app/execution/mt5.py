@@ -254,12 +254,20 @@ def execute_signal(signal: dict, user_id: str) -> None:
     Never raises; writes execution_status back onto the signal doc."""
     mode = user_mode(user_id)
     if mode == "off":
+        if signal.get("id"):
+            get_store().update("signals", signal["id"], {
+                "execution_status": "SKIPPED_ADVISORY_MODE",
+                "mt5_note": "Execution mode is OFF - signal kept as advisory"})
         return   # advisory signals - honest default
 
     store = get_store()
     market = signal.get("market")
 
     if not execution_enabled(user_id):
+        if signal.get("id"):
+            store.update("signals", signal["id"], {
+                "execution_status": "SKIPPED_KILL_SWITCH",
+                "mt5_note": "Kill switch is ON - signal kept as advisory"})
         _log("Execution skipped - kill switch is ON (Settings). Signal is advisory only.", market)
         return
 
@@ -284,6 +292,10 @@ def execute_signal(signal: dict, user_id: str) -> None:
         return
 
     if _executed_today(user_id) >= settings.execution_max_trades_per_day:
+        if signal.get("id"):
+            store.update("signals", signal["id"], {
+                "execution_status": "SKIPPED_EXEC_DAILY_CAP",
+                "mt5_note": f"Execution daily cap reached ({settings.execution_max_trades_per_day}/day)"})
         _log(f"Execution skipped - daily cap reached ({settings.execution_max_trades_per_day}/day).", market)
         return
 
@@ -360,6 +372,10 @@ def execute_signal(signal: dict, user_id: str) -> None:
             lots = calc_lot(market, entry, sl, bal, risk_pct)
             _mode = _lot_mode(user_id)
             lots = apply_lot_mode(lots, _mode)
+            if lots > MAX_LOTS:
+                _log(f"Lot size capped {lots} -> {MAX_LOTS} (EXECUTION_MAX_LOTS).", market,
+                     kind="EXEC_WARN")
+                lots = MAX_LOTS
             cmd = store.create("exec_commands", {
                 "userId": user_id, "signal_doc_id": signal["id"],
                 "signal_id": signal["signal_id"], "status": "PENDING",

@@ -21,6 +21,12 @@ TF_MINUTES = {"5M": 5, "15M": 15, "1H": 60, "4H": 240, "1D": 1440}
 class SignalTracker:
     def __init__(self, provider):
         self.provider = provider
+        # MFE/MAE bookkeeping (analytics ONLY - never read by any decision):
+        # running max favorable / min adverse excursion in R per open signal.
+        # Stamped onto the doc at TP-hit updates and at completion (no extra
+        # DB writes per tick). If the process restarts mid-trade the window
+        # restarts from that point (documented limitation).
+        self._exc: Dict[str, dict] = {}
 
     # ------------------------------------------------------------------
     def update_market(self, market: str) -> None:
@@ -61,6 +67,19 @@ class SignalTracker:
         tps = [sig.get("tp1"), sig.get("tp2"), sig.get("tp3")]
         tps = [t for t in tps if t is not None]
 
+        # ---- MFE/MAE accumulation (analytics only; normalized in R) -------
+        try:
+            risk = float(sig.get("risk") or 0)
+            if risk > 0:
+                entry = float(sig["entry"])
+                fav = (hi - entry) if long else (entry - lo)
+                adv = (entry - lo) if long else (hi - entry)
+                e = self._exc.setdefault(sig["id"], {"mfe": 0.0, "mae": 0.0})
+                e["mfe"] = max(e["mfe"], fav / risk)
+                e["mae"] = min(e["mae"], -adv / risk)
+        except Exception:
+            pass
+
         # conservative intrabar rule: SL first
         if (lo <= sl) if long else (hi >= sl):
             banked = sig.get("tp_hits", 0)
@@ -85,10 +104,15 @@ class SignalTracker:
                     self._complete(sig, status=f"TP{k}_HIT", r=rr, exit_price=tp,
                                    outcome="WIN", tp_hits=k)
                 else:
-                    store.update("signals", sig["id"], {
+                    patch_tp = {
                         "status": f"TP{k}_HIT", "tp_hits": k,
                         "r_multiple": rr, "outcome": "WIN",
-                    })
+                    }
+                    e = self._exc.get(sig["id"])
+                    if e:
+                        patch_tp["mfe_r"] = round(e["mfe"], 3)
+                        patch_tp["mae_r"] = round(e["mae"], 3)
+                    store.update("signals", sig["id"], patch_tp)
                     notify(sig.get("userId"), f"TP{k}_HIT",
                            f"TP{k} hit - {sig['market']} {sig['direction']}",
                            f"{sig['strategy_name']} | {sig['signal_id']}\n"
@@ -119,6 +143,10 @@ class SignalTracker:
         }
         if tp_hits is not None:
             patch["tp_hits"] = tp_hits
+        e = self._exc.pop(sig["id"], None)   # MFE/MAE final stamp (analytics)
+        if e:
+            patch["mfe_r"] = round(e["mfe"], 3)
+            patch["mae_r"] = round(e["mae"], 3)
         updated = store.update("signals", sig["id"], patch)
 
         notify(sig.get("userId"), "TRADE_COMPLETED",
