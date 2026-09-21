@@ -212,6 +212,34 @@ def bridge_post(path: str, payload: dict, timeout: int = 15) -> Optional[dict]:
 # ---------------------------------------------------------------------------
 # execution entry point (called by the signal engine)
 # ---------------------------------------------------------------------------
+_exec_lock = threading.Lock()
+
+
+def _setup_already_sent(store, signal: dict) -> Optional[str]:
+    """One broker order per unique setup (market + direction + candle), no
+    matter how many user copies of the signal exist.
+
+    2026-09-21 incident: multi-user signal delivery gives EVERY user their own
+    signal doc (by design), and every VPS-mode copy executed on the ONE shared
+    bridge account -> every Sunday-open signal was placed TWICE at the broker
+    (7s apart, same signal_id comment). Only the account resource is shared:
+    in manual-PC mode each user's own connector still executes their copy.
+    """
+    market, direction = signal.get("market"), signal.get("direction")
+    candle_time = str(signal.get("candle_time") or "")
+    if not market or not direction or not candle_time:
+        return None     # incomplete key -> never block on guesses
+    docs = store.list("signals", filters={
+        "market": market, "direction": direction, "candle_time": candle_time},
+        limit=20)
+    for s in docs:
+        if s.get("id") == signal.get("id"):
+            continue
+        if s.get("execution_status") in ("SUBMITTED", "FILLED", "EXECUTING"):
+            return str(s.get("signal_id") or s.get("id"))
+    return None
+
+
 def execute_signal(signal: dict, user_id: str) -> None:
     """Route a qualifying signal to the active execution transport.
 
@@ -264,6 +292,17 @@ def execute_signal(signal: dict, user_id: str) -> None:
                 _log("Execution skipped - VPS bridge offline (signal NOT sent to broker).",
                      market, kind="EXEC_WARN")
                 return
+            with _exec_lock:
+                dup = _setup_already_sent(store, signal)
+                if dup:
+                    store.update("signals", signal["id"], {
+                        "execution_status": "SKIPPED_SETUP_ALREADY_EXECUTED",
+                        "mt5_note": f"same setup already sent via {dup}"})
+                    _log("Execution skipped - this exact setup (same market, "
+                         f"direction and candle) is already on the account via {dup}. "
+                         "One broker order per setup.", market, kind="EXEC_WARN")
+                    return
+                store.update("signals", signal["id"], {"execution_status": "EXECUTING"})
             lots = calc_lot(market, entry, sl, float(acct["balance"]) or 0.0, risk_pct)
             _mode = _lot_mode(user_id)
             lots = apply_lot_mode(lots, _mode)

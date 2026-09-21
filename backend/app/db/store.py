@@ -219,7 +219,12 @@ class FirestoreStore:
 
     def _invalidate(self, coll: str, doc_id: Optional[str] = None):
         with self._cache_lock:
-            keys = [k for k in self._cache if k.startswith(f"L:{coll}|") or k == f"G:{coll}/{doc_id}"]
+            # L: list caches, C: count caches (a stale count handed TWO signal
+            # docs the SAME signal_id on 2026-09-21 - both then executed on the
+            # shared account), G: the doc itself
+            keys = [k for k in self._cache
+                    if k.startswith(f"L:{coll}|") or k.startswith(f"C:{coll}|")
+                    or k == f"G:{coll}/{doc_id}"]
             for k in keys:
                 self._cache.pop(k, None)
 

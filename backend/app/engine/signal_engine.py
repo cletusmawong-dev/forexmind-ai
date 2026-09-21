@@ -254,6 +254,11 @@ class SignalEngine:
         day = pd.Timestamp.utcnow().strftime("%Y-%m-%d")
         seq = store.count("signals", filters={"day": day}) + 1
         signal_id = f"SIG-{day.replace('-', '')}-{seq:03d}"
+        for _ in range(5):   # id must be globally unique even under races
+            if not store.list("signals", filters={"signal_id": signal_id}, limit=1):
+                break
+            seq += 1
+            signal_id = f"SIG-{day.replace('-', '')}-{seq:03d}"
 
         try:
             vr_series = strategy._volatility_rank(

@@ -131,6 +131,18 @@ async def warm_cache():
                 pass
 
 
+def sleep_to_boundary(now: float, period: float = 900.0, lead: float = 2.0,
+                      cap: float = 60.0) -> float:
+    """Sleep until just after the next candle boundary (max one loop period).
+
+    The old fixed 60s tick meant a candle closing at HH:00 could sit unseen
+    until HH:01:00 - the order reached the broker up to a minute (worse under
+    load) after the strategy moment. Waking at boundary+2s cuts that to
+    seconds; away from boundaries the loop still ticks at the usual cadence.
+    """
+    return min(cap, max(2.0, (now // period + 1) * period + lead - now))
+
+
 async def live_loop():
     """Real-market agent loop: track active signals every minute, scan on
     every closed 15M/1H candle boundary, run a learning pass every ~6h."""
@@ -141,7 +153,7 @@ async def live_loop():
     last_deal_sync = 0.0
     while True:
         try:
-            await asyncio.sleep(60)
+            await asyncio.sleep(sleep_to_boundary(time.time()))
             now = time.time()
             _current_task = "Tracking active signals"
             for market in INITIAL_MARKETS:
