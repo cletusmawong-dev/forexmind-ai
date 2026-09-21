@@ -21,6 +21,7 @@ DEFAULT_GOALS = {
 }
 DEFAULT_RISK = {
     "risk_per_trade_pct": 1.0,
+    "lot_mode": "medium",
     "max_daily_loss_pct": 3.0,
     "max_consecutive_losses": 4,
     "max_signals_per_day": 6,

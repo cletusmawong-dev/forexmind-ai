@@ -60,6 +60,7 @@ def test_patch_risk_lot_mode_roundtrip(fresh_store):
     store = store_mod._store
     from app.agent.core import ensure_user_docs
     ensure_user_docs("u-lot")
+    assert get_risk("u-lot")["lot_mode"] == "medium"   # honest default pre-PATCH
     out = patch_risk("u-lot", {"lot_mode": "high"})
     assert out["lot_mode"] == "high"
     assert get_risk("u-lot")["lot_mode"] == "high"
