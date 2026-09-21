@@ -137,7 +137,8 @@ class LocalStore:
         docs.sort(key=lambda d: d.get(order_by, ""), reverse=desc)
         return docs[:limit] if limit else docs
 
-    def count(self, coll: str, filters: Optional[Dict[str, Any]] = None) -> int:
+    def count(self, coll: str, filters: Optional[Dict[str, Any]] = None,
+              fresh: bool = False) -> int:
         return len(self.list(coll, filters))
 
 
@@ -327,12 +328,16 @@ class FirestoreStore:
         self._cache_set(key, out)
         return out
 
-    def count(self, coll, filters=None):
-        """Server-side aggregation count (1 read) instead of N document reads."""
+    def count(self, coll, filters=None, fresh: bool = False):
+        """Server-side aggregation count (1 read) instead of N document reads.
+
+        fresh=True bypasses the cache (used by the daily-signal-cap check -
+        a stale count there wrongly REJECTS valid signals)."""
         key = f"C:{coll}|{repr(sorted((filters or {}).items(), key=lambda kv: kv[0]))}"
-        hit = self._cache_get(key)
-        if hit is not None:
-            return hit
+        if not fresh:
+            hit = self._cache_get(key)
+            if hit is not None:
+                return hit
         self._check_quota_gate()
         q = self.db.collection(coll)
         if filters:

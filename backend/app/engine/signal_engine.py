@@ -169,7 +169,8 @@ class SignalEngine:
                 return False, f"{session or 'No'} session not enabled for {candidate.market} (per-market rule)"
             return False, f"{session} session not selected"
         today = pd.Timestamp.utcnow().strftime("%Y-%m-%d")
-        todays = store.count("signals", filters={"userId": user_id, "day": today})
+        todays = store.count("signals", filters={"userId": user_id, "day": today},
+                             fresh=True)   # never reject on a stale cached count
         if todays >= int(risk.get("max_signals_per_day", 6)):
             self._log("Daily signal cap reached. Capital protected.", kind="RISK")
             return False, "daily signal cap reached"

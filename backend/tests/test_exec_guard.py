@@ -83,7 +83,8 @@ def test_different_markets_both_execute(env):
     _goals(store, "u1")
     d1 = _doc(store, "u1", "SIG-20260920-001")
     d2 = _doc(store, "u1", "SIG-20260920-002")
-    store.update("signals", d2["id"], {"market": "XAUUSD"})
+    store.update("signals", d2["id"], {"market": "XAUUSD", "entry": 4350.0,
+                                       "sl": 4358.0, "tp1": 4334.0})   # real XAU levels
     d2 = store.get("signals", d2["id"])
     X.execute_signal(d1, "u1")
     X.execute_signal(d2, "u1")

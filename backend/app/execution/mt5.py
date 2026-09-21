@@ -14,6 +14,7 @@ failure degrades to "signal only" with an honest activity log.
 from __future__ import annotations
 
 import math
+import os
 import secrets
 import threading
 import time
@@ -63,6 +64,13 @@ def calc_lot(market: str, entry: float, sl: float, balance: float, risk_pct: flo
 # lot AFTER the risk-% math, floored to the broker step (never below 0.01)
 # ---------------------------------------------------------------------------
 LOT_MODE_MULT = {"low": 0.5, "medium": 1.0, "high": 1.5}
+
+# Broker-validity guards (NOT strategy changes): orders the broker would
+# reject anyway (stop too close -> retcode 10016 'Invalid stops', seen live
+# on SIG-20260921-007 with a 2.2-pip SL) never go out; and the risk-% lot
+# math on a tiny SL can explode (0.77 lots) - a hard cap keeps that sane.
+MIN_STOP_PIPS = float(os.getenv("EXECUTION_MIN_STOP_PIPS", "8"))
+MAX_LOTS = float(os.getenv("EXECUTION_MAX_LOTS", "1.0"))
 
 
 def _lot_mode(user_id: str) -> str:
@@ -281,6 +289,16 @@ def execute_signal(signal: dict, user_id: str) -> None:
 
     try:
         entry, sl = float(signal["entry"]), float(signal["sl"])
+        pip = PIP_SIZE.get(market)
+        if pip and abs(entry - sl) < MIN_STOP_PIPS * pip:
+            store.update("signals", signal["id"], {
+                "execution_status": "SKIPPED_STOP_TOO_TIGHT",
+                "mt5_note": f"SL {abs(entry - sl) / pip:.1f} pips from entry - broker minimum "
+                            f"is {MIN_STOP_PIPS:g} (signal kept as advisory)"})
+            _log(f"Execution skipped - SL only {abs(entry - sl) / pip:.1f} pips from entry; "
+                 f"the broker rejects stops under {MIN_STOP_PIPS:g} pips (retcode 10016). "
+                 "Signal kept as advisory.", market, kind="EXEC_WARN")
+            return
         risk_pct = min(float(((_goals_doc(user_id) or {}).get("risk_per_trade_pct", 1.0)) or 1.0),
                        settings.execution_risk_pct_cap)
         tp = signal.get(f"tp{max(1, min(3, settings.execution_tp_level))}") or signal.get("tp1")
@@ -306,6 +324,10 @@ def execute_signal(signal: dict, user_id: str) -> None:
             lots = calc_lot(market, entry, sl, float(acct["balance"]) or 0.0, risk_pct)
             _mode = _lot_mode(user_id)
             lots = apply_lot_mode(lots, _mode)
+            if lots > MAX_LOTS:
+                _log(f"Lot size capped {lots} -> {MAX_LOTS} (EXECUTION_MAX_LOTS).", market,
+                     kind="EXEC_WARN")
+                lots = MAX_LOTS
             res = bridge_post("/execute", {
                 "signal_id": signal["signal_id"], "symbol": market,
                 "direction": signal["direction"], "lots": lots, "sl": sl, "tp": tp,

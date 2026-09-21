@@ -100,7 +100,7 @@ async def replay_loop():
         except asyncio.CancelledError:
             raise
         except Exception as e:  # never let the loop die
-            agent_core.log(f"Agent loop warning: {e}", kind="WARN")
+            agent_core.log(f"Agent loop warning: {type(e).__name__}: {e}", kind="WARN")
             await asyncio.sleep(2)
 
 
@@ -258,7 +258,7 @@ async def live_loop():
         except asyncio.CancelledError:
             raise
         except Exception as e:  # never let the loop die
-            agent_core.log(f"Agent loop warning: {e}", kind="WARN")
+            agent_core.log(f"Agent loop warning: {type(e).__name__}: {e}", kind="WARN")
             await asyncio.sleep(5)
 
 
