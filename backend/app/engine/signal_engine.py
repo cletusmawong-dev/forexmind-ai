@@ -296,6 +296,10 @@ class SignalEngine:
                 "price": cand.entry,
             },
             "candle_time": cand.candle_time,
+            # Strategy 2 machine fields (harmless for other strategies):
+            **{k: v for k, v in (getattr(cand, "extra", None) or {}).items()
+               if k in ("setup_state", "setup_stage", "entry_timeframe",
+                        "sweep_timeframe", "bos_timeframe", "setup_key")},
             "dna": None,                # Signal DNA snapshot (filled right below)
             "forensics": None,          # filled automatically on completion
             "adaptive": None,           # Adaptive Quality (filled right below)
@@ -308,10 +312,13 @@ class SignalEngine:
         })
 
         score_word = "SETUP QUALIFIED"
+        _s2 = getattr(cand, "extra", None) or {}
+        _tf_line = (f"\nSweep TF: {_s2['sweep_timeframe']} - BOS TF: {_s2['bos_timeframe']}"
+                    f" - Entry TF: {_s2['entry_timeframe']}") if _s2.get("sweep_timeframe") else ""
         notify(user_id, "NEW_SIGNAL",
                f"{'🟢' if cand.direction == 'BUY' else '🔴'} {cand.market} {cand.direction}",
                f"{strategy.short_name}\n{score_word} - Signal score {cand.score}/100.\n"
-               f"Entry {cand.entry:,.5g} - SL {cand.sl:,.5g}. Tap to view analysis.",
+               f"Entry {cand.entry:,.5g} - SL {cand.sl:,.5g}. Tap to view analysis.{_tf_line}",
                signal_id=doc["id"])
         self._log(f"{strategy.short_name}: {cand.direction} signal on {cand.market} "
                   f"{cand.timeframe} approved for notification.",

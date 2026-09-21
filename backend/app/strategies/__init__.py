@@ -12,10 +12,12 @@ from typing import Dict, Type
 from .base import BaseStrategy, Candidate
 from .strategy_1_zero_lag.strategy import ZeroLagStrategy
 from .strategy_2_ema_atr.strategy import EmaAtrStrategy
+from .strategy_2_mtf_sweep_bos_retest.strategy import MtfSweepBosRetestStrategy
 
 STRATEGY_CLASSES: Dict[str, Type[BaseStrategy]] = {
     ZeroLagStrategy.id: ZeroLagStrategy,
     EmaAtrStrategy.id: EmaAtrStrategy,
+    MtfSweepBosRetestStrategy.id: MtfSweepBosRetestStrategy,
 }
 
 _INSTANCES: Dict[str, BaseStrategy] = {}
