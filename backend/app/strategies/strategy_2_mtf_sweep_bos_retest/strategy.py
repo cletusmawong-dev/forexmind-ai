@@ -174,6 +174,19 @@ class MtfSweepBosRetestStrategy(BaseStrategy):
                         st["last_signal_key"] = setup_key
                         st["waiting_bull_retest"] = False
                         st["waiting_bear_retest"] = False
+                        # Pine state machine: SIGNAL loops back to NO SWEEP -
+                        # a FRESH sweep is required before the next setup.
+                        # (Without this the same sweep re-armed via a new BOS
+                        # and fired again 15 min later - seen live 2026-09-21
+                        # SIG-006 -> SIG-007.)
+                        st["bullish_setup"] = False
+                        st["bearish_setup"] = False
+                        st["broken_high"] = None
+                        st["broken_low"] = None
+                        st["structure_high"] = None
+                        st["structure_low"] = None
+                        st["bos_candle_low"] = None
+                        st["bos_candle_high"] = None
                         tps = [hit["entry"] + sign * a * float(params[k])
                                for k in ("tp1_atr", "tp2_atr", "tp3_atr")]
                         risk = abs(hit["entry"] - hit["sl"])
@@ -224,6 +237,8 @@ class MtfSweepBosRetestStrategy(BaseStrategy):
 
         state_store.save(market, timeframe, st)
         for e in events:
+            if e.startswith("WAITING_FOR_RETEST"):
+                continue    # repeat evaluation of the same candle - not a transition
             _log_event(e.split(":")[0].split(" ")[0], f"S2 {market} {timeframe}: {e}", market)
         return candidate
 
