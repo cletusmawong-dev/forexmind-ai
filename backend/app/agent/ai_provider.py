@@ -57,7 +57,12 @@ class XKiroProvider(AIProvider):
     name = "xkiro"
 
     def complete(self, user_prompt: str, context: Dict[str, Any],
-                 model: Optional[str] = None) -> str:
+                 model: Optional[str] = None, timeout: int = 20,
+                 max_tokens: int = 400) -> str:
+        """timeout/max_tokens are caller-tunable: reasoning models (e.g.
+        openai/gpt-5.6-sol) routinely need 30-60s and a larger token budget
+        than the fast primary models - a hard 20s starves them (verified
+        production failures were ALL 'read timeout=20')."""
         key = settings.xiro_api_key
         if not key:
             raise AIUnavailable("XKiro key not configured")
@@ -75,9 +80,9 @@ class XKiroProvider(AIProvider):
                                     _format_context(context)},
                     ],
                     "temperature": 0.2,
-                    "max_tokens": 400,
+                    "max_tokens": max_tokens,
                 },
-                timeout=20,
+                timeout=timeout,
             )
             resp.raise_for_status()
             data = resp.json()

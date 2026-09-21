@@ -43,6 +43,7 @@ export function SettingsScreen() {
   const [daily, setDaily] = useState("");
   const [weekly, setWeekly] = useState("");
   const [riskPct, setRiskPct] = useState("");
+  const [lotMode, setLotMode] = useState<"low" | "medium" | "high">("medium");
   const [maxLoss, setMaxLoss] = useState("");
   const [maxSignals, setMaxSignals] = useState("");
   const [minRR, setMinRR] = useState("");
@@ -89,6 +90,7 @@ export function SettingsScreen() {
       setTp3Policy(risk.data.tp3_policy === "hold_ai" ? "hold_ai" : "close");
       setLossLimitUsd(risk.data.daily_loss_limit_usd ? String(risk.data.daily_loss_limit_usd) : "");
       setOnLossLimit(risk.data.on_loss_limit === "stop_and_close" ? "stop_and_close" : "stop_entries");
+      setLotMode(["low", "medium", "high"].includes(risk.data.lot_mode) ? risk.data.lot_mode : "medium");
       setMarketSessions(risk.data.market_sessions ?? {});
       setSessionTz(risk.data.session_tz || "UTC");
       const at = risk.data.account_type === "propfirm" ? "propfirm" : "personal";
@@ -184,6 +186,7 @@ export function SettingsScreen() {
         daily_profit_target_usd: parseFloat(profitTarget) || 0,
         daily_loss_limit_usd: parseFloat(lossLimitUsd) || 0,
         on_loss_limit: onLossLimit,
+        lot_mode: lotMode,
         account_type: acctType,
         prop_rules: propRules,
       });
@@ -335,6 +338,21 @@ export function SettingsScreen() {
           <Field label="Max signals / day" value={maxSignals} onChange={setMaxSignals} />
           <Field label="Min R:R (S1)" value={minRR} onChange={setMinRR} />
         </div>
+        <Divider className="my-5" />
+        <div className="eyebrow !text-[9px] mb-2.5">Lot size level - how big should the bot trade?</div>
+        <Segmented
+          value={lotMode}
+          onChange={(k) => setLotMode(k as "low" | "medium" | "high")}
+          options={[
+            { key: "low", label: "Low" },
+            { key: "medium", label: "Medium" },
+            { key: "high", label: "High" },
+          ]}
+        />
+        <p className="mt-2 text-[10px] leading-relaxed text-txt-faint">
+          Low trades about half the computed lot, Medium is the standard size, High about 1.5x.
+          The broker minimum lot still applies.
+        </p>
         <Divider className="my-5" />
         <div className="eyebrow !text-[9px] mb-2.5">Sessions analyzed</div>
         <div className="grid grid-cols-4 gap-2">

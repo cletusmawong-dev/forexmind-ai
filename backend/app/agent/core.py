@@ -88,13 +88,18 @@ def patch_risk(user_id: str, patch: Dict[str, Any]) -> Dict[str, Any]:
                "market_sessions", "session_hours", "session_tz",
                "daily_profit_target_usd", "daily_loss_limit_usd", "on_loss_limit",
                "ai_manage_enabled", "tp1_policy", "tp3_policy",
-               "signal_timeframes", "account_type", "prop_rules"}
+               "signal_timeframes", "account_type", "lot_mode", "prop_rules"}
     clean_keys = {k: v for k, v in patch.items() if k in allowed}
     if "signal_timeframes" in clean_keys:
         tfs = clean_keys["signal_timeframes"]
         if not isinstance(tfs, list) or not tfs or \
                 any(t not in ("15M", "1H", "4H", "1D") for t in tfs):
             raise ValueError("signal_timeframes must be a non-empty list from: 15M, 1H, 4H, 1D")
+    if "lot_mode" in clean_keys:
+        lm = str(clean_keys["lot_mode"] or "medium").strip().lower()
+        if lm not in ("low", "medium", "high"):
+            raise ValueError("lot_mode must be 'low', 'medium' or 'high'")
+        clean_keys["lot_mode"] = lm
     if "account_type" in clean_keys:
         at = str(clean_keys["account_type"] or "personal").strip().lower()
         if at not in ("personal", "propfirm"):

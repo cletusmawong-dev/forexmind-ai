@@ -21,8 +21,8 @@ class FakeProvider(AIProvider):
         self.calls = []
         self.record_models = record_models
 
-    def complete(self, user_prompt, context, model=None):
-        self.calls.append({"prompt": user_prompt, "model": model})
+    def complete(self, user_prompt, context, model=None, **kwargs):
+        self.calls.append({"prompt": user_prompt, "model": model, **kwargs})
         if self.fail:
             raise AIUnavailable(f"{self.name} down")
         if self.record_models:

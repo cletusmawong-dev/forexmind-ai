@@ -83,6 +83,7 @@ class RiskSettings(BaseModel):
     allowed_markets: List[str] = Field(
         default_factory=lambda: ["XAUUSD", "NAS100", "EURUSD", "GBPUSD", "USDJPY"])
     account_type: str = "personal"  # "personal" | "propfirm"
+    lot_mode: str = "medium"        # "low" | "medium" | "high" lot-size mode
     prop_rules: Optional[PropRules] = None
 
     @field_validator("sessions")

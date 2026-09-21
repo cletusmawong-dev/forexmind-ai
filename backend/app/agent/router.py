@@ -109,8 +109,10 @@ class ModelRouter:
                 notes.append(f"escalation skipped - cooldown {int(wait)}s")
             else:
                 try:
-                    esc_text = esc.complete(user_prompt, context,
-                                            model=settings.ai_escalation_model)
+                    esc_text = esc.complete(
+                        user_prompt, context, model=settings.ai_escalation_model,
+                        timeout=settings.ai_escalation_timeout_s,
+                        max_tokens=settings.ai_escalation_max_tokens)
                     with self._lock:
                         self.stats["escalation_ok"] += 1
                         self._esc_last_ts = time.time()

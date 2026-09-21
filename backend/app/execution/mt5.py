@@ -58,6 +58,28 @@ def calc_lot(market: str, entry: float, sl: float, balance: float, risk_pct: flo
 
 
 # ---------------------------------------------------------------------------
+# risk lot-mode (user setting: low / medium / high)
+# medium = exactly the previous behavior; the multiplier scales the computed
+# lot AFTER the risk-% math, floored to the broker step (never below 0.01)
+# ---------------------------------------------------------------------------
+LOT_MODE_MULT = {"low": 0.5, "medium": 1.0, "high": 1.5}
+
+
+def _lot_mode(user_id: str) -> str:
+    try:
+        docs = get_store().list("settings", filters={"userId": user_id, "kind": "risk"}, limit=1)
+        mode = str((docs[0] if docs else {}).get("lot_mode") or "medium").lower()
+        return mode if mode in LOT_MODE_MULT else "medium"
+    except Exception:
+        return "medium"
+
+
+def apply_lot_mode(lots: float, mode: str) -> float:
+    mult = LOT_MODE_MULT.get(mode, 1.0)
+    return max(LOT_STEP, math.floor(lots * mult * 100 + 1e-9) / 100)
+
+
+# ---------------------------------------------------------------------------
 # goals doc + kill switch + mode
 # ---------------------------------------------------------------------------
 def _goals_doc(user_id: str) -> Optional[dict]:
@@ -243,6 +265,8 @@ def execute_signal(signal: dict, user_id: str) -> None:
                      market, kind="EXEC_WARN")
                 return
             lots = calc_lot(market, entry, sl, float(acct["balance"]) or 0.0, risk_pct)
+            _mode = _lot_mode(user_id)
+            lots = apply_lot_mode(lots, _mode)
             res = bridge_post("/execute", {
                 "signal_id": signal["signal_id"], "symbol": market,
                 "direction": signal["direction"], "lots": lots, "sl": sl, "tp": tp,
@@ -250,7 +274,8 @@ def execute_signal(signal: dict, user_id: str) -> None:
             if res and res.get("ok"):
                 _apply_fill(store, signal, res, lots)
                 _log(f"MT5 EXECUTED {market} {signal['direction']} {res.get('volume')} lots "
-                     f"@ {res.get('price')} (ticket {res.get('ticket')}).", market)
+                     f"@ {res.get('price')} (ticket {res.get('ticket')})."
+                     + (f" Risk level: {_mode}." if _mode != "medium" else ""), market)
             else:
                 err = (res or {}).get("error") or (res or {}).get("detail") or \
                       f"HTTP {(res or {}).get('http_status')}"
@@ -272,6 +297,8 @@ def execute_signal(signal: dict, user_id: str) -> None:
                      market, kind="EXEC_WARN")
                 return
             lots = calc_lot(market, entry, sl, bal, risk_pct)
+            _mode = _lot_mode(user_id)
+            lots = apply_lot_mode(lots, _mode)
             cmd = store.create("exec_commands", {
                 "userId": user_id, "signal_doc_id": signal["id"],
                 "signal_id": signal["signal_id"], "status": "PENDING",

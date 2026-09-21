@@ -35,6 +35,10 @@ class Settings:
     ai_escalation_model: str = os.getenv("AI_ESCALATION_MODEL", "openai/gpt-5.6-sol")
     ai_escalation_enabled: bool = os.getenv("AI_ESCALATION_ENABLED", "true").lower() != "false"
     ai_escalation_cooldown_s: int = int(os.getenv("AI_ESCALATION_COOLDOWN_S", "300"))
+    # reasoning escalation models are slower + hungrier than the primary:
+    # production logs showed GPT-5.6-Sol dying on the old hard 20s timeout
+    ai_escalation_timeout_s: int = int(os.getenv("AI_ESCALATION_TIMEOUT_S", "45"))
+    ai_escalation_max_tokens: int = int(os.getenv("AI_ESCALATION_MAX_TOKENS", "900"))
 
     # --- Market data ----------------------------------------------------------
     # "historical_demo" replays stored datasets; "live" fetches real market data
