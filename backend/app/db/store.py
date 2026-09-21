@@ -149,7 +149,14 @@ class FirestoreStore:
     the Firestore free tier without changing any read semantics.
     """
 
-    CACHE_TTL = 45.0  # seconds - keeps a polling UI well inside free quotas
+    # 45s was too short for the 60s live-loop tick: every loop iteration
+    # re-read its keys from Firestore, and the project burned its free daily
+    # read quota EVERY EVENING (hard 429s, app-wide honest 503s until the
+    # midnight-PT reset). 240s with write-through invalidation keeps every
+    # app-written change instantly visible while cutting Firestore reads
+    # ~5x (external writers go through this same store, so nothing goes
+    # stale in practice).
+    CACHE_TTL = 240.0
 
     def __init__(self):
         from firebase_admin import firestore, credentials  # lazy import
