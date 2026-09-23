@@ -350,7 +350,10 @@ function mt5Trades(trades: any[], navigate: (p: string) => void, mode: string) {
                     {neutral ? "-" : `${(t.pl_usd ?? 0) > 0 ? "+" : ""}$${(t.pl_usd ?? 0).toFixed(2)}`}
                   </div>
                   <div className={`text-[8.5px] font-bold uppercase tracking-wider ${neutral ? "text-txt-faint" : win ? "text-pos" : "text-neg"}`}>
-                    {live ? "floating now" : t.state === "SUBMITTED" ? "pending fill" : (t.outcome || (win ? "WIN" : "LOSS")) + " - broker confirmed"}
+                    {live ? "floating now"
+                      : t.state === "SUBMITTED" ? "pending fill"
+                      : neutral ? "syncing broker..."
+                      : `${(t.outcome || (win ? "WIN" : "LOSS"))} - broker confirmed`}
                   </div>
                 </div>
               </div>
