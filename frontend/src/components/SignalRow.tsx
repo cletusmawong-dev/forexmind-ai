@@ -59,8 +59,8 @@ export function SignalRow({ signal: s, variant = "list", onClick }: { signal: Si
           </span>
           <span className="text-[10.5px] font-medium text-[var(--text-muted)]">{s.timeframe}</span>
           {s.extra_signal && (
-            <span className="rounded-full border border-[var(--accent-amber)] bg-[rgba(var(--warm-rgb),0.08)] px-1.5 py-0.5 text-[8.5px] font-bold tracking-[0.06em] text-[var(--accent-amber)]">
-              EXTRA · NOT ENTERED
+            <span className="shrink-0 whitespace-nowrap rounded-full border border-[var(--accent-amber)] bg-[rgba(var(--warm-rgb),0.08)] px-1.5 py-0.5 text-[8.5px] font-bold tracking-[0.06em] text-[var(--accent-amber)]">
+              EXTRA
             </span>
           )}
         </div>
@@ -73,11 +73,11 @@ export function SignalRow({ signal: s, variant = "list", onClick }: { signal: Si
           <div className="num text-[15px] font-bold">{fmtPrice(s.entry)}</div>
           <div className="num mt-1 text-[10.5px] font-semibold">
             {(() => {
+              if (s.extra_signal) return <span className="text-[var(--accent-amber)]">advisory</span>;
               const tp = (s.status || "").match(/TP(\d)/);
               if (tp) return <span className="text-[var(--accent-green)]">TP{tp[1]}: {fmtR(s.r_multiple)}</span>;
               if (s.outcome === "WIN") return <span className="text-[var(--accent-green)]">{fmtR(s.r_multiple)}</span>;
               if (s.outcome === "LOSS") return <span className="text-[var(--accent-red)]">{fmtR(s.r_multiple)}</span>;
-              if (s.extra_signal) return <span className="text-[var(--accent-amber)]">advisory</span>;
               if (s.status === "ACTIVE") return <span className="text-[var(--accent-cyan)]">score {s.score}</span>;
               return <span className="text-[var(--text-muted)]">{statusToneShort(s.status)}</span>;
             })()}

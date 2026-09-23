@@ -100,12 +100,20 @@ def journal_stats(user_id: str = Depends(get_user_id)):
     now = pd.Timestamp.utcnow()
     daily, weekly, monthly = defaultdict(float), defaultdict(float), defaultdict(float)
     for s in completed:
-        day = str(s.get("candle_time", ""))[:10]
-        daily[day] += s.get("r_multiple", 0.0)
-        ts = pd.Timestamp(s.get("candle_time", day))
+        # candle_time can be missing (e.g. MT5-synced closes) - fall back to any
+        # real timestamp so one malformed doc can never 500 the whole journal
+        ct = s.get("candle_time") or s.get("completed_at") or s.get("createdAt") or ""
+        if not ct:
+            continue
+        day = str(ct)[:10]
+        daily[day] += s.get("r_multiple", 0.0) or 0.0
+        try:
+            ts = pd.Timestamp(ct)
+        except (ValueError, TypeError):
+            continue
         iso = ts.isocalendar()
-        weekly[f"{iso.year}-W{iso.week:02d}"] += s.get("r_multiple", 0.0)
-        monthly[day[:7]] += s.get("r_multiple", 0.0)
+        weekly[f"{iso.year}-W{iso.week:02d}"] += s.get("r_multiple", 0.0) or 0.0
+        monthly[day[:7]] += s.get("r_multiple", 0.0) or 0.0
 
     by_strategy = {}
     for sid, strat in all_strategies().items():

@@ -48,7 +48,7 @@ export function HomeScreen() {
   const status = usePolling<AgentStatus>(() => api.get(endpoints.agentStatus), 4000, [refreshKey]);
   const markets = usePolling<{ markets: MarketCard[] }>(() => api.get(endpoints.markets), 5000, [refreshKey]);
   const activity = usePolling<{ activity: ActivityItem[] }>(() => api.get(endpoints.agentActivity), 4000, [refreshKey]);
-  const signals = usePolling<{ signals: Signal[] }>(() => api.get(`${endpoints.signals}?status=open&limit=3`), 6000, [refreshKey]);
+  const signals = usePolling<{ signals: Signal[] }>(() => api.get(`${endpoints.signals}?status=open&limit=6`), 6000, [refreshKey]);
   const notifs = usePolling<{ unread: number }>(() => api.get(endpoints.notifications), 12000, [refreshKey]);
   const daily = usePolling<any>(() => api.get(endpoints.daily), 10000, [refreshKey]);
   const exec = usePolling<any>(() => api.get("/api/execution/status"), 20000, [refreshKey]);
@@ -289,8 +289,8 @@ export function HomeScreen() {
           Active Signals
         </SectionHeader>
         <div className="space-y-3">
-          {signals.data && signals.data.signals.length > 0 ? (
-            signals.data.signals.map((s, i) => (
+          {signals.data && signals.data.signals.filter((s) => !s.extra_signal).slice(0, 3).length > 0 ? (
+            signals.data.signals.filter((s) => !s.extra_signal).slice(0, 3).map((s, i) => (
               <div key={s.id} className="anim-fadeUp" style={{ animationDelay: `${i * 60}ms` }}>
                 <SignalRow signal={s} variant="home" onClick={() => navigate(`/signals/${s.id}`)} />
               </div>

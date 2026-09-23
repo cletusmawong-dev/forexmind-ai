@@ -62,3 +62,23 @@ def test_mt5_trades_skips_unexecuted(jworld):
                                         "entry": 1.2, "sl": 1.19})
     r = jworld.get("/api/journal/mt5-trades")
     assert all(t["signal_id"] != "SIG-ADV" for t in r.json()["trades"])
+
+
+def test_journal_stats_survives_missing_candle_time(jworld):
+    """Regression: an MT5-synced close with NO candle_time (real case:
+    SIG-20260918-011) must not 500 the whole journal - stats falls back to
+    completed_at/createdAt and skips unparseable timestamps."""
+    from app.db import store as store_mod
+    store_mod._store.create("signals", {"userId": "u1", "signal_id": "SIG-NOCT",
+                                        "market": "GBPUSD", "direction": "SELL",
+                                        "timeframe": "15M", "entry": 1.34, "sl": 1.35,
+                                        "tp1": 1.32, "completed": True,
+                                        "status": "CLOSED_MT5", "outcome": "WIN",
+                                        "r_multiple": -1.0,
+                                        "createdAt": "2026-09-19T13:25:00+00:00",
+                                        "completed_at": "2026-09-21T14:09:12+00:00"})
+    r = jworld.get("/api/journal/stats")
+    assert r.status_code == 200
+    d = r.json()
+    assert d["completed"] >= 1
+    assert "2026-09-21" in d["daily"]     # fell back to completed_at
