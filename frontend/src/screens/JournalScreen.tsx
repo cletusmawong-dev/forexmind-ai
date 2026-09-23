@@ -191,6 +191,7 @@ type LogSignal = {
   status?: string; outcome?: string | null; r_multiple?: number;
   candle_time?: string; completed_at?: string; exit_price?: number | null;
   mt5_confirmed?: boolean; mt5_pl?: number;
+  extra_signal?: boolean;
   market_conditions?: { session?: string };
 };
 
@@ -249,11 +250,21 @@ function tradeLog(signals: LogSignal[], navigate: (p: string) => void) {
               <span className="text-[15px] font-bold tracking-tight">{s.market}</span>
               <span className={`text-[10.5px] font-bold tracking-wider ${dirColor}`}>{s.direction}</span>
               <span className="text-[9.5px] text-txt-faint">{s.timeframe}</span>
+              {s.extra_signal && (
+                <span className="rounded-full border border-[var(--accent-amber)] bg-[rgba(var(--warm-rgb),0.08)] px-1.5 py-0.5 text-[8px] font-bold tracking-[0.06em] text-[var(--accent-amber)]">
+                  EXTRA · NOT ENTERED
+                </span>
+              )}
             </div>
             <div className="truncate text-[10px] text-txt-faint">{s.strategy_name} | {s.signal_id}</div>
           </div>
           <div className="shrink-0 text-right">
             <div className={`num text-[17px] font-bold ${rColor}`}>{r > 0 ? "+" : ""}{r.toFixed(1)}R</div>
+            {s.mt5_confirmed && s.mt5_pl != null ? (
+              <div className={`num text-[11px] font-bold ${s.mt5_pl >= 0 ? "text-pos" : "text-neg"}`}>
+                {s.mt5_pl >= 0 ? "+" : "-"}${Math.abs(s.mt5_pl).toFixed(2)} <span className="text-[8px] font-semibold uppercase tracking-wider text-txt-faint">MT5</span>
+              </div>
+            ) : null}
             <div className={`text-[8.5px] font-bold uppercase tracking-wider ${win ? "text-pos" : "text-neg"}`}>{win ? "WIN" : "LOSS"} - hit {resultWord}</div>
           </div>
         </div>

@@ -43,8 +43,9 @@ export function SignalRow({ signal: s, variant = "list", onClick }: { signal: Si
   return (
     <button
       onClick={onClick}
-      className="glass glass-hover tap flex w-full items-center gap-3.5 !py-[18px] p-4 text-left"
-      aria-label={`${s.market} ${s.direction} signal`}
+      className={`glass glass-hover tap flex w-full items-center gap-3.5 !py-[18px] p-4 text-left ${s.extra_signal ? "border-l-[3px] border-l-[var(--accent-amber)]" : ""}`}
+      style={s.extra_signal ? { background: "rgba(var(--warm-rgb),0.05)" } : undefined}
+      aria-label={`${s.market} ${s.direction} signal${s.extra_signal ? " (extra, not entered)" : ""}`}
     >
       <CircleDirIcon dir={s.direction} />
       <div className="min-w-0 flex-1">
@@ -58,8 +59,8 @@ export function SignalRow({ signal: s, variant = "list", onClick }: { signal: Si
           </span>
           <span className="text-[10.5px] font-medium text-[var(--text-muted)]">{s.timeframe}</span>
           {s.extra_signal && (
-            <span className="rounded-full border border-[var(--accent-amber)] px-1.5 py-0.5 text-[8.5px] font-bold tracking-[0.06em] text-[var(--accent-amber)]">
-              EXTRA - MANUAL ONLY
+            <span className="rounded-full border border-[var(--accent-amber)] bg-[rgba(var(--warm-rgb),0.08)] px-1.5 py-0.5 text-[8.5px] font-bold tracking-[0.06em] text-[var(--accent-amber)]">
+              EXTRA · NOT ENTERED
             </span>
           )}
         </div>
@@ -76,6 +77,7 @@ export function SignalRow({ signal: s, variant = "list", onClick }: { signal: Si
               if (tp) return <span className="text-[var(--accent-green)]">TP{tp[1]}: {fmtR(s.r_multiple)}</span>;
               if (s.outcome === "WIN") return <span className="text-[var(--accent-green)]">{fmtR(s.r_multiple)}</span>;
               if (s.outcome === "LOSS") return <span className="text-[var(--accent-red)]">{fmtR(s.r_multiple)}</span>;
+              if (s.extra_signal) return <span className="text-[var(--accent-amber)]">advisory</span>;
               if (s.status === "ACTIVE") return <span className="text-[var(--accent-cyan)]">score {s.score}</span>;
               return <span className="text-[var(--text-muted)]">{statusToneShort(s.status)}</span>;
             })()}

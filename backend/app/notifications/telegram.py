@@ -28,7 +28,11 @@ def send_telegram(user_id: str, text: str) -> bool:
         return False
     store = get_store()
     u = store.get("users", user_id) or {}
-    chat_id = u.get("telegram_chat_id") or settings.telegram_default_chat_id
+    # ONLY the user's own linked chat. The old default-chat fallback made every
+    # event on ANY account's signal copy ring the owner's phone TWICE (each
+    # setup exists once per user by design). A user without their own linked
+    # Telegram simply gets in-app notifications.
+    chat_id = u.get("telegram_chat_id")
     if not chat_id:
         return False
     try:
