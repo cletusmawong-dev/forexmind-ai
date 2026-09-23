@@ -88,7 +88,8 @@ class Settings:
 
     # --- Learning -----------------------------------------------------------------
     min_trades_for_conclusion: int = 20       # SPEC §19/§20: no conclusions without evidence
-    min_trades_for_experiment: int = 30       # below this -> INSUFFICIENT DATA (SPEC §23)
+    min_trades_for_experiment: int = int(os.getenv("AUTOPSY_MIN_SAMPLE", "30"))
+    # below this -> INSUFFICIENT DATA (SPEC §23 / autopsy spec §3; default 30)
     min_trades_for_lesson: int = 20
     lesson_delta_pp: float = 8.0              # min win-rate deviation vs baseline (pp)
 

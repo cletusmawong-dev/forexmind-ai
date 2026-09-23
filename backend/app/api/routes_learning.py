@@ -123,3 +123,38 @@ def run_experiment(body: ExperimentIn, user_id: str = Depends(get_user_id)):
 def run_analysis(user_id: str = Depends(get_user_id)):
     new_lessons = analyze_closed_signals(user_id)
     return {"new_lessons": len(new_lessons), "lessons": new_lessons}
+
+@router.get("/autopsies")
+def autopsies(user_id: str = Depends(get_user_id), limit: int = Query(50, le=200)):
+    items = State.store.list("autopsies", filters={"user_id": user_id}, limit=limit)
+    items.sort(key=lambda d: str(d.get("createdAt") or ""), reverse=True)
+    return {"autopsies": items, "count": len(items)}
+
+
+@router.get("/autopsies/{autopsy_id}")
+def autopsy_detail(autopsy_id: str, user_id: str = Depends(get_user_id)):
+    a = State.store.get("autopsies", autopsy_id)
+    if not a or a.get("user_id") != user_id:
+        raise HTTPException(404, "Autopsy not found")
+    return {"autopsy": a}
+
+
+@router.post("/autopsies/{autopsy_id}/decide")
+def autopsy_decide(autopsy_id: str, body: dict, user_id: str = Depends(get_user_id)):
+    """User decision on a PROPOSED experiment: approve -> PAPER shadow
+    experiment (zero live behavior change), reject -> closed. The engine can
+    NEVER apply anything without this explicit call."""
+    from ..learning.autopsy import decide_proposal
+    approve = bool(body.get("approve"))
+    out = decide_proposal(autopsy_id, user_id, approve)
+    agent_core.log(f"Trade autopsy {autopsy_id[:8]}: user "
+                   f"{'APPROVED paper experiment' if approve else 'REJECTED the proposal'}.",
+                   kind="VERSION")
+    return out
+
+
+@router.get("/autopsies/experiment/{experiment_id}/report")
+def autopsy_experiment_report(experiment_id: str, user_id: str = Depends(get_user_id)):
+    """Baseline vs experiment groups (complete picture, never win-rate-only)."""
+    from ..learning.autopsy import experiment_report
+    return experiment_report(experiment_id)

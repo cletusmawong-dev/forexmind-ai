@@ -34,7 +34,7 @@ COLLECTIONS = [
     "agent_goals", "agent_activity", "lessons", "hypotheses", "experiments",
     "notifications", "performance", "settings", "backtests", "candles",
     "exec_commands", "market_regimes", "version_events", "research_hypotheses",
-    "ai_decisions", "strategy2_state",
+    "ai_decisions", "strategy2_state", "autopsies",
 ]
 
 

@@ -168,6 +168,12 @@ class SignalTracker:
                              {"forensics": forensic_analyze(fresh, store)})
             except Exception:
                 pass
+        try:  # Trade Autopsy engine: paper-stamp + knowledge base (analytics
+              # only - observes and proposes, never changes any behavior)
+            from ..learning.autopsy import on_trade_completed
+            on_trade_completed(updated or sig)
+        except Exception:
+            pass
 
         # keep the user's own trade result in sync (SPEC §17)
         if sig.get("user_action") == "entered":
