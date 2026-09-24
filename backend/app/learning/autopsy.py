@@ -192,11 +192,21 @@ def build_record(sig: dict, comps: List[dict]) -> dict:
 
 
 def pd_ts(v):
+    """Parse any real-world timestamp to a tz-NAIVE UTC pandas Timestamp.
+
+    Production docs mix formats: candle_time is often naive
+    ('2026-09-23 17:30:00') while completed_at/createdAt are tz-aware
+    ('...+00:00').  Subtracting those raises TypeError, which the tracker's
+    silent except used to swallow (autopsies silently never created).
+    """
     if not v:
         return None
     try:
         import pandas as pd
-        return pd.Timestamp(v) if not hasattr(v, "timestamp") else pd.Timestamp(v)
+        ts = pd.Timestamp(v)
+        if ts.tzinfo is not None:
+            ts = ts.tz_convert("UTC").tz_localize(None)
+        return ts
     except Exception:
         return None
 
@@ -273,7 +283,8 @@ def _stable_effect(sig: dict, comps: List[dict], cond: dict) -> Optional[bool]:
     keep the same sign in both, else it fails cross-validation."""
     try:
         import pandas as pd
-        keyed = sorted(comps, key=lambda d: str(d.get("completed_at") or ""))
+        keyed = sorted(comps, key=lambda d: (pd_ts(d.get("completed_at"))
+                                             or pd.Timestamp.min))
         half = max(1, len(keyed) // 2)
         halves = (keyed[:half], keyed[half:])
         signs = []

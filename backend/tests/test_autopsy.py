@@ -39,7 +39,7 @@ def _sig(store, i=0, strategy="strategy_2_ema_atr", market="EURUSD",
          direction="BUY", r=-1.0, tp_hits=0, mfe_r=None, mae_r=None,
          momentum="STRONG", status="SL_HIT", outcome=None, completed=True,
          completed_at="2026-09-22T10:00:00", session="London", user="u1",
-         entry=1.10, mt5_open=None):
+         entry=1.10, mt5_open=None, candle_time="2026-09-22T09:45:00"):
     doc = {
         "userId": user, "signal_id": f"SIG-A-{strategy[-3]}-{i:04d}",
         "strategy_id": strategy, "strategy_name": "S", "market": market,
@@ -49,7 +49,7 @@ def _sig(store, i=0, strategy="strategy_2_ema_atr", market="EURUSD",
         "tp_hits": tp_hits, "mfe_r": mfe_r, "mae_r": mae_r,
         "status": status, "outcome": outcome or ("WIN" if r > 0 else "LOSS"),
         "completed": completed, "completed_at": completed_at,
-        "candle_time": "2026-09-22T09:45:00", "createdAt": "2026-09-22T09:45:12",
+        "candle_time": candle_time, "createdAt": "2026-09-22T09:45:12",
         "dna": _dna(momentum=momentum, session=session),
         "params": {"expire_bars": 200},
     }
@@ -352,3 +352,31 @@ def test_eval_condition_ops():
     assert A.eval_condition(doc, {"key": "dna.volatility", "op": "equals", "value": "HIGH"})
     assert not A.eval_condition(doc, {"key": "dna.momentum", "op": "equals", "value": "STRONG"})
     assert not A.eval_condition(doc, {"key": "bogus", "op": "equals", "value": "x"})
+
+
+def test_realworld_mixed_timezone_docs_never_crash(world):
+    """Regression (production incident): Firestore docs mix tz-aware
+    completed_at ('...+00:00') with naive candle_time ('2026-09-23 17:30:00').
+    The subtraction raised TypeError and the tracker's silent except meant
+    NO autopsy was ever created live. Must produce an autopsy."""
+    import pandas as pd
+    _comps(world)     # uniform fixtures
+    # corrupt the newest comparables into the REAL mixed shapes
+    docs = world.list("signals", limit=500)
+    for i, d in enumerate(docs[:6]):
+        if i % 2 == 0:
+            world.update("signals", d["id"], {
+                "completed_at": pd.Timestamp(d["completed_at"]).isoformat() + "+00:00",
+                "candle_time": str(pd.Timestamp(d["candle_time"]).tz_localize(None))})
+        else:
+            world.update("signals", d["id"], {
+                "completed_at": str(pd.Timestamp(d["completed_at"]).tz_localize(None)),
+                "candle_time": pd.Timestamp(d["candle_time"]).tz_localize("UTC").isoformat()})
+    sig = _sig(world, 999, momentum="STRONG",
+               completed_at="2026-09-23T23:37:15.595267+00:00",
+               candle_time="2026-09-23 17:30:00")
+    a = A.build_autopsy(sig, world)
+    assert a["behavior"]["duration_min"] is not None     # parsed despite tz mix
+    assert a["status"] in ("INSUFFICIENT_SAMPLE", "NO_EVALUABLE_PATTERN",
+                           "PATTERN_DISPROVED", "NO_MEANINGFUL_EFFECT",
+                           "PATTERN_OBSERVED")
