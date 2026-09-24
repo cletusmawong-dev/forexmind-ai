@@ -104,3 +104,25 @@ def test_candidate_risk_and_targets(xau_15m):
     assert "Trend condition confirmed" in labels
     assert "Entry condition confirmed" in labels
     assert cand.analysis and "qualifies because" in cand.analysis
+
+
+def test_detect_signal_lookback_catches_recently_closed_bar(xau_15m):
+    """Missed-signal fix: the candle cache can lag 1-2 bars at scan time.
+    detect_signal must evaluate the last few CLOSED bars (newest first),
+    not only bar -1, and dedup happens downstream per candle_time."""
+    s = get_strategy("strategy_1_zero_lag")
+    df = xau_15m.tail(1500)
+    state = s.compute(df, s.base_params)
+    # find the most recent entry bar that is NOT the last bar
+    entries = [i for i in range(300, len(df)) if s.detect_on_bar(state, i)]
+    assert entries
+    i_ev = [i for i in entries if i < len(df) - 1][-1]
+    # simulate a cache that ends 1 bar BEFORE the entry bar closes: the
+    # entry must still be found when the df includes it as bar -2
+    df_cut = df.iloc[:i_ev + 2]          # entry bar = second-newest
+    ev2 = s.detect_on_bar(s.compute(df_cut, s.base_params), len(df_cut) - 2)
+    if ev2 is None:                       # this particular bar's state shifted
+        return
+    cand = s.detect_signal(df_cut, "XAUUSD", "15M", params=s.base_params)
+    assert cand is not None
+    assert cand.candle_time == str(df_cut.index[i_ev])

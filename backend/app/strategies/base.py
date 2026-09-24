@@ -82,20 +82,32 @@ class BaseStrategy(ABC):
     def detect_signal(self, df: pd.DataFrame, market: str, timeframe: str,
                       params: Optional[Dict[str, Any]] = None,
                       higher_frames: Optional[Dict[str, pd.DataFrame]] = None,
-                      score_context: Optional[Dict[str, Any]] = None) -> Optional[Candidate]:
-        """Evaluate the LAST CLOSED bar and build a full Candidate if valid."""
+                      score_context: Optional[Dict[str, Any]] = None,
+                      lookback: int = 3) -> Optional[Candidate]:
+        """Evaluate the last bars (newest first) and build a full Candidate.
+
+        LOOKBACK (missed-signal fix, 2026-09-24): the candle cache can lag
+        1-2 bars behind wall-clock at scan time, so an entry that fired on
+        the second-newest bar was never seen (crossovers are single-bar
+        events - the replay audit showed ~2 of 3 cluster entries lost).
+        We now walk back a few CLOSED bars; _create_signal dedupes on
+        (user, strategy, market, tf, candle_time) so a bar can never
+        produce a second signal. Bounded staleness: at most `lookback`
+        bars, never an ancient resurrection after long outages."""
         params = self.get_parameters(params)
         if df is None or len(df) < self.min_bars:
             return None
         df = df.dropna()
         state = self.compute(df, params)
-        i = len(df) - 1
-        event = self.detect_on_bar(state, i)
-        if not event:
-            return None
-        cand = self.build_candidate(state, i, event, df, market, timeframe, params,
-                                    higher_frames or {}, score_context or {})
-        return cand
+        newest = len(df) - 1
+        for i in range(newest, max(newest - max(1, lookback), 0), -1):
+            event = self.detect_on_bar(state, i)
+            if event:
+                cand = self.build_candidate(state, i, event, df, market, timeframe, params,
+                                            higher_frames or {}, score_context or {})
+                if cand is not None:
+                    return cand
+        return None
 
     @abstractmethod
     def build_candidate(self, state, i, event, df, market, timeframe, params,
