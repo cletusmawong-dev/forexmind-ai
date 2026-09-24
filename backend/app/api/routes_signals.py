@@ -39,7 +39,11 @@ def list_signals(user_id: str = Depends(get_user_id),
         filters["strategy_id"] = strategy
     sigs = store.list("signals", filters=filters, order_by="candle_time", limit=300)
     if status == "open":
-        sigs = [s for s in sigs if s.get("status") in OPEN_STATUSES]
+        # open = genuinely live: status still progressing AND not completed
+        # (old finalized signals kept a TP1/TP2_HIT status string and used to
+        # haunt the Active list forever - production report 2026-09-24)
+        sigs = [s for s in sigs if s.get("status") in OPEN_STATUSES
+                and not s.get("completed")]
     elif status == "closed":
         sigs = [s for s in sigs if s.get("completed")]
     return {"signals": sigs[:limit], "count": len(sigs),

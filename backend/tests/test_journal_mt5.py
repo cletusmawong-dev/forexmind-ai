@@ -82,3 +82,23 @@ def test_journal_stats_survives_missing_candle_time(jworld):
     d = r.json()
     assert d["completed"] >= 1
     assert "2026-09-21" in d["daily"]     # fell back to completed_at
+
+
+def test_open_excludes_finalized_signals(jworld):
+    """Regression: signals already completed (paper-era TP2_HIT etc.) must
+    not appear in status=open - 'open' means genuinely live only."""
+    from app.db import store as store_mod
+    store_mod._store.create("signals", {"userId": "u1", "signal_id": "SIG-OLD",
+                                        "market": "USDJPY", "direction": "BUY",
+                                        "timeframe": "1H", "entry": 155.0,
+                                        "sl": 154.0, "tp1": 156.0, "tp2": 157.0,
+                                        "status": "TP2_HIT", "completed": True,
+                                        "r_multiple": 2.5, "outcome": "WIN"})
+    store_mod._store.create("signals", {"userId": "u1", "signal_id": "SIG-LIVE",
+                                        "market": "EURUSD", "direction": "SELL",
+                                        "timeframe": "15M", "entry": 1.10,
+                                        "sl": 1.11, "tp1": 1.09, "tp2": 1.08,
+                                        "status": "ACTIVE", "completed": False})
+    r = jworld.get("/api/signals?status=open&limit=50")
+    ids = [s["signal_id"] for s in r.json()["signals"]]
+    assert "SIG-OLD" not in ids and "SIG-LIVE" in ids
