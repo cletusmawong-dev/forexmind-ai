@@ -60,12 +60,12 @@ export function SignalRow({ signal: s, variant = "list", onClick }: { signal: Si
             {s.direction}
           </span>
           <span className="text-[10.5px] font-medium text-[var(--text-muted)]">{s.timeframe}</span>
-          {s.extra_signal && (
+          {s.extra_signal && variant !== "home" && (
             <span className="shrink-0 whitespace-nowrap rounded-full border border-[var(--accent-amber)] bg-[rgba(var(--warm-rgb),0.08)] px-1.5 py-0.5 text-[8.5px] font-bold tracking-[0.06em] text-[var(--accent-amber)]">
               EXTRA
             </span>
           )}
-          {!s.extra_signal && notEntered && (
+          {!s.extra_signal && notEntered && variant !== "home" && (
             <span className="shrink-0 whitespace-nowrap rounded-full border border-[var(--text-muted)] bg-[rgba(var(--text-muted),0.07)] px-1.5 py-0.5 text-[8.5px] font-bold tracking-[0.06em] text-[var(--text-muted)]">
               NOT ENTERED
             </span>
@@ -78,7 +78,8 @@ export function SignalRow({ signal: s, variant = "list", onClick }: { signal: Si
       </div>
       {variant === "home" && (
         <div className="shrink-0 text-right">
-          <div className="num text-[15px] font-bold">{fmtPrice(s.entry)}</div>
+          {!notEntered && <div className="num text-[15px] font-bold">{fmtPrice(s.entry)}</div>}
+          {notEntered && <div className="text-[11px] font-bold text-[var(--accent-amber)]">NOT ENTERED</div>}
           <div className="num mt-1 text-[10.5px] font-semibold">
             {(() => {
               if (s.extra_signal) return <span className="text-[var(--accent-amber)]">advisory</span>;
