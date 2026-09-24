@@ -8,6 +8,7 @@ import { DemoTag, Divider, Glass, MetricGrid, Pill, Spinner, StatusDot, Progress
 import { CandleChart, ChartLine } from "../components/CandleChart";
 import { PositionSizeCard } from "../components/PositionSizeCard";
 import { fmtPrice, fmtR, fmtDateTime, TREND_LABEL } from "../lib/format";
+import { notEnteredReason } from "../lib/execution";
 
 export function SignalDetailScreen() {
   const { id } = useParams();
@@ -124,7 +125,7 @@ export function SignalDetailScreen() {
           {s.tp2 && <Divider />}
           {s.tp3 && <LadderRow label="TP3" value={fmtPrice(s.tp3)} tone="text-[var(--accent-green)]" note="3R" muted={!!s.completed && tpHits < 3} hit={tpHits >= 3} />}
           {s.tp3 && <Divider />}
-          <LadderRow label="Risk / reward" value={`1 : ${s.rr_primary}`} tone="" note={s.completed ? fmtR(s.r_multiple) : s.status.replace("_", " ")} />
+          <LadderRow label="Risk / reward" value={`1 : ${s.rr_primary}`} tone="" note={notEnteredReason(s) ? "NOT ENTERED" : s.completed ? fmtR(s.r_multiple) : s.status.replace("_", " ")} />
         </div>
       </Glass>
 

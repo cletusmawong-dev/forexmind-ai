@@ -1,5 +1,6 @@
 import { ArrowDownRight, ArrowUpRight, ChevronRight } from "lucide-react";
 import type { Signal } from "../lib/types";
+import { notEnteredReason } from "../lib/execution";
 import { fmtPrice, fmtR, statusToneShort } from "../lib/format";
 
 /** Circular glass direction icon with soft glow (SELL = pink, BUY = green). */
@@ -31,6 +32,7 @@ export function CircleDirIcon({ dir, size = 44 }: { dir: "BUY" | "SELL"; size?: 
 export function SignalRow({ signal: s, variant = "list", onClick }: { signal: Signal; variant?: "list" | "home"; onClick?: () => void }) {
   const buy = s.direction === "BUY";
   const open = !s.completed;
+  const notEntered = notEnteredReason(s);
   const age = (() => {
     if (!s.createdAt) return "";
     const m = Math.floor((Date.now() - new Date(s.createdAt).getTime()) / 60000);
@@ -63,9 +65,15 @@ export function SignalRow({ signal: s, variant = "list", onClick }: { signal: Si
               EXTRA
             </span>
           )}
+          {!s.extra_signal && notEntered && (
+            <span className="shrink-0 whitespace-nowrap rounded-full border border-[var(--text-muted)] bg-[rgba(var(--text-muted),0.07)] px-1.5 py-0.5 text-[8.5px] font-bold tracking-[0.06em] text-[var(--text-muted)]">
+              NOT ENTERED
+            </span>
+          )}
         </div>
         <div className="mt-1.5 truncate text-[11px] text-[var(--text-muted)]">
           {s.strategy_name} - {s.signal_id}{age ? ` - ${age}` : ""}
+          {notEntered && <span className="font-semibold text-[var(--accent-amber)]"> - not entered ({notEntered})</span>}
         </div>
       </div>
       {variant === "home" && (
@@ -74,6 +82,7 @@ export function SignalRow({ signal: s, variant = "list", onClick }: { signal: Si
           <div className="num mt-1 text-[10.5px] font-semibold">
             {(() => {
               if (s.extra_signal) return <span className="text-[var(--accent-amber)]">advisory</span>;
+              if (notEntered) return <span className="text-[var(--accent-amber)]">not entered</span>;
               const tp = (s.status || "").match(/TP(\d)/);
               if (tp) return <span className="text-[var(--accent-green)]">TP{tp[1]}: {fmtR(s.r_multiple)}</span>;
               if (s.outcome === "WIN") return <span className="text-[var(--accent-green)]">{fmtR(s.r_multiple)}</span>;
