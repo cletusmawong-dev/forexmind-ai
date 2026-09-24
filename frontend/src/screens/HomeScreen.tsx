@@ -24,6 +24,7 @@ const HERO_BLEND: Record<string, "screen" | "multiply"> = {
 };
 import { fmtPct, fmtPrice, fmtTime, greeting, shortAgo } from "../lib/format";
 import { SignalRow } from "../components/SignalRow";
+import { notEnteredReason as notEnteredSignal } from "../lib/execution";
 import { AgentPulse } from "../components/AgentPulse";
 import { MorningBriefCard } from "../components/MorningBriefCard";
 
@@ -289,8 +290,8 @@ export function HomeScreen() {
           Active Signals
         </SectionHeader>
         <div className="space-y-3">
-          {signals.data && signals.data.signals.filter((s) => !s.extra_signal).slice(0, 3).length > 0 ? (
-            signals.data.signals.filter((s) => !s.extra_signal).slice(0, 3).map((s, i) => (
+          {signals.data && signals.data.signals.filter((s) => !s.extra_signal && !notEnteredSignal(s)).slice(0, 3).length > 0 ? (
+            signals.data.signals.filter((s) => !s.extra_signal && !notEnteredSignal(s)).slice(0, 3).map((s, i) => (
               <div key={s.id} className="anim-fadeUp" style={{ animationDelay: `${i * 60}ms` }}>
                 <SignalRow signal={s} variant="home" onClick={() => navigate(`/signals/${s.id}`)} />
               </div>
