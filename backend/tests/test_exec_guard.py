@@ -51,19 +51,20 @@ def _goals(store, uid):
 
 
 def test_same_setup_executes_once(env):
-    """Two users' copies of the SAME setup -> exactly ONE broker order."""
+    """Two users' copies of the SAME setup -> exactly ONE broker order, and
+    under the owner-only gate the non-owner's copy is advisory BEFORE dedup
+    can even matter (owner-only execution, standing directive)."""
     store, sent = env
     _goals(store, "u1")
     _goals(store, "u2")
     d1 = _doc(store, "u1", "SIG-20260920-001")
     d2 = _doc(store, "u2", "SIG-20260920-001")     # same-id collision scenario
-    X.execute_signal(d1, "u1")
     X.execute_signal(d2, "u2")
-    assert len(sent) == 1                          # ONE broker order
+    X.execute_signal(d1, "u1")
+    assert len(sent) == 1                          # ONE broker order (owner's)
     assert store.get("signals", d1["id"])["execution_status"] == "SUBMITTED"
     d2doc = store.get("signals", d2["id"])
-    assert d2doc["execution_status"] == "SKIPPED_SETUP_ALREADY_EXECUTED"
-    assert "SIG-20260920-001" in (d2doc.get("mt5_note") or "")
+    assert d2doc["execution_status"] == "SKIPPED_NOT_ENGINE_OWNER"
 
 
 def test_different_candles_both_execute(env):

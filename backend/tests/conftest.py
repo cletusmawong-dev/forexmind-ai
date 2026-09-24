@@ -27,6 +27,14 @@ def xau_1h():
     return resample_ohlcv(load_base(), "1h").dropna()
 
 
+@pytest.fixture(autouse=True)
+def _test_owner(monkeypatch):
+    """Execution tests default to owner user 'u1'. Production default is
+    'cletusmawa' (settings.owner_user_id). Individual tests may override."""
+    from app.config import settings
+    monkeypatch.setattr(settings, "owner_user_id", "u1", raising=False)
+
+
 @pytest.fixture()
 def fresh_store(tmp_path, monkeypatch):
     """Isolated LocalStore per test - never touches the real db.json."""
