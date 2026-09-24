@@ -63,6 +63,9 @@ class Settings:
     telegram_webhook_secret: str = os.getenv("TELEGRAM_WEBHOOK_SECRET", "fxm-hook")
     # Single-owner failsafe: alerts use this chat when a user has no linked chat.
     telegram_default_chat_id: str = os.getenv("TELEGRAM_DEFAULT_CHAT_ID", "")
+    # The one user whose journal receives engine-executed trades (the bridge
+    # drives a single Exness account). Everyone else's signals stay advisory.
+    owner_user_id: str = os.getenv("FOREXMIND_OWNER_USER_ID", "cletusmawa")
 
     # --- MT5 execution (VPS bridge, demo account first) ----------------------
     # "off" = signals advisory only; "mt5_bridge" = auto-execute qualifying

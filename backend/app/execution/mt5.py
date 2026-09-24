@@ -260,6 +260,19 @@ def execute_signal(signal: dict, user_id: str) -> None:
                 "mt5_note": "Execution mode is OFF - signal kept as advisory"})
         return   # advisory signals - honest default
 
+    # Single-account engine: the bridge drives ONE Exness account (the
+    # owner's).  Engine-executed trades must ALWAYS land in the owner's
+    # journal (standing directive) - scans for any other user (demo/test)
+    # stay advisory so two user contexts can never race for one position.
+    if user_id != settings.owner_user_id:
+        if signal.get("id"):
+            get_store().update("signals", signal["id"], {
+                "execution_status": "SKIPPED_NOT_ENGINE_OWNER",
+                "mt5_note": "Engine executes only for the account owner - signal kept as advisory"})
+            _log("Execution skipped - signal belongs to a non-owner user "
+                 "(single-account engine). Kept as advisory.", signal.get("market"))
+        return
+
     store = get_store()
     market = signal.get("market")
 

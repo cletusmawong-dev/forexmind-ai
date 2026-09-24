@@ -17,6 +17,7 @@ def env(monkeypatch, tmp_path):
     monkeypatch.setattr(settings, "bridge_url", "http://fake-bridge:8700")
     monkeypatch.setattr(settings, "bridge_token", "tok")
     monkeypatch.setattr(settings, "execution_max_trades_per_day", 2)
+    monkeypatch.setattr(settings, "owner_user_id", "u1")
     return store
 
 
@@ -181,3 +182,18 @@ def test_connector_deals_push_confirms():
     ]}
     assert X.connector_push_deals("u1", deals["deals"]) == 1
     assert store.get("signals", "sig1")["mt5_confirmed"]
+
+
+def test_non_owner_signals_stay_advisory(monkeypatch):
+    """Standing directive: the bridge drives ONE account (the owner's). A
+    signal scanned under any other user must NEVER race the owner for a
+    broker position (production incident: SIG-20260924-001 executed under
+    the demo user). Non-owner -> advisory, bridge never called."""
+    sent = []
+    monkeypatch.setattr(X, "bridge_get", lambda p, timeout=8: {"balance": 1000})
+    monkeypatch.setattr(X, "bridge_post", lambda p, payload, timeout=15: sent.append(payload))
+    env_store = X.get_store()
+    X.execute_signal(SIG, "someone_else")
+    doc = env_store.get("signals", "sig1")
+    assert doc["execution_status"] == "SKIPPED_NOT_ENGINE_OWNER"
+    assert sent == []          # nothing reached the broker
