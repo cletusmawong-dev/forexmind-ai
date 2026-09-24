@@ -704,13 +704,23 @@ def sync_deals(user_id: str) -> int:
     first successful sweep backfills the WHOLE history (since=0) and only
     then sets mt5_backfill_done; failures leave the flag unset so the next
     run retries the full window. apply_deals is idempotent (skips already-
-    confirmed docs)."""
+    confirmed docs).
+
+    BUGFIX (2026-09-24): an incremental 5-minute window can contain a
+    position's EXIT deal but not its ENTRY deal (opened hours earlier) -
+    apply_deals needs the entry deal (it carries the signal_id comment) so
+    the close was silently skipped and the app showed ghost "ACTIVE"
+    signals for trades the broker had already closed. The window now always
+    overlaps MT5_DEAL_LOOKBACK_S (default 48h); idempotency makes the
+    overlap free."""
     if user_mode(user_id) != "vps" or not settings.bridge_url:
         return 0
     goals = _goals_doc(user_id) or {}
     since = int(goals.get("mt5_deal_sync_ts") or 0)
     if not goals.get("mt5_backfill_done"):
         since = 0
+    lookback = int(os.getenv("MT5_DEAL_LOOKBACK_S", str(48 * 3600)))
+    since = max(0, since - max(0, lookback))
     data = bridge_get(f"/deals?since={since}", timeout=20)
     if not data:
         return 0

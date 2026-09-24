@@ -83,6 +83,8 @@ export function SignalRow({ signal: s, variant = "list", onClick }: { signal: Si
             {(() => {
               if (s.extra_signal) return <span className="text-[var(--accent-amber)]">advisory</span>;
               if (notEntered) return <span className="text-[var(--accent-amber)]">not entered</span>;
+              if ((s as any).mt5_ticket && !s.completed)
+                return <span className="text-[var(--accent-cyan)]">live · in position</span>;
               const tp = (s.status || "").match(/TP(\d)/);
               if (tp) return <span className="text-[var(--accent-green)]">TP{tp[1]}: {fmtR(s.r_multiple)}</span>;
               if (s.outcome === "WIN") return <span className="text-[var(--accent-green)]">{fmtR(s.r_multiple)}</span>;

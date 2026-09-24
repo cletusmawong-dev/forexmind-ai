@@ -101,6 +101,34 @@ def test_sync_confirms_closed_trade(monkeypatch):
     assert X.sync_deals("u1") == 0
 
 
+def test_sync_window_overlaps_lookback(monkeypatch):
+    """Regression (production incident 2026-09-24): a 5-min incremental deal
+    window contains the EXIT deal but not the ENTRY deal (opened hours
+    earlier), so apply_deals could not pair them and broker-closed trades
+    stayed 'ACTIVE' in the app forever. The window must overlap by the
+    lookback (default 48h)."""
+    store = X.get_store()
+    X._goals_update("u1", {"mt5_deal_sync_ts": int(X.time.time()) - 300,
+                           "mt5_backfill_done": True})
+    seen = {}
+    deals = {"deals": [
+        {"position_id": 7, "entry": 0, "magic": X.MAGIC, "comment": "SIG-20260914-001",
+         "volume": 0.05, "price": 1.0999, "profit": 0, "commission": 0, "swap": 0},
+        {"position_id": 7, "entry": 1, "magic": X.MAGIC, "comment": "",
+         "volume": 0.05, "price": 1.0901, "profit": 5.0, "commission": 0, "swap": 0},
+    ]}
+    def fake_bridge(path, timeout=20):
+        seen["path"] = path
+        return deals
+    monkeypatch.setattr(X, "bridge_get", fake_bridge)
+    n = X.sync_deals("u1")
+    assert n == 1
+    since = int(seen["path"].split("since=")[1])
+    now = int(X.time.time())
+    assert since <= now - 47 * 3600          # cursor 5 min ago -> window ~48h
+    assert store.get("signals", "sig1")["mt5_confirmed"]
+
+
 # ---------------- manual (MT5 PC connector) mode ----------------
 def _manual_mode(store):
     import time as _t
