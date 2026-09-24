@@ -99,11 +99,27 @@ class SignalEngine:
             check = series_is_trustworthy([int(pd.Timestamp(x).timestamp())
                                            for x in df.index], timeframe, 300)
             if not check["ok"] and check["reason"] in ("data_gap", "malformed_series"):
-                self._log(f"Data integrity: {check['reason']} on {market} {timeframe} "
-                          f"({check['detail']}). Signal generation paused - "
-                          "waiting for clean candles.",
-                          kind="DATA", market=market)
-                return []
+                # one repair attempt before pausing: splice the missing bars
+                # from the alternate feed (incident 2026-09-23/24 - an
+                # unrepaired 45-min hole paused XAUUSD signals for hours and
+                # the EMA crossovers inside it were lost forever)
+                try:
+                    from ..market_data.gap_repair import backfill_gaps
+                    df, added = backfill_gaps(df, market, timeframe)
+                    if added:
+                        self._log(f"Gap backfilled for {market} {timeframe} "
+                                  f"(+{added} bars from the alternate feed). "
+                                  "Scanning resumes.", kind="DATA", market=market)
+                except Exception:
+                    pass
+                check = series_is_trustworthy([int(pd.Timestamp(x).timestamp())
+                                               for x in df.index], timeframe, 300)
+                if not check["ok"] and check["reason"] in ("data_gap", "malformed_series"):
+                    self._log(f"Data integrity: {check['reason']} on {market} {timeframe} "
+                              f"({check['detail']}). Signal generation paused - "
+                              "waiting for clean candles.",
+                              kind="DATA", market=market)
+                    return []
         except Exception:
             pass  # integrity is a safety ADD-ON; never break scanning on its failure
         higher = self.provider.higher_frames(market, timeframe)

@@ -59,7 +59,7 @@ def test_backtest_runs_and_has_valid_trades(xau_15m):
     for tr in trades:
         assert tr["direction"] in ("BUY", "SELL")
         assert tr["risk"] > 0
-        assert len(tr["tps"]) == 2
+        assert len(tr["tps"]) == 3   # v1.1: 1R/2R/3R ladder
         assert tr["r_multiple"] >= -1.0
         assert tr["outcome"] in ("WIN", "LOSS", "EXPIRED")
         if tr["direction"] == "BUY":
@@ -87,14 +87,17 @@ def test_candidate_risk_and_targets(xau_15m):
     rk = s.calculate_risk(df, state, i, ev["direction"], s.base_params)
     assert rk["risk"] > 0
     tps = s.calculate_targets(rk["entry"], rk["risk"], ev["direction"], s.base_params)
+    assert len(tps) == 3                              # v1.1: EMA-style 1R/2R/3R ladder
     if ev["direction"] == "BUY":
         assert rk["sl"] < rk["entry"]
-        assert tps[0] > rk["entry"] and tps[1] > tps[0]
-        assert abs((tps[0] - rk["entry"]) / rk["risk"] - 1.5) < 1e-6
-        assert abs((tps[1] - rk["entry"]) / rk["risk"] - 2.5) < 1e-6
+        assert tps[0] > rk["entry"] and tps[1] > tps[0] and tps[2] > tps[1]
+        for tp, rr in zip(tps, (1.0, 2.0, 3.0)):
+            assert abs((tp - rk["entry"]) / rk["risk"] - rr) < 1e-6
     else:
         assert rk["sl"] > rk["entry"]
-        assert tps[0] < rk["entry"] and tps[1] < tps[0]
+        assert tps[0] < rk["entry"] and tps[1] < tps[0] and tps[2] < tps[1]
+        for tp, rr in zip(tps, (1.0, 2.0, 3.0)):
+            assert abs((rk["entry"] - tp) / rk["risk"] - rr) < 1e-6
     cand = s.build_candidate(state, i, ev, df, "XAUUSD", "15M", s.base_params, {}, {})
     assert 0 <= cand.score <= 100
     labels = [c["label"] for c in cand.checks]

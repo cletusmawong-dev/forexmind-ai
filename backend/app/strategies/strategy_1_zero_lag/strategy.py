@@ -38,13 +38,16 @@ class ZeroLagStrategy(BaseStrategy):
     short_name = "Zero Lag Trend"
     description = ("Zero-lag EMA with ATR volatility bands. Small-arrow entries: "
                    "close crossing the Zero-Lag EMA in the direction of an "
-                   "established trend, multi-timeframe trend displayed.")
-    version = "1.0"
+                   "established trend, multi-timeframe trend displayed. "
+                   "TP ladder 1R / 2R / 3R (same style as the 9/21 EMA "
+                   "strategy, user directive 2026-09-24).")
+    version = "1.1"   # 1.1: TP ladder = EMA-style 1R/2R/3R (user directive 2026-09-24)
     base_params = {
         "length": 70,
         "band_mult": 1.2,
-        "tp1_rr": 1.5,
-        "tp2_rr": 2.5,
+        "tp1_rr": 1.0,
+        "tp2_rr": 2.0,
+        "tp3_rr": 3.0,
         "expire_bars": 200,
     }
     experiment_variables = {
@@ -56,6 +59,8 @@ class ZeroLagStrategy(BaseStrategy):
                       "description": "TP1 risk-reward"},
         "tp2_rr":    {"type": "float", "min": 0.5, "max": 5.0, "step": 0.25,
                       "description": "TP2 risk-reward"},
+        "tp3_rr":    {"type": "float", "min": 0.5, "max": 6.0, "step": 0.25,
+                      "description": "TP3 risk-reward"},
     }
     markets = ["XAUUSD", "NAS100", "EURUSD", "GBPUSD", "USDJPY"]
     timeframes = ["5M", "15M", "1H", "4H", "1D"]
@@ -122,12 +127,13 @@ class ZeroLagStrategy(BaseStrategy):
         return {"entry": close, "sl": sl, "risk": risk, "entry_zone": zone}
 
     def tp_rrs(self, params) -> List[float]:
-        return [float(params["tp1_rr"]), float(params["tp2_rr"])]
+        return [float(params["tp1_rr"]), float(params["tp2_rr"]), float(params["tp3_rr"])]
 
     def calculate_targets(self, entry, risk, direction, params) -> List[float]:
         sign = 1.0 if direction == "BUY" else -1.0
         return [entry + sign * risk * float(params["tp1_rr"]),
-                entry + sign * risk * float(params["tp2_rr"])]
+                entry + sign * risk * float(params["tp2_rr"]),
+                entry + sign * risk * float(params["tp3_rr"])]
 
     # ------------------------------------------------------------------
     def build_candidate(self, state, i, event, df, market, timeframe, params,
@@ -137,7 +143,7 @@ class ZeroLagStrategy(BaseStrategy):
         if rk["risk"] <= 0:
             return None
         tps = self.calculate_targets(rk["entry"], rk["risk"], direction, params)
-        rr_primary = float(params["tp2_rr"])
+        rr_primary = float(params["tp3_rr"])
         mtf = self.mtf_trend(higher_frames, params)
         checks, analysis = self.explain_signal(
             state, i, direction, params,
