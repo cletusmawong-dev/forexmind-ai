@@ -59,6 +59,8 @@ export const endpoints = {
   agentScan: "/api/agent/scan",
   chat: "/api/chat",
   lessons: "/api/lessons",
+  autopsies: "/api/autopsies",
+  autopsyDecide: (id: string) => `/api/autopsies/${id}/decide`,
   hypotheses: "/api/hypotheses",
   approve: (id: string) => `/api/hypotheses/${id}/approve`,
   reject: (id: string) => `/api/hypotheses/${id}/reject`,

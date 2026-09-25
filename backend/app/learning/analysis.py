@@ -29,7 +29,10 @@ def analyze_closed_signals(user_id: str, commit: bool = True) -> List[Dict[str, 
         return []
 
     lessons: List[Dict[str, Any]] = []
-    seq = store.count("lessons") + 1
+    try:
+        seq = store.count("lessons") + 1
+    except Exception:
+        seq = 1   # quota latch etc - never let a counter kill the whole pass
 
     for strategy_id in {s["strategy_id"] for s in completed}:
         strat_signals = [s for s in completed if s["strategy_id"] == strategy_id]

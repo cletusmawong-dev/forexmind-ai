@@ -225,3 +225,52 @@ def test_non_owner_signals_stay_advisory(monkeypatch):
     doc = env_store.get("signals", "sig1")
     assert doc["execution_status"] == "SKIPPED_NOT_ENGINE_OWNER"
     assert sent == []          # nothing reached the broker
+
+
+def test_skip_paths_notify_telegram(monkeypatch):
+    """The creation TG message announces a trade - any skip must answer with
+    an explicit NOT EXECUTED notice (user report: TG showed the signal, the
+    app showed nothing, no trade existed)."""
+    store = X.get_store()
+    notices = []
+    monkeypatch.setattr(X, "notify",
+                        lambda uid, t, title, body, **kw: notices.append((t, title)))
+    monkeypatch.setattr(X, "bridge_get", lambda p, timeout=8: {"balance": 1000})
+    monkeypatch.setattr(X, "_executed_today", lambda uid: X.settings.execution_max_trades_per_day)
+    X.execute_signal(SIG, "u1")
+    assert store.get("signals", "sig1")["execution_status"] == "SKIPPED_EXEC_DAILY_CAP"
+    assert any(t == "EXECUTION_SKIPPED" for t, _ in notices)
+
+    # stop-too-tight path
+    notices.clear()
+    tight = dict(SIG, id="sig_tight", sl=1.0999)   # 1 pip SL < broker minimum
+    store.create("signals", dict(tight))
+    monkeypatch.setattr(X, "_executed_today", lambda uid: 0)
+    X.execute_signal(tight, "u1")
+    assert store.get("signals", "sig_tight")["execution_status"] == "SKIPPED_STOP_TOO_TIGHT"
+    assert any(t == "EXECUTION_SKIPPED" for t, _ in notices)
+
+
+def test_apply_deals_never_rereads_confirmed_positions(monkeypatch):
+    """Quota fix: the 48h deal window re-offers old positions every 5 min;
+    once confirmed they must be skipped with ZERO store reads."""
+    X._CONFIRMED_POSITIONS.clear()
+    calls = {"list": 0}
+    real_list = X.get_store().list
+    def counting_list(coll, *a, **kw):
+        if coll == "signals":
+            calls["list"] += 1
+        return real_list(coll, *a, **kw)
+    monkeypatch.setattr(X.get_store(), "list", counting_list)
+    deals = {"deals": [
+        {"position_id": 99, "entry": 0, "magic": X.MAGIC, "comment": "SIG-20260914-001",
+         "volume": 0.05, "price": 1.0999, "profit": 0, "commission": 0, "swap": 0},
+        {"position_id": 99, "entry": 1, "magic": X.MAGIC, "comment": "",
+         "volume": 0.05, "price": 1.0901, "profit": 3.0, "commission": 0, "swap": 0},
+    ]}
+    monkeypatch.setattr(X, "bridge_get", lambda p, timeout=20: deals)
+    assert X.sync_deals("u1") == 1
+    first = calls["list"]
+    assert X.sync_deals("u1") == 0
+    assert calls["list"] == first        # second sync: no new store reads
+    X._CONFIRMED_POSITIONS.clear()

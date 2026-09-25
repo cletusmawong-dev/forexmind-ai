@@ -8,7 +8,7 @@ import { ChevronDown } from "lucide-react";
 import { fmtDateTime } from "../lib/format";
 
 const FLOW = ["Trade", "Result", "Analysis", "Lesson", "Hypothesis", "1-Var Test", "Approval", "New version"];
-const TABS = ["SIGNAL IQ", "RESEARCH", "QUEUE", "EXPERIMENTS", "PATTERNS", "INSIGHTS", "HISTORY"] as const;
+const TABS = ["SIGNAL IQ", "RESEARCH", "AUTOPSIES", "QUEUE", "EXPERIMENTS", "PATTERNS", "INSIGHTS", "HISTORY"] as const;
 
 export function LearningLabScreen() {
   const [tab, setTab] = useState<(typeof TABS)[number]>("SIGNAL IQ");
@@ -20,6 +20,7 @@ export function LearningLabScreen() {
   const lessons = usePolling<{ lessons: Lesson[] }>(() => api.get(endpoints.lessons), 8000);
   const analyzedQ = usePolling<{ count: number }>(() => api.get(`${endpoints.signals}?status=closed&limit=1`), 15000);
   const hyps = usePolling<{ hypotheses: Hypothesis[] }>(() => api.get(endpoints.hypotheses), 6000);
+  const autopsies = usePolling<{ autopsies: any[]; count: number }>(() => api.get(`${endpoints.autopsies}?limit=25`), 10000);
   const exps = usePolling<{ experiments: Experiment[] }>(() => api.get(endpoints.experiments), 8000);
   const versions2 = usePolling<{ versions: StrategyVersion[] }>(() => api.get(endpoints.strategyVersions("strategy_2_ema_atr")), 10000);
   const versions1 = usePolling<{ versions: StrategyVersion[] }>(() => api.get(endpoints.strategyVersions("strategy_1_zero_lag")), 10000);
@@ -429,6 +430,89 @@ export function LearningLabScreen() {
       )}
 
       {/* ---------------- APPROVAL QUEUE ---------------- */}
+      {tab === "AUTOPSIES" && (
+        <div className="space-y-3">
+          <Glass className="p-5">
+            <div className="flex items-center gap-2">
+              <ShieldAlert size={16} className="text-[var(--accent-amber)]" />
+              <p className="text-[13.5px] font-bold">Trade Autopsy Engine</p>
+            </div>
+            <p className="mt-2 text-[11.5px] leading-relaxed text-txt-mid">
+              Every completed trade is dissected against its recorded market context. A pattern
+              is only claimed after <b>30 comparable trades</b> AND it must survive a
+              time-split cross-validation - otherwise it is marked DISPROVED. Proposals are
+              paper-only shadow tests: nothing touches live trading without your approval.
+            </p>
+            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+              <div><div className="num text-[18px] font-extrabold">{autopsies.data?.count ?? 0}</div><div className="text-[9.5px] tracking-wider text-txt-faint">AUTOPSIES</div></div>
+              <div><div className="num text-[18px] font-extrabold text-[var(--accent-amber)]">{(autopsies.data?.autopsies ?? []).filter((a) => a.status === "PATTERN_OBSERVED").length}</div><div className="text-[9.5px] tracking-wider text-txt-faint">PATTERNS SEEN</div></div>
+              <div><div className="num text-[18px] font-extrabold text-[var(--neg)]">{(autopsies.data?.autopsies ?? []).filter((a) => a.status === "PATTERN_DISPROVED").length}</div><div className="text-[9.5px] tracking-wider text-txt-faint">DISPROVED</div></div>
+            </div>
+          </Glass>
+          {(autopsies.data?.autopsies ?? []).length === 0 ? (
+            <Glass className="px-5 py-8 text-center">
+              <p className="text-[13px] font-semibold text-txt-mid">No autopsies yet.</p>
+              <p className="mt-1 text-[11.5px] text-txt-faint">One is created automatically after every completed trade.</p>
+            </Glass>
+          ) : (autopsies.data?.autopsies ?? []).map((a) => {
+            const progress = Math.min(100, Math.round(100 * (a.sample_size ?? 0) / (a.min_sample_required ?? 30)));
+            const statusTone: Record<string, string> = {
+              PATTERN_OBSERVED: "var(--accent-amber)",
+              PATTERN_DISPROVED: "var(--neg)",
+              NO_MEANINGFUL_EFFECT: "var(--text-muted)",
+              INSUFFICIENT_SAMPLE: "var(--accent-cyan)",
+            };
+            const tone = statusTone[a.status] ?? "var(--text-muted)";
+            return (
+              <Glass key={a.id || a.autopsy_id} className="p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[13px] font-bold">{a.symbol ?? a.market} {a.direction}</span>
+                    <span className={`num text-[12px] font-bold ${(a.R ?? 0) >= 0 ? "text-pos" : "text-neg"}`}>{a.R >= 0 ? "+" : ""}{a.R}R</span>
+                  </div>
+                  <span className="rounded-full px-2 py-0.5 text-[8.5px] font-bold tracking-[0.06em]"
+                        style={{ color: tone, border: `1px solid ${tone}` }}>{String(a.status).replace(/_/g, " ")}</span>
+                </div>
+                <p className="mt-1 text-[10.5px] text-txt-faint">{a.strategy_name} - {a.autopsy_id || a.trade_id} - {a.confidence ?? "LOW"} confidence</p>
+                {a.observations?.[0] && (
+                  <p className="mt-2 text-[11.5px] leading-relaxed text-txt-mid">
+                    <b className="text-[var(--accent-amber)]">OBSERVATION:</b> {a.observations[0].text}
+                  </p>
+                )}
+                {a.hypotheses?.[0] && (
+                  <p className="mt-1.5 text-[11.5px] leading-relaxed text-txt-mid">
+                    <b>HYPOTHESIS:</b> {a.hypotheses[0].text}
+                  </p>
+                )}
+                <div className="mt-2.5">
+                  <div className="flex items-center justify-between text-[9.5px] tracking-wider text-txt-faint">
+                    <span>SAMPLE TOWARD PATTERN TEST</span><span className="num">{a.sample_size ?? 0}/{a.min_sample_required ?? 30}</span>
+                  </div>
+                  <div className="mt-1 h-1.5 rounded-full bg-[rgba(var(--text-muted),0.15)]">
+                    <div className="h-1.5 rounded-full" style={{ width: `${progress}%`, background: tone }} />
+                  </div>
+                </div>
+                {a.experiment_proposal && a.experiment_proposal.status === "WAITING_FOR_USER_APPROVAL" && (
+                  <div className="mt-3 rounded-xl border border-[var(--accent-amber)] bg-[rgba(var(--warm-rgb),0.06)] p-3">
+                    <p className="text-[10.5px] font-bold tracking-wide text-[var(--accent-amber)]">PROPOSED PAPER EXPERIMENT</p>
+                    <p className="mt-1 text-[11px] leading-relaxed text-txt-mid">{a.experiment_proposal.hypothesis}</p>
+                    <p className="mt-1 text-[10px] text-txt-faint">One variable: {a.experiment_proposal.condition_label} - everything else unchanged - paper tracking only.</p>
+                    <div className="mt-2 flex gap-2">
+                      <button onClick={async () => { await api.post(endpoints.autopsyDecide(a.id || a.autopsy_id), { approve: true }); autopsies.refresh(); }}
+                              className="tap rounded-full bg-pos px-3.5 py-1.5 text-[11px] font-bold text-white">Approve paper test</button>
+                      <button onClick={async () => { await api.post(endpoints.autopsyDecide(a.id || a.autopsy_id), { approve: false }); autopsies.refresh(); }}
+                              className="tap rounded-full border border-[var(--text-muted)] px-3.5 py-1.5 text-[11px] font-bold text-txt-mid">Reject</button>
+                    </div>
+                  </div>
+                )}
+                {a.experiment_id && (
+                  <p className="mt-2 text-[10px] font-semibold text-[var(--accent-cyan)]">Paper experiment {a.experiment_id} {a.experiment_approved ? "approved" : ""} - tracking baseline vs experiment.</p>
+                )}
+              </Glass>
+            );
+          })}
+        </div>
+      )}
       {tab === "QUEUE" && (
         <div className="mt-5 space-y-4">
           <div className="flex items-center justify-between px-1">

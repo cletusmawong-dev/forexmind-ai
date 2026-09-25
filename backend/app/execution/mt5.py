@@ -25,6 +25,7 @@ import requests
 
 from ..config import settings
 from ..db.store import get_store
+from ..notifications.service import notify
 
 MAGIC = 20260914          # identifies ForexMind trades on the MT5 account
 CONNECTOR_TIMEOUT_S = 90  # connector considered offline after this many seconds
@@ -310,6 +311,10 @@ def execute_signal(signal: dict, user_id: str) -> None:
                 "execution_status": "SKIPPED_EXEC_DAILY_CAP",
                 "mt5_note": f"Execution daily cap reached ({settings.execution_max_trades_per_day}/day)"})
         _log(f"Execution skipped - daily cap reached ({settings.execution_max_trades_per_day}/day).", market)
+        notify(user_id, "EXECUTION_SKIPPED", f"NOT EXECUTED - {signal.get('market')} {signal.get('direction')}",
+               f"Daily execution cap reached ({settings.execution_max_trades_per_day}/day). "
+               "The signal is tracked as research only - no trade was placed.",
+               signal_id=signal.get("id"))
         return
 
     try:
@@ -323,6 +328,10 @@ def execute_signal(signal: dict, user_id: str) -> None:
             _log(f"Execution skipped - SL only {abs(entry - sl) / pip:.1f} pips from entry; "
                  f"the broker rejects stops under {MIN_STOP_PIPS:g} pips (retcode 10016). "
                  "Signal kept as advisory.", market, kind="EXEC_WARN")
+            notify(user_id, "EXECUTION_SKIPPED", f"NOT EXECUTED - {signal.get('market')} {signal.get('direction')}",
+                   f"Stop distance {abs(entry - sl) / pip:.1f} pips is under the broker minimum "
+                   f"({MIN_STOP_PIPS:g} pips). Research only - no trade was placed.",
+                   signal_id=signal.get("id"))
             return
         risk_pct = min(float(((_goals_doc(user_id) or {}).get("risk_per_trade_pct", 1.0)) or 1.0),
                        settings.execution_risk_pct_cap)
@@ -334,6 +343,10 @@ def execute_signal(signal: dict, user_id: str) -> None:
                 store.update("signals", signal["id"], {"execution_status": "SKIPPED_BRIDGE_OFFLINE"})
                 _log("Execution skipped - VPS bridge offline (signal NOT sent to broker).",
                      market, kind="EXEC_WARN")
+                notify(user_id, "EXECUTION_SKIPPED", f"NOT EXECUTED - {signal.get('market')} {signal.get('direction')}",
+                       "VPS bridge offline - the order was NOT sent to the broker. "
+                       "Signal kept as research only.",
+                       signal_id=signal.get("id"))
                 return
             with _exec_lock:
                 dup = _setup_already_sent(store, signal)
@@ -344,6 +357,10 @@ def execute_signal(signal: dict, user_id: str) -> None:
                     _log("Execution skipped - this exact setup (same market, "
                          f"direction and candle) is already on the account via {dup}. "
                          "One broker order per setup.", market, kind="EXEC_WARN")
+                    notify(user_id, "EXECUTION_SKIPPED", f"NOT EXECUTED - {signal.get('market')} {signal.get('direction')}",
+                           "This exact setup is already on the account (one broker order "
+                           "per setup). Research only - no second trade was placed.",
+                           signal_id=signal.get("id"))
                     return
                 store.update("signals", signal["id"], {"execution_status": "EXECUTING"})
             lots = calc_lot(market, entry, sl, float(acct["balance"]) or 0.0, risk_pct)
@@ -652,6 +669,13 @@ def expire_stale_commands() -> int:
 # ---------------------------------------------------------------------------
 # real W/L confirmation from MT5 deal history (shared by both transports)
 # ---------------------------------------------------------------------------
+# position_ids already confirmed and written back - skipped before ANY store
+# read so the 48h deal window never re-processes the same trades all day
+# (Firestore free-tier quota: the re-reads alone burned ~50k reads/day and
+# latched the whole app into quota mode).
+_CONFIRMED_POSITIONS: set = set()
+
+
 def apply_deals(user_id: str, deals: List[dict]) -> int:
     """Confirm closed trades from broker deals (entry deal comment = signal_id)."""
     store = get_store()
@@ -668,6 +692,8 @@ def apply_deals(user_id: str, deals: List[dict]) -> int:
     updated = 0
     for pos_id, p in positions.items():
         if not p["exits"] or not p["entry"]:
+            continue
+        if pos_id in _CONFIRMED_POSITIONS:
             continue
         sig_id = (p["entry"].get("comment") or "").strip()
         if not sig_id:
@@ -686,6 +712,7 @@ def apply_deals(user_id: str, deals: List[dict]) -> int:
             "mt5_close_price": p["exits"][-1].get("price"),
             "mt5_closed_at": datetime.now(timezone.utc).isoformat()})
         updated += 1
+        _CONFIRMED_POSITIONS.add(pos_id)
         store.create("notifications", {
             "userId": user_id, "type": "TRADE_COMPLETED",
             "title": f"{'WIN' if pl > 0 else 'LOSS'} - {sig_id} (MT5)",
