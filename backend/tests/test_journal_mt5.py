@@ -102,3 +102,25 @@ def test_open_excludes_finalized_signals(jworld):
     r = jworld.get("/api/signals?status=open&limit=50")
     ids = [s["signal_id"] for s in r.json()["signals"]]
     assert "SIG-OLD" not in ids and "SIG-LIVE" in ids
+
+
+def test_slow_collections_get_long_cache_ttl():
+    """Free-tier trim: slow-changing collections (strategies, lessons...)
+    are cached 6x longer; hot ones keep 240s. Freshness is preserved by
+    write invalidation, not by short TTLs."""
+    from app.db.store import FirestoreStore
+    fs = object.__new__(FirestoreStore)          # no Firebase connection needed
+    fs._cache = {}
+    import threading
+    fs._cache_lock = threading.RLock()
+    assert fs._ttl_for("L:strategies|{}") == 900.0
+    assert fs._ttl_for("C:lessons|x") == 900.0
+    assert fs._ttl_for("L:signals|{}") == 240.0
+    assert fs._ttl_for("L:agent_goals|{}") == 240.0
+    # cache-hit math honors the override: a 500s-old strategies hit survives,
+    # a 500s-old signals hit does not
+    import time as t
+    fs._cache["L:strategies|a"] = (t.monotonic() - 500, [1])
+    assert fs._cache_get("L:strategies|a") == [1]
+    fs._cache["L:signals|a"] = (t.monotonic() - 500, [1])
+    assert fs._cache_get("L:signals|a") is None

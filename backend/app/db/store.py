@@ -158,6 +158,24 @@ class FirestoreStore:
     # ~5x (external writers go through this same store, so nothing goes
     # stale in practice).
     CACHE_TTL = 240.0
+    # Free-tier quota trim: slow-changing collections are served from cache
+    # longer (writes invalidate through _invalidate, so freshness is kept by
+    # invalidation, not by short TTLs - Firestore reads stay flat as the
+    # app grows).
+    TTL_OVERRIDES = {
+        "strategies": 900.0,
+        "strategy_versions": 900.0,
+        "lessons": 900.0,
+        "hypotheses": 900.0,
+        "experiments": 900.0,
+        "regime_stats": 900.0,
+    }
+
+    def _ttl_for(self, key: str) -> float:
+        if key.startswith(("L:", "C:")):
+            coll = key[2:].split("|", 1)[0]
+            return self.TTL_OVERRIDES.get(coll, self.CACHE_TTL)
+        return self.CACHE_TTL
 
     def __init__(self):
         from firebase_admin import firestore, credentials  # lazy import
@@ -207,9 +225,10 @@ class FirestoreStore:
 
     def _cache_get(self, key):
         import time as _t
+        ttl = self._ttl_for(key) if hasattr(self, "_ttl_for") else self.CACHE_TTL
         with self._cache_lock:
             hit = self._cache.get(key)
-            if hit and (_t.monotonic() - hit[0]) < self.CACHE_TTL:
+            if hit and (_t.monotonic() - hit[0]) < ttl:
                 return hit[1]
         return None
 
