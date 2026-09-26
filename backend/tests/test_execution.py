@@ -274,3 +274,87 @@ def test_apply_deals_never_rereads_confirmed_positions(monkeypatch):
     assert X.sync_deals("u1") == 0
     assert calls["list"] == first        # second sync: no new store reads
     X._CONFIRMED_POSITIONS.clear()
+
+
+# ---------------- probability TP manager (user directive 2026-09-25) ----------
+def test_tp_picker_prefers_high_probability_short_target(monkeypatch):
+    """Bucket history: price rarely runs past 1R -> TP1 has the best EV and
+    must be selected over the static TP2."""
+    import tempfile
+    from app.db.store import LocalStore
+    from app.db import store as store_mod
+    from app.execution import tp_picker
+    store = LocalStore(path=tempfile.mktemp())
+    store_mod._store = store
+    base = {"userId": "u1", "strategy_id": "st", "market": "XAUUSD",
+            "completed": True,
+            "market_conditions": {"session": "London", "volatility_regime": "NORMAL"}}
+    for i in range(20):                       # every trade touched 0.8R, half 1.5R
+        store.create("signals", dict(base, mfe_r=0.8 if i % 2 else 1.5))
+    sig = dict(base, direction="SELL")
+    sel = tp_picker.pick_tp_level(sig, min_sample=20, store=store)
+    assert sel["source"] == "probability" and sel["n"] == 20
+    assert sel["level"] == 1                  # EV(1)=0.5*1-0.5=0; EV(2)=-0.5; EV(3)=-1
+    assert sel["p1"] == 0.5 and sel["p2"] == 0.0 and sel["p3"] == 0.0
+
+
+def test_tp_picker_prefers_runner_when_trend_runs(monkeypatch):
+    """Bucket history: most trades reach 3R -> TP3 wins."""
+    import tempfile
+    from app.db.store import LocalStore
+    from app.db import store as store_mod
+    from app.execution import tp_picker
+    store = LocalStore(path=tempfile.mktemp())
+    store_mod._store = store
+    base = {"userId": "u1", "strategy_id": "st", "market": "EURUSD",
+            "completed": True,
+            "market_conditions": {"session": "NewYork", "volatility_regime": "HIGH"}}
+    for i in range(25):                       # 80% reach 3R+
+        store.create("signals", dict(base, mfe_r=3.5 if i % 5 else 1.0))
+    sel = tp_picker.pick_tp_level(dict(base, direction="BUY"),
+                                  min_sample=20, store=store)
+    assert sel["source"] == "probability" and sel["level"] == 3
+    assert sel["p3"] == 0.8
+
+
+def test_tp_picker_falls_back_on_thin_sample():
+    """< 20 comparables in the bucket -> static fallback (TP2), honestly
+    labeled 'default'. The model takes over as the learning loop accumulates."""
+    import tempfile
+    from app.db.store import LocalStore
+    from app.execution import tp_picker
+    store = LocalStore(path=tempfile.mktemp())
+    base = {"userId": "u1", "strategy_id": "st", "market": "GBPUSD",
+            "completed": True,
+            "market_conditions": {"session": "London", "volatility_regime": "LOW"}}
+    for i in range(7):
+        store.create("signals", dict(base, mfe_r=2.9))
+    sel = tp_picker.pick_tp_level(dict(base, direction="BUY"),
+                                  min_sample=20, store=store)
+    assert sel["source"] == "default" and sel["level"] == 2
+
+
+def test_execute_signal_uses_auto_tp(monkeypatch):
+    """EXECUTION_TP_LEVEL=AUTO: the order targets the probability-picked
+    level and the selection is recorded on the signal doc."""
+    import tempfile
+    from app.db.store import LocalStore
+    store = LocalStore(path=str(tempfile.mktemp()))
+    store.create("agent_goals", {"userId": "u1", "account_balance": 1000,
+                                 "risk_per_trade_pct": 1.0, "execution_enabled": True,
+                                 "execution_mode": "vps"})
+    sig = dict(SIG, tp3=1.0850)
+    store.create("signals", dict(sig))
+    monkeypatch.setattr(X, "get_store", lambda: store)
+    monkeypatch.setattr(X.settings, "execution_tp_level", "AUTO")
+    monkeypatch.setattr(X.settings, "owner_user_id", "u1")
+    monkeypatch.setattr(X.settings, "bridge_url", "http://fake-bridge:8700")
+    monkeypatch.setattr(X.settings, "bridge_token", "tok")
+    monkeypatch.setattr(X, "bridge_get", lambda p, timeout=8: {"balance": 1000} if p == "/account" else None)
+    sent = {}
+    monkeypatch.setattr(X, "bridge_post", lambda p, payload, timeout=15: sent.update(payload) or {"ok": True, "ticket": 5})
+    monkeypatch.setattr(X, "_executed_today", lambda uid: 0)
+    X.execute_signal(sig, "u1")
+    doc = store.get("signals", sig["id"])
+    assert doc.get("tp_selection", {}).get("source") == "default"   # no history yet
+    assert sent["tp"] == pytest.approx(doc["tp2"])                  # fallback TP2

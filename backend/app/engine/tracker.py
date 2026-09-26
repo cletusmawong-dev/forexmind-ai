@@ -174,6 +174,18 @@ class SignalTracker:
             on_trade_completed(updated or sig)
         except Exception:
             pass
+        try:  # CONSTANT LEARNING LOOP: refresh lessons + hypotheses shortly
+              # after every completion (throttled - never more than once per
+              # 30 min, quota-safe, and it must never break trade tracking)
+            import time as _t
+            if _t.time() - getattr(self, "_learn_last_ts", 0.0) > 1800:
+                self._learn_last_ts = _t.time()
+                from ..learning.analysis import analyze_closed_signals
+                from ..learning.hypotheses import propose_from_lessons
+                analyze_closed_signals(sig.get("userId"))
+                propose_from_lessons(sig.get("userId"), max_new=1)
+        except Exception:
+            pass
 
         # keep the user's own trade result in sync (SPEC §17)
         if sig.get("user_action") == "entered":

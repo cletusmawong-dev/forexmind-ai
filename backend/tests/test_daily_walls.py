@@ -34,11 +34,13 @@ def _mk_user(store, balance=1000.0, **risk_over):
     store.create("settings", risk)
 
 
-def _completed(store, sig_id, r, pl=None, confirmed=False, closed_at=None):
+def _completed(store, sig_id, r, pl=None, confirmed=False, closed_at=None, ticket=False):
     doc = {"id": sig_id, "userId": "u1", "signal_id": sig_id, "market": "XAUUSD",
            "completed": True, "r_multiple": r,
            "createdAt": _iso(NOW.replace(hour=1, minute=0)),
            "completed_at": closed_at or _iso(NOW.replace(hour=2, minute=0))}
+    if ticket:
+        doc["mt5_ticket"] = 123456
     if pl is not None:
         doc.update({"mt5_pl": pl, "mt5_confirmed": confirmed})
     store.create("signals", doc)
@@ -54,14 +56,32 @@ class _Cand:
 # =================================================================
 # daily_state accounting
 # =================================================================
-def test_daily_state_broker_pl_and_r_estimate(fresh_store):
+def test_daily_state_broker_mode_never_fabricates(fresh_store):
+    """Incident 2026-09-24: executed-but-unconfirmed trades were counted as
+    R x 1% x balance (fabricated -$47.60/SL) and PAPER signals polluted the
+    account P/L - the bot 'hit' the -200 wall on a ~-$17 day. In vps mode
+    only broker-confirmed dollars count; pending = 0; paper = excluded."""
     from app.engine.daily import daily_state
-    _mk_user(fresh_store)
+    _mk_user(fresh_store)                              # execution_mode vps
     _completed(fresh_store, "S1", r=-1.0, pl=-12.5, confirmed=True)   # real -$12.50
-    _completed(fresh_store, "S2", r=+2.0, pl=None)                    # est +2% of 1000 = +20
+    _completed(fresh_store, "S2", r=+2.0, pl=None, ticket=True)       # pending -> 0
+    _completed(fresh_store, "S3", r=-1.0, pl=None)                    # paper -> excluded
     st = daily_state("u1")
-    assert st["realized_usd"] == pytest.approx(7.5)
+    assert st["realized_usd"] == pytest.approx(-12.5)
     assert "1 broker-confirmed" in st["realized_basis"]
+    assert "pending" in st["realized_basis"] and "paper excluded" in st["realized_basis"]
+
+
+def test_daily_state_non_vps_keeps_r_estimate(fresh_store):
+    from app.engine.daily import daily_state
+    _mk_user(fresh_store)                              # vps defaults...
+    from app.db import store as store_mod
+    g = store_mod._store.list("agent_goals", filters={"userId": "u1"}, limit=1)[0]
+    store_mod._store.update("agent_goals", g["id"], {"execution_mode": "off"})
+    _completed(fresh_store, "S1", r=-1.0, pl=None)
+    st = daily_state("u1")
+    assert st["realized_usd"] == pytest.approx(-10.0)  # -1R x 1% x 1000
+    assert "R-estimated" in st["realized_basis"]
 
 
 def test_daily_state_ignores_yesterday(fresh_store):

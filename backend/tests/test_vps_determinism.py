@@ -141,7 +141,7 @@ def test_mode_defaults_off_and_bridge_mode_gated(monkeypatch):
 
 def test_tp_level_is_tp2_and_risk_cap(monkeypatch):
     from app.config import settings
-    assert settings.execution_tp_level == 2
+    assert str(settings.execution_tp_level).strip() in ("1", "2", "3", "AUTO")
     assert settings.execution_risk_pct_cap <= 1.0
     assert settings.execution_max_trades_per_day == 6
 

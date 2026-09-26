@@ -79,7 +79,10 @@ class Settings:
     execution_kill_switch_default: bool = os.getenv("EXECUTION_KILL_SWITCH", "true").lower() != "false"
     execution_max_trades_per_day: int = int(os.getenv("EXECUTION_MAX_TRADES_PER_DAY", "6"))
     execution_risk_pct_cap: float = float(os.getenv("EXECUTION_RISK_PCT_CAP", "1.0"))
-    execution_tp_level: int = int(os.getenv("EXECUTION_TP_LEVEL", "2"))   # take-profit level used on the order
+    # TP level for engine orders: 1/2/3 - or "AUTO" = probability-driven
+    # selection from MFE history (app/execution/tp_picker.py), falling back
+    # to this fallback level while a context bucket has < TP_PROB_MIN_SAMPLE.
+    execution_tp_level: str = os.getenv("EXECUTION_TP_LEVEL", "2")   # take-profit level used on the order
 
     # --- Auth -------------------------------------------------------------------
     jwt_secret: str = os.getenv("FOREXMIND_JWT_SECRET", "dev-only-secret-change-me")

@@ -47,14 +47,30 @@ def trading_day_start(tz_name: Optional[str], now: Optional[datetime] = None) ->
     return midnight.tz_convert("UTC").timestamp()
 
 
-def _signal_dollars(sig: dict, balance: float, risk_pct: float) -> Tuple[float, bool]:
-    """(dollars, broker_confirmed) for one completed signal."""
+def _signal_dollars(sig: dict, balance: float, risk_pct: float,
+                    broker_mode: bool = False) -> Tuple[float, str]:
+    """(dollars, basis) for one completed signal.
+
+    INCIDENT (2026-09-24, user report): with deal-sync broken, every
+    executed-but-unconfirmed trade was COUNTED as R x 1% x balance - a
+    fabricated -$47.60 per SL while the broker showed -$3..-$15, so the bot
+    'hit' the -$200 loss wall on a day that was really about -$17 and went
+    advisory for the rest of the day. Rule now:
+      broker_mode (vps): broker-confirmed mt5_pl - or NOTHING. An executed
+        trade awaiting deal sync counts 0 as 'pending' (sync confirms within
+        minutes); a signal without a broker ticket is PAPER and never
+        touches the account's daily P/L.
+      other modes (no broker feed): legacy R estimate, honestly labeled."""
     pl = sig.get("mt5_pl")
     if sig.get("mt5_confirmed") and pl is not None:
-        return float(pl), True
+        return float(pl), "broker"
+    if broker_mode:
+        if sig.get("mt5_ticket"):
+            return 0.0, "pending"
+        return 0.0, "paper"
     r = float(sig.get("r_multiple") or 0.0)
     base = balance if balance > 0 else 0.0
-    return round(r * (risk_pct / 100.0) * base, 2), False
+    return round(r * (risk_pct / 100.0) * base, 2), "estimated"
 
 
 def daily_state(user_id: str, risk: Optional[dict] = None,
@@ -75,9 +91,9 @@ def daily_state(user_id: str, risk: Optional[dict] = None,
     balance = float(goals.get("account_balance") or acct.get("balance") or 0.0)
     risk_pct = float(risk.get("risk_per_trade_pct", 1.0) or 1.0)
 
+    broker_mode = (goals.get("execution_mode") or user_mode_safe(user_id)) == "vps"
     realized = 0.0
-    confirmed = 0
-    estimated = 0
+    n_broker = n_pending = n_paper = n_estimated = 0
     seen = set()
     for coll_filter in ({"userId": user_id, "completed": True},):
         for sig in store.list("signals", filters=coll_filter, limit=1000):
@@ -93,10 +109,12 @@ def daily_state(user_id: str, risk: Optional[dict] = None,
             except Exception:
                 continue
             seen.add(sig.get("id"))
-            usd, broker = _signal_dollars(sig, balance, risk_pct)
+            usd, basis = _signal_dollars(sig, balance, risk_pct, broker_mode)
             realized += usd
-            confirmed += 1 if broker else 0
-            estimated += 0 if broker else 1
+            n_broker += basis == "broker"
+            n_pending += basis == "pending"
+            n_paper += basis == "paper"
+            n_estimated += basis == "estimated"
 
     floating = 0.0
     floating_source = "unavailable"
@@ -122,8 +140,11 @@ def daily_state(user_id: str, risk: Optional[dict] = None,
         "realized_usd": realized,
         "floating_usd": floating,
         "total_usd": round(realized + floating, 2),
-        "realized_basis": (f"{confirmed} broker-confirmed, {estimated} R-estimated"
-                           if estimated else f"{confirmed} broker-confirmed"),
+        "realized_basis": (
+            f"{n_broker} broker-confirmed"
+            + (f", {n_pending} pending broker confirmation" if n_pending else "")
+            + (f", {n_paper} paper excluded" if n_paper else "")
+            + (f", {n_estimated} R-estimated" if n_estimated else "")),
         "floating_source": floating_source,
         "balance_usd": balance,
         "open_positions": len(_open_positions_safe(user_id)),

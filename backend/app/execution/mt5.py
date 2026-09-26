@@ -335,7 +335,29 @@ def execute_signal(signal: dict, user_id: str) -> None:
             return
         risk_pct = min(float(((_goals_doc(user_id) or {}).get("risk_per_trade_pct", 1.0)) or 1.0),
                        settings.execution_risk_pct_cap)
-        tp = signal.get(f"tp{max(1, min(3, settings.execution_tp_level))}") or signal.get("tp1")
+        # TP level: static (1/2/3) or AUTO = probability-driven selection from
+        # the trade's context bucket (user directive 2026-09-25: "the TP
+        # manager should work with probability"). Auditable record lands on
+        # the signal doc either way.
+        tp_level = fallback_level = 2
+        raw = str(settings.execution_tp_level).strip().upper()
+        if raw.isdigit() and int(raw) in (1, 2, 3):
+            tp_level = fallback_level = int(raw)
+        else:   # AUTO
+            try:
+                from .tp_picker import pick_tp_level
+                sel = pick_tp_level(signal, min_sample=int(os.getenv("TP_PROB_MIN_SAMPLE", "20")),
+                                    fallback_level=2)
+                tp_level = int(sel.get("level") or 2)
+                fallback_level = tp_level
+                store.update("signals", signal["id"], {"tp_selection": sel})
+                if sel.get("source") == "probability":
+                    _log(f"TP level {tp_level} selected by probability "
+                         f"(P(1R)={sel.get('p1')}, P(2R)={sel.get('p2')}, P(3R)={sel.get('p3')}, "
+                         f"n={sel.get('n')}).", market, kind="EXEC")
+            except Exception:
+                tp_level = 2
+        tp = signal.get(f"tp{max(1, min(3, tp_level))}") or signal.get("tp1")
 
         if mode == "vps":
             acct = bridge_get("/account")
@@ -791,7 +813,7 @@ def status(user_id: str) -> dict:
         "trades_today": _executed_today(user_id) if mode != "off" else 0,
         "max_per_day": settings.execution_max_trades_per_day,
         "risk_cap_pct": settings.execution_risk_pct_cap,
-        "tp_level": settings.execution_tp_level,
+        "tp_level": tp_level,
         "last_deal_sync": goals.get("mt5_deal_sync_ts"),
         "note": {
             "off": "Execution off - signals are advisory only.",
