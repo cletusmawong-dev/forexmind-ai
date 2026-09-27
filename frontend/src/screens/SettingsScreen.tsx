@@ -592,10 +592,13 @@ function ExecutionCard() {
   const [msg, setMsg] = useState("");
   const [copied, setCopied] = useState(false);
   const s = st.data;
-  const mode = s?.mode ?? "off";
+  // P16: a FAILED status fetch must never masquerade as "off" with dead
+  // taps. While loading/failed we say so honestly and keep the buttons
+  // usable so the user can still act (the backend is the authority anyway).
+  const mode = s?.mode ?? null;
 
   const setMode = async (m: string) => {
-    if (busy || !s || m === mode) return;
+    if (busy || m === mode) return;
     setBusy(true); setMsg("Applying...");
     try {
       await api.post("/api/execution/mode", { mode: m });
@@ -632,8 +635,17 @@ function ExecutionCard() {
     <>
       <Eyebrow className="mt-9">Order execution - MT5</Eyebrow>
       <Glass className="mt-2">
+        {st.error && (
+          <div className="mb-3 flex items-center justify-between rounded-xl border border-[rgba(var(--neg-rgb),0.32)] bg-[rgba(var(--neg-rgb),0.08)] px-3 py-2 text-[11.5px] text-[var(--accent-red)]">
+            <span className="min-w-0 truncate">⚠ Couldn't load execution status - showing your account's saved state.</span>
+            <button onClick={() => st.refresh()} className="tap shrink-0 rounded-md px-1.5 text-[10px] hover:bg-[rgba(var(--neg-rgb),0.12)]">retry</button>
+          </div>
+        )}
+        {!s && !st.error && (
+          <p className="mb-2 text-[11px] text-txt-mid">Loading execution status…</p>
+        )}
         <div className={busy ? "pointer-events-none opacity-60" : ""}>
-          <Segmented options={[{key:"off",label:"Off"},{key:"manual",label:"Manual PC"},{key:"vps",label:"VPS"}]} value={mode} onChange={setMode} />
+          <Segmented options={[{key:"off",label:"Off"},{key:"manual",label:"Manual PC"},{key:"vps",label:"VPS"}]} value={mode ?? ""} onChange={setMode} />
         </div>
 
         {mode === "manual" && (

@@ -896,6 +896,8 @@ def connector_push_deals(user_id: str, deals: List[dict]) -> int:
 def status(user_id: str) -> dict:
     goals = _goals_doc(user_id) or {}
     mode = user_mode(user_id)
+    # configured TP level for display (env: "AUTO" | "1" | "2" | "3")
+    tp_level = str(settings.execution_tp_level or "2").strip().upper()
     acct = goals.get("mt5_account")
     bridge_acct = bridge_get("/account") if mode == "vps" else None
     if bridge_acct:

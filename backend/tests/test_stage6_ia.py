@@ -212,3 +212,27 @@ def test_goals_overlay_shows_bridge_truth_for_vps(env, monkeypatch):
         assert g2["account_balance"] == 123.0 and g2["balance_source"] == "stored"
     finally:
         X.bridge_get = orig_get
+
+
+def test_execution_status_returns_mode_and_tp_level(env, monkeypatch):
+    """Regression: the Settings execution card showed 'off' with dead taps
+    because /execution/status 500'd (undefined tp_level). It must return
+    the USER's real mode (vps for the master account) + configured TP level."""
+    c, store, monkeypatch, settings = env
+    from app.execution import mt5 as X
+    store.create("users", {"id": "boss", "userId": "boss", "email": "b@x.io",
+                           "role": "admin", "status": "active"})
+    store.create("agent_goals", {"userId": "boss", "account_balance": 4864.57,
+                                 "execution_mode": "vps", "execution_enabled": True})
+    monkeypatch.setattr(X, "bridge_get",
+                        lambda p, timeout=8: {"balance": 4864.57, "equity": 4864.57})
+    monkeypatch.setattr(settings, "execution_tp_level", "AUTO")
+    r = c.get("/api/execution/status")
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert d["mode"] == "vps" and d["enabled"] is True
+    assert d["tp_level"] == "AUTO"
+    assert d["bridge"]["online"] is True
+    # the mode switch endpoint accepts vps for this account (what the tap calls)
+    r2 = c.post("/api/execution/mode", json={"mode": "vps"})
+    assert r2.status_code == 200 and r2.json()["mode"] == "vps"
