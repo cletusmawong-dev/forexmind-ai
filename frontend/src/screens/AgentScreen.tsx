@@ -3,7 +3,7 @@ import {LineChart, Send, Bot} from "lucide-react";
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
 import type { ActivityItem, AgentStatus } from "../lib/types";
-import { AnimatedNumber, DemoTag, Divider, Glass, PageHeader, Pill, ProgressBar, Segmented, SectionHeader, Spinner, StatusDot } from "../components/ui";
+import { AnimatedNumber, DemoTag, Divider, Empty, Glass, PageHeader, Pill, ProgressBar, Segmented, SectionHeader, Spinner, StatusDot } from "../components/ui";
 import { fmtPct, fmtTime, shortAgo } from "../lib/format";
 import { AgentPulse } from "../components/AgentPulse";
 
@@ -68,7 +68,7 @@ export function AgentScreen() {
 
   return (
     <div className="anim-fadeUp">
-      <PageHeader title="Agent" icon={<Bot size={20} />} tone="violet" right={<DemoTag />} />
+      <PageHeader title="AI Manager" icon={<Bot size={20} />} tone="violet" right={<DemoTag />} />
 
       <Segmented
         className="mb-7"
@@ -76,6 +76,7 @@ export function AgentScreen() {
         onChange={(k) => setTab(k as any)}
         options={[
           { key: "presence", label: "Overview" },
+          { key: "brain", label: "AI Brain" },
           { key: "timeline", label: "Timeline" },
           { key: "chat", label: "Chat" },
         ]}
@@ -260,6 +261,55 @@ export function AgentScreen() {
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {tab === "brain" && (
+        <div className="space-y-3 lg:mx-auto lg:max-w-2xl">
+          <SectionHeader right={<Pill tone="violet">advisory only</Pill>}>
+            Brain 2.0 reasoning trail
+          </SectionHeader>
+          {(ai.data?.recent_decisions ?? []).length === 0 ? (
+            <Glass className="p-6"><Empty title="No AI decisions yet"
+              sub="Reviews appear here once the manager monitors an open position." /></Glass>
+          ) : (ai.data?.recent_decisions ?? []).map((d: any, i: number) => (
+            <Glass key={i} className="p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[12.5px] font-semibold">
+                  {d.symbol ?? "—"} · {d.trigger ?? "?"}
+                </p>
+                <Pill tone={d.gate_verdict === "OK_PROTECT" || d.gate_verdict === "OK_EXIT" ? "pos"
+                            : d.gate_verdict && d.gate_verdict.startsWith("OK") ? "neutral"
+                            : "warn"}>{d.gate_verdict ?? d.error ?? "?"}</Pill>
+              </div>
+              <p className="mt-1 text-[11.5px] text-txt-mid">
+                decision <b className="text-txt-hi">{d.action ?? "—"}</b>
+                {d.brain?.answer && <> · answer <b className="text-txt-hi">{d.brain.answer}</b></>}
+                {d.brain?.confidence_pct !== undefined && d.brain?.confidence_pct !== null && (
+                  <> · {d.brain.confidence_pct}% evidence{" "}
+                    {d.brain.evidence_quality !== undefined &&
+                      ` (quality ${(d.brain.evidence_quality * 100).toFixed(0)}%)`}
+                  </>
+                )}
+                {d.brain?.freshness && <> · data {d.brain.freshness.toLowerCase()}</>}
+              </p>
+              {d.brain?.challenge?.ran && (
+                <p className="mt-1 text-[11px] text-txt-mid">
+                  self-challenge: {d.brain.challenge.survives ? "survived ✓" : "FAILED → downgraded"}
+                  {(d.brain.challenge.objections ?? []).length > 0 &&
+                    ` — ${d.brain.challenge.objections.join("; ")}`}
+                </p>
+              )}
+              {(d.reason_codes ?? []).length > 0 && (
+                <p className="mt-1 text-[10.5px] text-txt-mid">reasons: {(d.reason_codes ?? []).join(", ")}</p>
+              )}
+              <p className="mt-1 text-[10px] text-txt-mid">{d.model ?? ""} · {shortAgo(d.createdAt)}</p>
+            </Glass>
+          ))}
+          <p className="px-1 text-[10.5px] text-txt-mid">
+            Every brain answer lands on the deterministic risk gate before any order
+            primitive. Nothing here executes.
+          </p>
         </div>
       )}
 

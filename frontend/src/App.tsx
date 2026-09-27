@@ -13,6 +13,8 @@ import { AnalyticsScreen } from "./screens/AnalyticsScreen";
 import { NotificationsScreen } from "./screens/NotificationsScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import { AdminScreen } from "./screens/AdminScreen";
+import { PositionsScreen } from "./screens/PositionsScreen";
+import { ExecutionScreen } from "./screens/ExecutionScreen";
 import { BottomNav } from "./components/BottomNav";
 import { Sidebar } from "./components/Sidebar";
 import { Splash } from "./screens/SplashScreen";
@@ -93,6 +95,8 @@ export default function App() {
                 <Route path="/signals" element={<SignalsScreen />} />
                 <Route path="/signals/:id" element={<SignalDetailScreen />} />
                 <Route path="/agent" element={<AgentScreen />} />
+                <Route path="/positions" element={<PositionsScreen />} />
+                <Route path="/execution" element={<ExecutionScreen />} />
                 <Route path="/learning" element={<LearningLabScreen />} />
                 <Route path="/strategies" element={<StrategiesScreen />} />
                 <Route path="/strategies/:id" element={<StrategiesScreen />} />

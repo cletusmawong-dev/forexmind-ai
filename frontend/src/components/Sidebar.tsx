@@ -1,6 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { Home, Radio, Briefcase, GraduationCap, NotebookPen, Settings, PieChart, Shield } from "lucide-react";
+import { Home, Radio, Bot, Activity, ListChecks, GraduationCap, NotebookPen, Settings, PieChart, Shield } from "lucide-react";
 import { Logo, StatusDot } from "./ui";
 import { api, endpoints } from "../lib/api";
 
@@ -12,10 +12,12 @@ export function Sidebar() {
       .catch(() => setIsAdmin(false));
   }, []);
   const items = [
-    { to: "/", label: "Home", icon: Home },
+    { to: "/", label: "Dashboard", icon: Home },
     { to: "/signals", label: "Signals", icon: Radio },
-    { to: "/agent", label: "Agent", icon: Briefcase },
-    { to: "/learning", label: "Learning Lab", icon: GraduationCap },
+    { to: "/positions", label: "Positions", icon: Activity },
+    { to: "/agent", label: "AI Manager", icon: Bot },
+    { to: "/learning", label: "Research", icon: GraduationCap },
+    { to: "/execution", label: "Execution", icon: ListChecks },
     { to: "/journal", label: "Journal", icon: NotebookPen },
     { to: "/analytics", label: "Analytics", icon: PieChart },
     { to: "/settings", label: "Settings", icon: Settings },

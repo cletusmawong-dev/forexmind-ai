@@ -21,6 +21,72 @@ def _completed_signals(user_id: str):
                             limit=2000)
 
 
+@router.get("/positions/live")
+def positions_live(user_id: str = Depends(get_user_id)):
+    """Open broker positions (magic-filtered) joined with their signals and
+    the latest AI-management decision per ticket (P3/P15 surface). Honest
+    empty list when not in vps mode - never fabricated."""
+    store = State.store
+    out = []
+    mode = "off"
+    try:
+        from ..execution.mt5 import bridge_get, user_mode, MAGIC
+        mode = user_mode(user_id)
+        if mode == "vps":
+            data = bridge_get("/positions", timeout=8) or {}
+            decs = store.list("ai_decisions", filters={"userId": user_id},
+                              order_by="createdAt", desc=True, limit=200)
+            last_by_ticket = {}
+            for d in decs:
+                t = d.get("position_ticket")
+                if t is not None and t not in last_by_ticket:
+                    last_by_ticket[t] = d
+            for pos in data.get("positions") or []:
+                if int(pos.get("magic") or 0) != MAGIC:
+                    continue
+                sid = str(pos.get("comment") or "").strip()
+                sig = None
+                if sid:
+                    docs = store.list("signals", filters={"userId": user_id,
+                                                          "signal_id": sid}, limit=1)
+                    sig = docs[0] if docs else None
+                entry = float(pos.get("price_open") or 0)
+                cur = float(pos.get("price_current") or 0)
+                sl = sig.get("sl") if sig else pos.get("sl")
+                risk = abs(entry - float(sl)) if sl else None
+                is_buy = str(pos.get("type", "")).upper() == "BUY"
+                dec = last_by_ticket.get(pos.get("ticket"))
+                brain = (dec or {}).get("brain") or {}
+                out.append({
+                    "ticket": pos.get("ticket"),
+                    "market": (sig or {}).get("market") or pos.get("symbol"),
+                    "direction": str(pos.get("type", "")).upper(),
+                    "volume": pos.get("volume"),
+                    "entry": entry, "current": cur,
+                    "sl": pos.get("sl"),
+                    "tp1": (sig or {}).get("tp1"), "tp2": (sig or {}).get("tp2"),
+                    "tp3": (sig or {}).get("tp3"),
+                    "profit_usd": round(float(pos.get("profit") or 0), 2),
+                    "r_multiple_now": (round(((cur - entry) if is_buy else
+                                              (entry - cur)) / risk, 2)
+                                       if risk else None),
+                    "signal_id": sid or None,
+                    "strategy": (sig or {}).get("strategy_name"),
+                    "opened_at": pos.get("time"),
+                    "last_ai": ({"trigger": dec.get("trigger"),
+                                 "action": (dec.get("decision") or {}).get("action"),
+                                 "answer": brain.get("answer"),
+                                 "confidence_pct": brain.get("confidence_pct"),
+                                 "gate": dec.get("gate_verdict"),
+                                 "at": dec.get("createdAt")} if dec else None),
+                })
+    except Exception:
+        out = []
+    return {"positions": out, "count": len(out), "mode": mode,
+            "note": ("Broker truth (magic-filtered). AI reviews are advisory; "
+                     "execution only through the deterministic gate.")}
+
+
 @router.get("/journal/mt5-trades")
 def mt5_trades(user_id: str = Depends(get_user_id)):
     """Real-money log: every MT5-executed trade with its DOLLAR result.

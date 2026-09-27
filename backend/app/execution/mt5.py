@@ -273,6 +273,8 @@ def execute_signal(signal: dict, user_id: str) -> None:
             get_store().update("signals", signal["id"], {
                 "execution_status": "SKIPPED_ADVISORY_MODE",
                 "mt5_note": "Execution mode is OFF - signal kept as advisory"})
+        _emit(user_id, "ENTRY", "SKIPPED", market=signal.get("market"),
+              signal=signal, detail="execution mode OFF")
         return   # advisory signals - honest default
 
     # Single-account engine: the bridge drives ONE Exness account (the
@@ -289,6 +291,8 @@ def execute_signal(signal: dict, user_id: str) -> None:
                     "mt5_note": f"Auto trading not authorized for this user ({why})"})
                 _log(f"Execution skipped - auto trading not authorized ({why}). "
                      "Signal kept as advisory.", signal.get("market"))
+                _emit(user_id, "ENTRY", "SKIPPED", market=signal.get("market"),
+                      signal=signal, detail=f"not authorized ({why})")
                 notify(user_id, "EXECUTION_SKIPPED",
                        f"NOT EXECUTED - {signal.get('market')} {signal.get('direction')}",
                        f"Auto trading is not authorized for this account ({why}). "

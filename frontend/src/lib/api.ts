@@ -95,5 +95,8 @@ export const endpoints = {
   adminTrading: (id: string) => `/api/admin/users/${id}/trading`,
   adminEStop: (id: string) => `/api/admin/users/${id}/emergency-stop`,
   telegramLinkToken: "/api/telegram/link-token",
+  executions: "/api/aimanager/executions",
+  tpAudit: "/api/aimanager/executions/tp-audit",
+  positionsLive: "/api/positions/live",
   manualResult: (id: string) => `/api/signals/${id}/manual-result`,
 };

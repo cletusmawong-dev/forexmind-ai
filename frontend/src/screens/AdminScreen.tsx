@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeft, RefreshCw, Shield, ShieldAlert, OctagonX } from "lucide-react";
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
-import { Empty, Glass, PageHeader, Pill, SectionHeader, Spinner, StatusDot } from "../components/ui";
+import { ActionButton, Empty, Glass, PageHeader, Pill, SectionHeader, Spinner, StatusDot } from "../components/ui";
 import { shortAgo } from "../lib/format";
 
 const PERMISSIONS = ["locked", "setup", "enabled"] as const;
@@ -14,39 +14,6 @@ type AdminUser = {
 };
 
 function num(v: any, d = 0): number { return typeof v === "number" ? v : d; }
-
-/** One admin action button with its own loading + result state. Never silent. */
-function ActionBtn({ label, busy, tone = "neutral", onRun }: {
-  label: string; busy: boolean; tone?: "neutral" | "danger" | "pos"; onRun: () => Promise<string>;
-}) {
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  return (
-    <span className="inline-flex flex-col gap-0.5">
-      <button
-        disabled={busy}
-        onClick={async () => {
-          setMsg(null);
-          try { setMsg({ ok: true, text: await onRun() }); }
-          catch (e: any) { setMsg({ ok: false, text: e?.message || "failed" }); }
-        }}
-        className={`tap rounded-lg border px-2.5 py-1.5 text-[11px] font-medium transition disabled:opacity-50 ${
-          tone === "danger"
-            ? "border-red-500/30 text-red-300 hover:bg-red-500/10"
-            : tone === "pos"
-            ? "border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10"
-            : "border-[rgba(var(--p-rgb),0.25)] text-txt-mid hover:bg-[rgba(var(--p-rgb),0.08)]"
-        }`}
-      >
-        {busy ? "…" : label}
-      </button>
-      {msg && (
-        <span className={`max-w-[220px] text-[10px] leading-tight ${msg.ok ? "text-emerald-300/80" : "text-red-300/90"}`}>
-          {msg.text}
-        </span>
-      )}
-    </span>
-  );
-}
 
 export function AdminScreen() {
   const navigate = useNavigate();
@@ -163,25 +130,25 @@ export function AdminScreen() {
                   </div>
                   <div className="flex flex-wrap items-start gap-2">
                     {PERMISSIONS.filter((p) => p !== u.trading_permission).map((p) => (
-                      <ActionBtn key={p} label={p === "enabled" ? "Enable auto" : `Set ${p}`}
+                      <ActionButton key={p} label={p === "enabled" ? "Enable auto" : `Set ${p}`}
                         busy={busyId === u.id}
                         onRun={() => runUserAction(u.id,
                           () => api.post(endpoints.adminTrading(u.id), { permission: p, reason: "command center" }),
                           `Permission set to ${p}`)} />
                     ))}
                     {u.status !== "suspended" ? (
-                      <ActionBtn label="Suspend" tone="danger" busy={busyId === u.id}
+                      <ActionButton label="Suspend" tone="danger" busy={busyId === u.id}
                         onRun={() => runUserAction(u.id,
                           () => api.post(endpoints.adminStatus(u.id), { status: "suspended", reason: "command center" }),
                           "Suspended (auto-trading revoked)")} />
                     ) : (
-                      <ActionBtn label="Restore" tone="pos" busy={busyId === u.id}
+                      <ActionButton label="Restore" tone="pos" busy={busyId === u.id}
                         onRun={() => runUserAction(u.id,
                           () => api.post(endpoints.adminStatus(u.id), { status: "active", reason: "command center" }),
                           "Restored")} />
                     )}
                     {u.status !== "suspended" && (
-                      <ActionBtn label={<span className="inline-flex items-center gap-1"><OctagonX size={12} /> E-stop</span>}
+                      <ActionButton label={<span className="inline-flex items-center gap-1"><OctagonX size={12} /> E-stop</span>}
                         tone="danger" busy={busyId === u.id}
                         onRun={() => runUserAction(u.id,
                           () => api.post(endpoints.adminEStop(u.id)),

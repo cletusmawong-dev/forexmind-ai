@@ -508,50 +508,7 @@ export function SettingsScreen() {
       <Eyebrow className="mt-9">Phone alerts - Telegram</Eyebrow>
       <p className="mb-3 mt-1 px-1 text-[11px] text-txt-faint">Signals, TP/SL hits and approvals delivered even when the app is closed.</p>
       <Glass>
-        {(() => {
-          const tg = info.data?.notifications?.telegram;
-          const linked = !!me.data?.telegram_linked;
-          const email = me.data?.email || "";
-          if (!tg?.configured) {
-            return <p className="text-[12px] text-txt-mid">Telegram bot not configured yet - add the bot token to enable phone alerts.</p>;
-          }
-          return (
-            <>
-              {linked ? (
-                <div className="flex items-center gap-2.5 text-[12.5px] font-semibold text-pos">
-                  <GlowDot tone="pos" size={7} pulse={false} /> Connected - alerts will arrive in your Telegram.
-                </div>
-              ) : (
-                <ol className="space-y-2.5 text-[12px] leading-relaxed text-txt-mid">
-                  <li><span className="num font-bold text-txt-hi">1.</span> Open <span className="font-semibold text-[var(--accent-cyan)]">t.me/{tg.bot_username || "your_bot"}</span> in Telegram</li>
-                  <li><span className="num font-bold text-txt-hi">2.</span> Send this exact message: <span className="mt-1 block rounded-xl border border-[rgba(var(--warm-rgb),0.09)] bg-[rgba(6,11,26,0.6)] px-3 py-2 font-mono text-[11px] text-txt-hi">/start {email}</span></li>
-                  <li><span className="num font-bold text-txt-hi">3.</span> Tap "Check again" below.</li>
-                </ol>
-              )}
-              <div className="mt-4 flex gap-2.5">
-                {!linked && (
-                  <button className="btn-ghost flex-1" disabled={tgBusy} onClick={async () => { setTgBusy(true); await me.refresh(); setTgBusy(false); }}>
-                    {tgBusy ? "Checking..." : "Check again"}
-                  </button>
-                )}
-                <button
-                  className="btn-primary flex flex-1 items-center justify-center gap-2"
-                  disabled={tgBusy}
-                  onClick={async () => {
-                    setTgBusy(true);
-                    try {
-                      const r = await api.post<{ sent: boolean }>(endpoints.notificationTest, {});
-                      flash(r.sent ? "Test alert sent - check your Telegram" : "Not linked yet - follow the steps above.");
-                    } catch (e: any) { flash(e.message || "Failed"); }
-                    setTgBusy(false);
-                  }}
-                >
-                  {tgBusy ? <BtnSpinner /> : <Send size={13} />} {tgBusy ? "Sending..." : "Send test alert"}
-                </button>
-              </div>
-            </>
-          );
-        })()}
+        <TelegramLinkCard onChanged={() => { me.refresh(); info.refresh(); }} onFlash={flash} />
       </Glass>
 
       {/* ---- order execution (MT5 via VPS bridge) ---- */}
@@ -909,4 +866,99 @@ function SavePopup({ kind, title, text, onClose }: {
       </div>
     </div>
   );
+}
+
+/** P13 + P16: Telegram linking via ONE-TIME codes. The old
+ *  "/start <email>" flow is gone (knowing an email must never grant
+ *  notification access). Full loading/success/failure states. */
+function TelegramLinkCard({ onChanged, onFlash }: { onChanged: () => void; onFlash: (m: string) => void }) {
+  const info = usePolling<any>(() => api.get(endpoints.systemInfo), 60000);
+  const [token, setToken] = useState<{ token: string; deep_link?: string | null; expires_at: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const getToken = async () => {
+    setBusy(true); setErr(null); setCopied(false);
+    try {
+      const r = await api.post<any>(endpoints.telegramLinkToken, {});
+      setToken(r);
+      onChanged();
+    } catch (e: any) { setErr(e?.message || "Could not create a link code"); }
+    setBusy(false);
+  };
+
+  const tg = info.data?.notifications?.telegram;
+  const linked = !!(api.get && token === null) ? undefined : undefined; // placeholder no-op
+  return (
+    <>
+      <TelegramLinkedState onChanged={onChanged} />
+      {!tg?.configured ? (
+        <p className="text-[12px] text-txt-mid">Telegram bot not configured yet - add the bot token to enable phone alerts.</p>
+      ) : (
+        <>
+          {token ? (
+            <div className="space-y-3">
+              <div className="rounded-2xl border border-[rgba(var(--p-rgb),0.3)] bg-[rgba(var(--p-rgb),0.07)] p-4 text-center">
+                <p className="text-[10.5px] uppercase tracking-wide text-txt-mid">One-time code (valid 15 min, single use)</p>
+                <p className="mt-1 font-mono text-[26px] font-bold tracking-[0.35em] text-txt-hi">{token.token}</p>
+                {token.deep_link && (
+                  <a href={token.deep_link} target="_blank" rel="noreferrer"
+                     className="mt-2 inline-block rounded-xl border border-[rgba(var(--p-rgb),0.3)] px-4 py-2 text-[12px] font-semibold text-[var(--accent-cyan)] hover:bg-[rgba(var(--p-rgb),0.1)]">
+                     Open in Telegram →
+                  </a>
+                )}
+              </div>
+              <ol className="space-y-1.5 text-[11.5px] leading-relaxed text-txt-mid">
+                <li>1. Tap the button above (or message <span className="font-semibold">{tg.bot_username || "the bot"} on Telegram</span>).</li>
+                <li>2. The <span className="font-mono">/start {token.token}</span> command is pre-filled - just send it.</li>
+                <li>3. Come back and tap "Check again". Codes expire after 15 minutes and can be used once.</li>
+              </ol>
+            </div>
+          ) : (
+            <p className="text-[12px] leading-relaxed text-txt-mid">
+              Not linked yet. Generate a one-time code and send it to the bot from your
+              Telegram - the code links this account safely (no email involved).
+            </p>
+          )}
+          {err && <p className="mt-2 text-[11.5px] text-[var(--accent-red)]">⚠ {err}</p>}
+          <div className="mt-4 flex gap-2.5">
+            <button className="btn-ghost flex-1" disabled={busy}
+              onClick={async () => { onChanged(); }}>
+              Check again
+            </button>
+            <button className="btn-primary flex flex-1 items-center justify-center gap-2" disabled={busy}
+              onClick={getToken}>
+              {busy ? <BtnSpinner /> : <Send size={13} />} {busy ? "Creating..." : token ? "New code" : "Get link code"}
+            </button>
+            <button
+              className="btn-ghost flex-1"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                try {
+                  const r = await api.post<{ sent: boolean }>(endpoints.notificationTest, {});
+                  onFlash(r.sent ? "Test alert sent - check your Telegram" : "Not linked yet - follow the steps above.");
+                } catch (e: any) { onFlash(e.message || "Failed"); }
+                setBusy(false);
+              }}>
+              {busy ? <BtnSpinner /> : <Send size={13} />} Test
+            </button>
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
+function TelegramLinkedState({ onChanged }: { onChanged: () => void }) {
+  const me = usePolling<any>(() => api.get(endpoints.me), 30000);
+  if (me.data?.telegram_linked) {
+    return (
+      <div className="mb-3 flex items-center gap-2.5 text-[12.5px] font-semibold text-pos">
+        <GlowDot tone="pos" size={7} pulse={false} /> Connected - alerts will arrive in your Telegram.
+      </div>
+    );
+  }
+  return null;
 }

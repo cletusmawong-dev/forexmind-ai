@@ -504,3 +504,52 @@ export function HeroArt({ className = "" }: { className?: string }) {
     </svg>
   );
 }
+
+/** P16: one button = full loading/success/failure cycle with the server's
+ *  own error text surfaced. Used by every mutating control. */
+export function ActionButton({ label, busy, tone = "neutral", onRun }: {
+  label: React.ReactNode; busy?: boolean;
+  tone?: "neutral" | "danger" | "pos"; onRun: () => Promise<string>;
+}) {
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  return (
+    <span className="inline-flex flex-col gap-0.5">
+      <button
+        disabled={busy}
+        onClick={async () => {
+          setMsg(null);
+          try { setMsg({ ok: true, text: await onRun() }); }
+          catch (e: any) { setMsg({ ok: false, text: e?.message || "failed" }); }
+        }}
+        className={`tap rounded-lg border px-2.5 py-1.5 text-[11px] font-medium transition disabled:opacity-50 ${
+          tone === "danger"
+            ? "border-[rgba(var(--neg-rgb),0.32)] text-[var(--accent-red)] hover:bg-[rgba(var(--neg-rgb),0.1)]"
+            : tone === "pos"
+            ? "border-[rgba(var(--p-rgb),0.32)] text-[var(--accent-green)] hover:bg-[rgba(var(--p-rgb),0.1)]"
+            : "border-[rgba(var(--p-rgb),0.25)] text-txt-mid hover:bg-[rgba(var(--p-rgb),0.08)]"
+        }`}
+      >
+        {busy ? "…" : label}
+      </button>
+      {msg && (
+        <span className={`max-w-[220px] text-[10px] leading-tight ${msg.ok ? "text-[var(--accent-green)]" : "text-[var(--accent-red)]"}`}>
+          {msg.text}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/** P16: polling failures are never silent - a visible, dismissible note. */
+export function ErrorNote({ message, onDismiss }: { message?: string | null; onDismiss?: () => void }) {
+  if (!message) return null;
+  return (
+    <div className="flex items-center justify-between gap-2 rounded-xl border border-[rgba(var(--neg-rgb),0.32)] bg-[rgba(var(--neg-rgb),0.08)] px-3 py-2 text-[11.5px] text-[var(--accent-red)]">
+      <span className="min-w-0 truncate">⚠ {message}</span>
+      {onDismiss && (
+        <button onClick={onDismiss} className="tap shrink-0 rounded-md px-1.5 text-[10px] hover:bg-[rgba(var(--neg-rgb),0.12)]">dismiss</button>
+      )}
+    </div>
+  );
+}
+

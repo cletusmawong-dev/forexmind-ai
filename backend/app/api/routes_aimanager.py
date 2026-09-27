@@ -37,6 +37,9 @@ def status(user_id: str = Depends(get_user_id)) -> Dict[str, Any]:
                 "error": d.get("error"),
                 "symbol": d.get("symbol"),
                 "createdAt": d.get("createdAt"),
+                "brain": ({k: (d.get("brain") or {}).get(k) for k in
+                           ("answer", "confidence_pct", "evidence_quality",
+                            "freshness", "challenge")} if d.get("brain") else None),
             })
     except Exception:
         decisions = []
