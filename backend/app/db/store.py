@@ -389,9 +389,34 @@ store_init_error: Optional[str] = None
 
 
 def get_store() -> Any:
+    """Backend selector (§21.9): DATABASE=firestore (default) | supabase |
+    dual (write both, read firestore). Unset/unknown -> firestore. The flip
+    stays gated on the user's go after 7 stable days."""
     global _store, store_init_error
     if _store is None:
-        if settings.firebase_project_id:
+        backend = (settings.database_backend or "firestore").lower()
+        if backend == "supabase":
+            try:
+                from .supabase_store import SupabaseStore
+                _store = SupabaseStore()
+                return _store
+            except Exception as e:
+                store_init_error = f"supabase: {type(e).__name__}: {e}"
+                _store = LocalStore()
+        elif backend == "dual":
+            try:
+                from .supabase_store import DualStore
+                if settings.firebase_project_id:
+                    primary = FirestoreStore()
+                else:
+                    primary = LocalStore()
+                from .supabase_store import SupabaseStore
+                _store = DualStore(primary=primary, shadow=SupabaseStore())
+                return _store
+            except Exception as e:
+                store_init_error = f"dual: {type(e).__name__}: {e}"
+                _store = LocalStore()
+        elif settings.firebase_project_id:
             try:
                 _store = FirestoreStore()
             except Exception as e:
