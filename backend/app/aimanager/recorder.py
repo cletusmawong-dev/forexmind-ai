@@ -16,7 +16,8 @@ def record(user_id: Optional[str], position: dict, trigger: str,
            model: str, layer: str, decision: Optional[dict],
            decision_valid: bool, gate_verdict: str,
            execution: Optional[dict] = None, error: Optional[str] = None,
-           snapshot_ts: Optional[float] = None) -> Optional[dict]:
+           snapshot_ts: Optional[float] = None,
+           brain: Optional[dict] = None) -> Optional[dict]:
     try:
         doc = {
             "userId": user_id,
@@ -36,6 +37,9 @@ def record(user_id: Optional[str], position: dict, trigger: str,
             "execution": execution or {},
             "error": error,
             "input_context_version": INPUT_CONTEXT_VERSION,
+            "brain": ({k: brain.get(k) for k in
+                       ("answer", "confidence_pct", "evidence_quality",
+                        "freshness", "reasons", "challenge")} if brain else None),
             "snapshot_ts": snapshot_ts,
             "createdAt": datetime.now(timezone.utc).isoformat(),
         }

@@ -270,34 +270,63 @@ class TradeManager:
                             execution=ladder, snapshot_ts=now)
             return out
 
-        # 1) evidence -> AI (primary, escalation per event severity - SS7)
-        try:
-            from .context import build_context
-            context = build_context(user_id, pos, sig, daily=daily,
-                                    provider=self.provider)
-        except Exception as exc:
-            recorder.record(user_id, pos, trigger, "-", "local", None, False,
-                            "CONTEXT_ERROR", error=type(exc).__name__, snapshot_ts=now)
-            return out
-
+        # 1) evidence -> AI. Brain 2.0 pipeline when enabled (world model ->
+        #    generate -> self-challenge -> decide); on ANY brain error we fall
+        #    back to the legacy single-call path and RECORD it (never silent).
+        #    Both paths end at the SAME deterministic gate below.
+        market = pos.get("app_market") or pos.get("symbol", "")
         model_name, layer = settings.ai_primary_model, "primary"
         decision: Optional[dict] = None
         decision_err: Optional[str] = None
+        brain_meta: Optional[dict] = None
         snapshot_ts = time.time()
-        try:
-            res = self.router.analyze(
-                "Manage this open trade. Reply with ONLY the JSON decision.",
-                context, escalate=escalate, user_id=user_id)
-            model_name, layer = res.get("model", model_name), res.get("layer", layer)
-            if layer != "local":
-                try:
-                    decision = decisions.validate(res.get("text", ""))
-                except decisions.DecisionError as exc:
-                    decision_err = f"invalid decision: {exc}"
-            else:
-                decision_err = "ai unavailable - deterministic fallback"
-        except Exception as exc:
-            decision_err = f"router error: {type(exc).__name__}"
+        if settings.brain_v2_enabled:
+            try:
+                from ..ai.brain import run_brain
+                from ..ai.world_model import build_world_model
+                world = build_world_model(user_id, market, position=pos,
+                                          signal=sig, daily=daily,
+                                          provider=self.provider, now=now)
+                brain_meta = run_brain(user_id, world, escalate=escalate,
+                                       router=self.router, signal=sig)
+                snapshot_ts = float(brain_meta.get("snapshot_ts") or snapshot_ts)
+                model_name = brain_meta.get("model", model_name)
+                layer = brain_meta.get("layer", layer)
+                if brain_meta.get("decision"):
+                    decision = brain_meta["decision"]
+                else:
+                    decision_err = f"brain answer: {brain_meta.get('answer')}"
+            except Exception as exc:
+                recorder.record(user_id, pos, trigger, "-", "local", None, False,
+                                "BRAIN_ERROR_FALLBACK_LEGACY",
+                                error=f"{type(exc).__name__}: {exc}",
+                                snapshot_ts=now)
+                brain_meta = None      # legacy path below takes over
+
+        if decision is None and brain_meta is None:
+            # legacy single-call path (Brain 2.0 disabled or failed)
+            try:
+                from .context import build_context
+                context = build_context(user_id, pos, sig, daily=daily,
+                                        provider=self.provider)
+            except Exception as exc:
+                recorder.record(user_id, pos, trigger, "-", "local", None, False,
+                                "CONTEXT_ERROR", error=type(exc).__name__, snapshot_ts=now)
+                return out
+            try:
+                res = self.router.analyze(
+                    "Manage this open trade. Reply with ONLY the JSON decision.",
+                    context, escalate=escalate, user_id=user_id)
+                model_name, layer = res.get("model", model_name), res.get("layer", layer)
+                if layer != "local":
+                    try:
+                        decision = decisions.validate(res.get("text", ""))
+                    except decisions.DecisionError as exc:
+                        decision_err = f"invalid decision: {exc}"
+                else:
+                    decision_err = "ai unavailable - deterministic fallback"
+            except Exception as exc:
+                decision_err = f"router error: {type(exc).__name__}"
 
         if decision is None:
             decision = decisions.deterministic_hold(decision_err or "no decision")
@@ -328,11 +357,11 @@ class TradeManager:
             recorder.record(user_id, pos, trigger, model_name, layer, decision,
                             decision_err is None, verdict,
                             execution=execution or {}, error=decision_err,
-                            snapshot_ts=snapshot_ts)
+                            snapshot_ts=snapshot_ts, brain=brain_meta)
         if decision["action"] == "HOLD":
             recorder.record(user_id, pos, trigger, model_name, layer, decision,
                             decision_err is None, verdict, error=decision_err,
-                            snapshot_ts=snapshot_ts)
+                            snapshot_ts=snapshot_ts, brain=brain_meta)
 
         st["last_review"] = now
         st["last_pl"] = float(fresh.get("profit") or 0)

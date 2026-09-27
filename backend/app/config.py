@@ -39,6 +39,10 @@ class Settings:
     # production logs showed GPT-5.6-Sol dying on the old hard 20s timeout
     ai_escalation_timeout_s: int = int(os.getenv("AI_ESCALATION_TIMEOUT_S", "45"))
     ai_escalation_max_tokens: int = int(os.getenv("AI_ESCALATION_MAX_TOKENS", "900"))
+    # Brain 2.0 (Stage 2): reasoning pipeline over the world model
+    brain_v2_enabled: bool = os.getenv("BRAIN_V2", "1").lower() not in ("0", "false", "off")
+    brain_min_strategy_samples: int = int(os.getenv("BRAIN_MIN_SAMPLES", "5"))
+    brain_stale_tf_multiplier: float = float(os.getenv("BRAIN_STALE_TF_MULT", "2"))
 
     # --- Market data ----------------------------------------------------------
     # "historical_demo" replays stored datasets; "live" fetches real market data

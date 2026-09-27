@@ -59,6 +59,9 @@ class FakeRouter:
 @pytest.fixture()
 def world(monkeypatch, tmp_path):
     store = LocalStore(path=str(tmp_path / "db.json"))
+    # this suite pins the LEGACY single-call manager contract; Brain 2.0 has
+    # its own suite (tests/test_brain.py) covering the world-model pipeline
+    monkeypatch.setattr(settings, "brain_v2_enabled", False)
     _mk_world(store)
     from app.db import store as store_mod
     monkeypatch.setattr(store_mod, "_store", store)
