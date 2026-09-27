@@ -40,14 +40,36 @@ def strategy_detail(strategy_id: str, user_id: str = Depends(get_user_id)):
 
 @router.patch("/{strategy_id}")
 def set_status(strategy_id: str, body: dict, user_id: str = Depends(get_user_id)):
+    """Update strategy status and/or per-strategy sessions (P7).
+    Every change is audited (P17). Activating a recommendation's draft =
+    explicitly passing its `proposed_sessions` here - never automatic."""
+    from ..config import SESSIONS
+    from ..core.permissions import audit
     status = body.get("status")
-    if status not in ("ACTIVE", "PAUSED", "DISABLED"):
+    sessions = body.get("sessions", "__absent__")
+    if status is not None and status not in ("ACTIVE", "PAUSED", "DISABLED"):
         raise HTTPException(422, "status must be ACTIVE, PAUSED or DISABLED")
+    if sessions != "__absent__" and sessions is not None:
+        if (not isinstance(sessions, list) or not sessions or
+                any(x not in SESSIONS for x in sessions)):
+            raise HTTPException(422, f"sessions must be a non-empty list from {list(SESSIONS)}")
+    if status is None and sessions == "__absent__":
+        raise HTTPException(422, "nothing to update")
     store = State.store
     doc = store.list("strategies", filters={"id": strategy_id}, limit=1)
     if not doc:
         raise HTTPException(404, "Unknown strategy")
-    return {"strategy": store.update("strategies", strategy_id, {"status": status})}
+    prev = {"status": doc[0].get("status"), "sessions": doc[0].get("sessions")}
+    patch = {}
+    if status is not None:
+        patch["status"] = status
+    if sessions != "__absent__":
+        patch["sessions"] = sessions
+        store.update("strategies", strategy_id,
+                     {"proposed_sessions": None, "proposed_change_note": None})
+    out = store.update("strategies", strategy_id, patch)
+    audit(user_id, "strategy.update", None, prev, patch, f"strategy {strategy_id}")
+    return {"strategy": out}
 
 
 @router.get("/{strategy_id}/versions")

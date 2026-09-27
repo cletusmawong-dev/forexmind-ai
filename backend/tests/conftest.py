@@ -47,3 +47,21 @@ def fresh_store(tmp_path, monkeypatch):
     State.store = s
     yield s
     State.store = _prev  # restore - never leak the test store into other files
+
+@pytest.fixture(autouse=True)
+def _isolate_regime_cache():
+    """The live loop (started by every TestClient) classifies markets into the
+    shared regime cache; synthetic test data can look extreme-vol. Clear it
+    before every test so guards and dashboards never inherit another file's
+    classifications."""
+    try:
+        from app.learning import regime as _regime
+        _regime.clear_cache()
+    except Exception:
+        pass
+    yield
+    try:
+        from app.learning import regime as _regime
+        _regime.clear_cache()
+    except Exception:
+        pass

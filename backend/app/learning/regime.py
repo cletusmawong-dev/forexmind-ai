@@ -123,7 +123,10 @@ def record(market: str, df: pd.DataFrame) -> Optional[dict]:
     m = market.upper()
     result = classify(df)
     with _lock:
+        prev = _last.get(m)
         _last[m] = result
+    if prev and prev.get("regime") != result["regime"]:
+        _emit_change(m, prev, result)
     now = datetime.now(timezone.utc)
     day = now.strftime("%Y-%m-%d")
     try:
@@ -146,6 +149,63 @@ def record(market: str, df: pd.DataFrame) -> Optional[dict]:
     except Exception:
         pass   # history is best-effort; classification itself already cached
     return result
+
+
+def _emit_change(market: str, prev: dict, new: dict) -> Optional[dict]:
+    """P5: an explicit REGIME-CHANGE EVENT on every transition (deduped per
+    30 min). Never raises; history stays best-effort like the rest."""
+    try:
+        store = get_store()
+        now = datetime.now(timezone.utc)
+        recent = store.list("regime_events", filters={"market": market},
+                            order_by="createdAt", desc=True, limit=1)
+        if recent:
+            try:
+                age = now.timestamp() - datetime.fromisoformat(
+                    str(recent[0]["createdAt"]).replace("Z", "+00:00")).timestamp()
+                if age < 1800 and recent[0].get("to") == new.get("regime"):
+                    return None          # same transition already recorded
+            except Exception:
+                pass
+        doc = store.create("regime_events", {
+            "market": market,
+            "from": prev.get("regime"),
+            "to": new.get("regime"),
+            "confidence": new.get("confidence"),
+            "trend_score": new.get("trend_score"),
+            "volatility": new.get("volatility"),
+            "createdAt": now.isoformat(),
+        })
+        try:
+            from ..notifications.service import notify
+            from ..config import settings as _s
+            notify(_s.owner_user_id, "REGIME_CHANGE",
+                   f"{market}: {prev.get('regime')} → {new.get('regime')}",
+                   f"Confidence {new.get('confidence')}% · volatility "
+                   f"{new.get('volatility')} · trend score {new.get('trend_score')}. "
+                   "Recorded for strategy×regime statistics.")
+        except Exception:
+            pass
+        return doc
+    except Exception:
+        return None
+
+
+def clear_cache() -> None:
+    """Test/restart isolation: drop the in-memory classification cache."""
+    with _lock:
+        _last.clear()
+
+
+def recent_events(market: Optional[str] = None, limit: int = 20) -> List[dict]:
+    """Newest-first regime-change events (dashboard + stats)."""
+    try:
+        store = get_store()
+        flt = {"market": market.upper()} if market else None
+        return store.list("regime_events", filters=flt,
+                          order_by="createdAt", desc=True, limit=limit)
+    except Exception:
+        return []
 
 
 def current(market: str, df: Optional[pd.DataFrame] = None) -> dict:

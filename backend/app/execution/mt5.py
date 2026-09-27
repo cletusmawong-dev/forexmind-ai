@@ -361,6 +361,28 @@ def execute_signal(signal: dict, user_id: str) -> None:
             _emit(user_id, "ENTRY", "SKIPPED", market=market, signal=signal,
                   detail=f"stop too tight (< {MIN_STOP_PIPS:g} pips)")
             return
+        # P10 deterministic pre-trade guards: news / spread / vol / correlation.
+        # Every refusal is loud (status + ledger + log + notification).
+        try:
+            from ..risk_checks import check_entry
+            ok, guard, gwhy = check_entry(user_id, market)
+        except Exception:
+            ok, guard, gwhy = True, "", ""
+        if not ok:
+            status_key = f"SKIPPED_RISK_{guard}"
+            store.update("signals", signal["id"], {
+                "execution_status": status_key,
+                "mt5_note": f"{guard} guard: {gwhy}"})
+            _log(f"Execution skipped - {guard} guard: {gwhy}. Signal kept as advisory.",
+                 market, kind="EXEC_WARN")
+            _emit(user_id, "ENTRY", "SKIPPED", market=market, signal=signal,
+                  detail=f"{guard} guard: {gwhy}")
+            notify(user_id, "EXECUTION_SKIPPED",
+                   f"NOT EXECUTED - {market} {signal.get('direction')}",
+                   f"Risk guard {guard}: {gwhy}. The signal is tracked as "
+                   "research only - no trade was placed.",
+                   signal_id=signal.get("id"))
+            return
         risk_pct = min(float(((_goals_doc(user_id) or {}).get("risk_per_trade_pct", 1.0)) or 1.0),
                        settings.execution_risk_pct_cap)
         # TP level: static (1/2/3) or AUTO = probability-driven selection from

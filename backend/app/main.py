@@ -15,6 +15,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .agent import core as agent_core
+from .learning.auto_loop import run_research_cycle
 from .config import INITIAL_MARKETS, settings
 from .seed import seed_if_empty
 from .db.store import get_store
@@ -265,6 +266,12 @@ async def live_loop():
                 for uid in {u["id"] for u in State.store.list("users", limit=50)}:
                     analyze_closed_signals(uid)
                     propose_from_lessons(uid, max_new=1)
+                    # P8 automated research cycle (bounded; results become
+                    # [REVIEW] recommendations - never applied automatically
+                    try:
+                        await asyncio.to_thread(run_research_cycle, settings.owner_user_id)
+                    except Exception:
+                        pass
                 _current_task = "Monitoring markets"
         except asyncio.CancelledError:
             raise

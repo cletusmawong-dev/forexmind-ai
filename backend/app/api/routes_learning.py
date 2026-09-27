@@ -158,3 +158,72 @@ def autopsy_experiment_report(experiment_id: str, user_id: str = Depends(get_use
     """Baseline vs experiment groups (complete picture, never win-rate-only)."""
     from ..learning.autopsy import experiment_report
     return experiment_report(experiment_id)
+
+
+# ===========================================================================
+# P6: S×P×Session×Regime matrix + [REVIEW][APPLY][REJECT] recommendations.
+# Recommendations are NEVER auto-applied: APPLY only drafts (session filters)
+# or honestly refuses (regime notes); activation is an explicit audited
+# strategy PATCH by the user.
+# ===========================================================================
+@router.get("/learning/matrix")
+def learning_matrix(user_id: str = Depends(get_user_id)):
+    from ..learning.matrix import build_matrix
+    return build_matrix(user_id)
+
+
+@router.get("/learning/recommendations")
+def recs(status: str = None, user_id: str = Depends(get_user_id)):
+    from ..learning.matrix import list_recommendations
+    return {"recommendations": list_recommendations(user_id, status=status)}
+
+
+@router.post("/learning/recommendations/generate")
+def recs_generate(user_id: str = Depends(get_user_id)):
+    from ..learning.matrix import generate_recommendations
+    made = generate_recommendations(user_id)
+    return {"created": len(made), "recommendations": made}
+
+
+def _rec_action(user_id: str, rec_id: str, action: str, reason: str = ""):
+    from fastapi import HTTPException as _HE
+    from ..learning import matrix
+    rec = matrix.set_status(user_id, rec_id, action, reason)
+    if rec is None:
+        raise _HE(404, "Recommendation not found")
+    if action == "APPLYING" and rec["type"] != "FILTER_SESSION":
+        raise _HE(422, ("This recommendation type has no auto-apply. "
+                        "Respond with a one-variable experiment instead."))
+    return rec
+
+
+@router.post("/learning/recommendations/{rec_id}/review")
+def rec_review(rec_id: str, user_id: str = Depends(get_user_id)):
+    return {"recommendation": _rec_action(user_id, rec_id, "REVIEWING")}
+
+
+@router.post("/learning/recommendations/{rec_id}/apply")
+def rec_apply(rec_id: str, user_id: str = Depends(get_user_id)):
+    from fastapi import HTTPException as _HE
+    from ..db.store import get_store
+    from ..learning import matrix
+    probe = get_store().get("recommendations", rec_id)
+    if not probe or probe.get("userId") != user_id:
+        raise _HE(404, "Recommendation not found")
+    if probe["type"] != "FILTER_SESSION":
+        # honest refusal BEFORE any state change: nothing is touched
+        raise _HE(422, ("Regime recommendations have no auto-apply. "
+                        "Run a one-variable experiment instead."))
+    rec = matrix.set_status(user_id, rec_id, "APPLYING")
+    if rec is None:
+        raise _HE(404, "Recommendation not found")
+    return {"recommendation": rec,
+            "next_step": ("Draft saved to the strategy doc. ACTIVATE it by "
+                          "PATCH /strategies/{id} with sessions=<proposed_sessions> "
+                          "- your explicit, audited approval.")}
+
+
+@router.post("/learning/recommendations/{rec_id}/reject")
+def rec_reject(rec_id: str, body: dict = None, user_id: str = Depends(get_user_id)):
+    reason = (body or {}).get("reason", "")
+    return {"recommendation": _rec_action(user_id, rec_id, "REJECTED", reason)}

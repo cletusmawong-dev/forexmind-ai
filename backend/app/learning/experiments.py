@@ -17,6 +17,47 @@ from ..learning.metrics import classify_experiment, compute_metrics
 from ..strategies import get_strategy
 
 
+def walk_forward(base_trades: list, exp_trades: list, folds: int = 3,
+                 min_per_fold: int = 3) -> Dict[str, Any]:
+    """P8 walk-forward consistency: split the combined trade timeline into
+    `folds` chronological windows; the experimental version must hold up in
+    MOST windows, not only in the aggregate (a variant that wins overall but
+    loses 2 of 3 windows is flagged inconsistent). Deterministic, honest."""
+    def _exp(t):
+        return float(t.get("expectancy", 0.0)) if isinstance(t, dict) else 0.0
+
+    out: Dict[str, Any] = {"folds": [], "consistent": None, "note": None}
+    try:
+        def _mid(t):
+            return str(t.get("entry_time") or t.get("close_time") or "")
+
+        bs = sorted([t for t in (base_trades or []) if _mid(t)], key=_mid)
+        es = sorted([t for t in (exp_trades or []) if _mid(t)], key=_mid)
+        n = min(len(bs), len(es))
+        if n < folds * min_per_fold:
+            out["note"] = ("insufficient trades for walk-forward "
+                           f"({n} paired < {folds * min_per_fold})")
+            return out
+        rows = []
+        for i in range(folds):
+            a, b = int(n * i / folds), int(n * (i + 1) / folds)
+            fb = compute_metrics(bs[a:b])
+            fe = compute_metrics(es[a:b])
+            rows.append({"fold": i + 1,
+                         "base_expectancy": round(float(fb.get("expectancy") or 0.0), 3),
+                         "exp_expectancy": round(float(fe.get("expectancy") or 0.0), 3),
+                         "base_trades": int(fb.get("trades") or 0),
+                         "exp_trades": int(fe.get("trades") or 0)})
+        wins = sum(1 for r in rows
+                   if r["exp_expectancy"] >= r["base_expectancy"])
+        out["folds"] = rows
+        out["consistent"] = bool(wins >= (folds // 2) + 1)
+        out["windows_won"] = wins
+    except Exception as exc:
+        out["note"] = f"walk-forward unavailable: {type(exc).__name__}"
+    return out
+
+
 class ExperimentError(Exception):
     """Raised when an experiment violates a hard rule - surfaces as HTTP 422."""
 
@@ -141,6 +182,8 @@ class ExperimentEngine:
         except Exception:
             pass
 
+        wf = walk_forward(base_result["trades"], exp_result["trades"])
+
         return {
             "strategy_id": strategy_id,
             "variable": changed_key,
@@ -163,6 +206,7 @@ class ExperimentEngine:
                                "exp": {k: v for k, v in val_e.items() if not isinstance(v, dict)}},
             },
             "robustness": robustness,
+            "walk_forward": wf,
             "signal_frequency_per_day": freq,
         }
 
@@ -216,6 +260,7 @@ class ExperimentEngine:
             "split": comparison.get("split"),
             "robustness": (comparison.get("robustness") or {}).get("sessions"),
             "robustness_note": (comparison.get("robustness") or {}).get("note"),
+            "walk_forward": comparison.get("walk_forward"),
             "signal_frequency_per_day": comparison.get("signal_frequency_per_day"),
         })
 

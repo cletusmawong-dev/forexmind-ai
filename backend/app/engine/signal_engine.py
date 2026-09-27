@@ -24,6 +24,15 @@ DEFAULT_SESSION_HOURS = {"Asian": (0, 8), "London": (8, 13),
 _UTC_LIKE = ("", "UTC", "GMT", "ETC/UTC", "UTC+0")
 
 
+def strategy_sessions_allowed(sdoc: dict, session: str) -> bool:
+    """P7: a strategy may restrict itself to specific sessions via its doc
+    field `sessions` (list of session names). Empty/missing = all sessions."""
+    allowed = sdoc.get("sessions")
+    if not allowed:
+        return True
+    return (session or "") in allowed
+
+
 def session_windows(risk: dict) -> dict:
     """Built-in UTC windows overridden by the user's session_hours."""
     out = dict(DEFAULT_SESSION_HOURS)
@@ -129,6 +138,8 @@ class SignalEngine:
             sdoc = store.list("strategies", filters={"id": sid}, limit=1)
             if sdoc and sdoc[0].get("status") != "ACTIVE":
                 continue
+            if sdoc and not strategy_sessions_allowed(sdoc[0], session):
+                continue    # P7: per-strategy session gate (audited config)
             params = active_params(sid)
             candidate = strategy.detect_signal(
                 df, market, timeframe, params=params, higher_frames=higher,
@@ -410,6 +421,8 @@ class SignalEngine:
             sdoc = store.list("strategies", filters={"id": sid}, limit=1)
             if sdoc and sdoc[0].get("status") != "ACTIVE":
                 continue
+            if sdoc and not strategy_sessions_allowed(sdoc[0], session):
+                continue    # P7: per-strategy session gate (audited config)
             cand = strategy.detect_signal(df, market, timeframe,
                                           params=active_params(sid),
                                           higher_frames=higher,

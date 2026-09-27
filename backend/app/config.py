@@ -43,6 +43,14 @@ class Settings:
     brain_v2_enabled: bool = os.getenv("BRAIN_V2", "1").lower() not in ("0", "false", "off")
     brain_min_strategy_samples: int = int(os.getenv("BRAIN_MIN_SAMPLES", "5"))
     brain_stale_tf_multiplier: float = float(os.getenv("BRAIN_STALE_TF_MULT", "2"))
+    # P10 deterministic pre-trade risk guards (all overridable per env)
+    risk_guards_enabled: bool = os.getenv("RISK_GUARDS", "1").lower() not in ("0", "false", "off")
+    risk_news_guard: bool = os.getenv("RISK_NEWS_GUARD", "1").lower() not in ("0", "false", "off")
+    risk_max_spread_pips: float = float(os.getenv("RISK_MAX_SPREAD_PIPS", "25"))
+    risk_vol_rank_max: float = float(os.getenv("RISK_VOL_RANK_MAX", "0.97"))
+    risk_max_correlated: int = int(os.getenv("RISK_MAX_CORRELATED", "2"))
+    # P13: the ONE developer telegram bot
+    telegram_bot_username: str = os.getenv("TELEGRAM_BOT_USERNAME", "")
 
     # --- Market data ----------------------------------------------------------
     # "historical_demo" replays stored datasets; "live" fetches real market data
