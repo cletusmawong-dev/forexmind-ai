@@ -57,7 +57,32 @@ def get_goals(user_id: str) -> Dict[str, Any]:
     if not doc:
         ensure_user_docs(user_id)
         doc = store.list("agent_goals", filters={"userId": user_id}, limit=1)
-    return {k: v for k, v in doc[0].items() if k not in ("id", "userId", "createdAt", "updatedAt")}
+    out = {k: v for k, v in doc[0].items() if k not in ("id", "userId", "createdAt", "updatedAt")}
+    # Broker truth overlay (user directive 2026-09-27: the VPS account IS the
+    # admin's account - balances shown anywhere must be broker truth, never a
+    # stale stored number). In vps mode the live bridge account overlays the
+    # stored account_balance. Read-only overlay - no write quota burn.
+    try:
+        from ..execution.mt5 import bridge_get, user_mode
+        if user_mode(user_id) == "vps":
+            acc = bridge_get("/account", timeout=4) or {}
+            if acc.get("balance") is not None:
+                out["account_balance"] = float(acc["balance"])
+                out["account_equity_live"] = acc.get("equity")
+                out["mt5_account"] = {**(out.get("mt5_account") or {}),
+                                      "login": acc.get("login"),
+                                      "server": acc.get("server"),
+                                      "balance": acc.get("balance"),
+                                      "equity": acc.get("equity"),
+                                      "broker_truth": True}
+                out["balance_source"] = "mt5_bridge"
+            else:
+                out.setdefault("balance_source", "stored")
+        else:
+            out.setdefault("balance_source", "stored")
+    except Exception:
+        out.setdefault("balance_source", "stored")
+    return out
 
 
 def get_risk(user_id: str) -> Dict[str, Any]:

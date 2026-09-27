@@ -180,3 +180,35 @@ def test_weave_entry_ledger_audit_and_suspension(env):
                    for e in cc["executions"]["recent"])
     finally:
         X.bridge_get, X.bridge_post = orig_get, orig_post
+
+
+def test_goals_overlay_shows_bridge_truth_for_vps(env, monkeypatch):
+    """User directive 2026-09-27: the admin account IS the VPS account.
+    get_goals must overlay live broker balance/equity in vps mode - a stale
+    stored number may never be shown as the account balance."""
+    c, store, monkeypatch, settings = env
+    from app.execution.mt5 import MAGIC
+    store.create("users", {"id": "boss", "userId": "boss", "email": "b@x.io",
+                           "role": "admin", "status": "active"})
+    store.create("agent_goals", {"userId": "boss", "account_balance": 5000.0,
+                                 "execution_mode": "vps", "execution_enabled": True})
+    from app.execution import mt5 as X
+    orig_get = X.bridge_get
+    X.bridge_get = lambda p, timeout=4: (
+        {"balance": 4864.57, "equity": 4902.10, "login": 477135810,
+         "server": "Exness-MT5Trial9"} if p == "/account" else {})
+    try:
+        from app.agent.core import get_goals
+        g = get_goals("boss")
+        assert g["account_balance"] == 4864.57        # broker truth, not 5000
+        assert g["balance_source"] == "mt5_bridge"
+        assert g["account_equity_live"] == 4902.10
+        assert g["mt5_account"]["login"] == 477135810
+        assert g["mt5_account"]["broker_truth"] is True
+        # non-vps account keeps its stored balance, honestly labeled
+        store.create("agent_goals", {"userId": "u2", "account_balance": 123.0,
+                                     "execution_mode": "off"})
+        g2 = get_goals("u2")
+        assert g2["account_balance"] == 123.0 and g2["balance_source"] == "stored"
+    finally:
+        X.bridge_get = orig_get
