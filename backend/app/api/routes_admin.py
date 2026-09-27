@@ -7,6 +7,8 @@ these checks - the database is the source of truth.
 """
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
@@ -142,3 +144,124 @@ def overview(admin: str = Depends(require_admin)):
                   "pending": sum(1 for u in users if u.get("trading_permission") == "setup")},
         "audit_tail": store.list("audit_log", limit=25),
     }
+
+
+@router.get("/command-center")
+def command_center(admin: str = Depends(require_admin)):
+    """Developer Command Center (P14): ONE honest snapshot of the whole
+    system. Every section degrades independently - a broken piece reports
+    its error instead of breaking the page. Read-only."""
+    store = get_store()
+    out: dict = {"generated_at": datetime.now(timezone.utc).isoformat()}
+
+    def section(name, fn):
+        try:
+            out[name] = fn()
+        except Exception as exc:
+            out[name] = {"error": f"{type(exc).__name__}: {exc}"}
+
+    # health components (reuse the /api/health logic honestly)
+    section("health", lambda: _http_get_json("/api/health"))
+
+    def _users():
+        users = store.list("users", limit=500)
+        return {"total": len(users),
+                "suspended": sum(1 for u in users if u.get("status") == "suspended"),
+                "auto_trading": sum(1 for u in users
+                                    if u.get("trading_permission") == "enabled"),
+                "pending_setup": sum(1 for u in users
+                                     if u.get("trading_permission") == "setup"),
+                "telegram_linked": sum(1 for u in users if u.get("telegram_chat_id")),
+                "roster": [_public(u) for u in users[:50]]}
+    section("users", _users)
+
+    def _router():
+        from ..agent.router import get_router
+        return get_router().status()
+    section("ai_router", _router)
+
+    def _manager():
+        from ..aimanager.engine import get_manager
+        st = get_manager().status()
+        return {"last_tick_ts": st.get("last_tick_ts"),
+                "managed_positions": st.get("managed_positions"),
+                "last_summary": st.get("last_summary")}
+    section("trade_manager", _manager)
+
+    def _daily():
+        from ..engine.daily import daily_state
+        d = daily_state(admin)
+        return {k: d.get(k) for k in
+                ("day", "realized_usd", "floating_usd", "total_usd",
+                 "daily_profit_target_usd", "daily_loss_limit_usd",
+                 "remaining_target_usd", "remaining_loss_usd", "hit_target",
+                 "hit_loss", "status", "realized_basis")}
+    section("daily_walls", _daily)
+
+    section("executions", lambda: {"recent": store.list(
+        "exec_events", filters={"userId": admin}, order_by="createdAt",
+        desc=True, limit=12)})
+
+    def _tp_audit():
+        from ..execution.tp_audit import scan_user
+        f = scan_user(admin)
+        return {"findings": f, "leaks": sum(1 for x in f
+                                            if x.get("severity") == "leak")}
+    section("tp_audit", _tp_audit)
+
+    def _learning():
+        hyps = store.list("hypotheses", filters={"userId": admin}, limit=200)
+        exps = store.list("experiments", filters={"userId": admin}, limit=50)
+        recs = store.list("recommendations", filters={"userId": admin}, limit=100)
+        return {"hypotheses_pending": sum(1 for h in hyps
+                                          if h.get("status") == "PROPOSED"),
+                "experiments_ready_for_review": sum(
+                    1 for e in exps if e.get("status") == "READY_FOR_REVIEW"),
+                "recommendations_open": sum(1 for r in recs
+                                            if r.get("status") in ("REVIEW", "REVIEWING")),
+                "recent_experiments": [{k: e.get(k) for k in
+                                        ("experiment_code", "strategy_id",
+                                         "variable", "old_value", "new_value",
+                                         "result", "status", "createdAt")}
+                                       for e in exps[:8]]}
+    section("learning", _learning)
+
+    def _strategies():
+        rows = []
+        for s in store.list("strategies", limit=50):
+            rows.append({"id": s.get("id"), "name": s.get("name"),
+                         "status": s.get("status"),
+                         "active_version": s.get("active_version"),
+                         "sessions": s.get("sessions"),
+                         "proposed_sessions": s.get("proposed_sessions")})
+        return {"strategies": rows}
+
+    section("strategies", _strategies)
+
+    def _regimes():
+        from ..learning.regime import current
+        from ..config import INITIAL_MARKETS
+        return {m: current(m) for m in INITIAL_MARKETS}
+    section("regimes", _regimes)
+
+    def _regime_events():
+        return {"recent": store.list("regime_events", order_by="createdAt",
+                                     desc=True, limit=8)}
+    section("regime_events", _regime_events)
+
+    section("audit_tail", lambda: {"entries": store.list(
+        "audit_log", order_by="createdAt", desc=True, limit=15)})
+    return out
+
+
+def _http_get_json(path: str) -> dict:
+    """Internal-only health reuse without an HTTP self-call (tests + prod)."""
+    from ..state import State
+    from ..config import settings as _s
+    import time as _t
+    comps: dict = {}
+    comps["store"] = {"kind": type(get_store()).__name__}
+    comps["execution"] = {"mode": _s.execution_mode,
+                          "bridge_configured": bool(_s.bridge_url)}
+    comps["brain_v2"] = bool(_s.brain_v2_enabled)
+    return {"components": comps, "provider": State.provider.name if State.provider else None}

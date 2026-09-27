@@ -1,18 +1,26 @@
 import { NavLink } from "react-router-dom";
-import { Home, Radio, Briefcase, GraduationCap, NotebookPen, Settings, PieChart } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Home, Radio, Briefcase, GraduationCap, NotebookPen, Settings, PieChart, Shield } from "lucide-react";
 import { Logo, StatusDot } from "./ui";
-
-const items = [
-  { to: "/", label: "Home", icon: Home },
-  { to: "/signals", label: "Signals", icon: Radio },
-  { to: "/agent", label: "Agent", icon: Briefcase },
-  { to: "/learning", label: "Learning Lab", icon: GraduationCap },
-  { to: "/journal", label: "Journal", icon: NotebookPen },
-  { to: "/analytics", label: "Analytics", icon: PieChart },
-  { to: "/settings", label: "Settings", icon: Settings },
-];
+import { api, endpoints } from "../lib/api";
 
 export function Sidebar() {
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    api.get(endpoints.me)
+      .then((me) => setIsAdmin(me?.role === "admin"))
+      .catch(() => setIsAdmin(false));
+  }, []);
+  const items = [
+    { to: "/", label: "Home", icon: Home },
+    { to: "/signals", label: "Signals", icon: Radio },
+    { to: "/agent", label: "Agent", icon: Briefcase },
+    { to: "/learning", label: "Learning Lab", icon: GraduationCap },
+    { to: "/journal", label: "Journal", icon: NotebookPen },
+    { to: "/analytics", label: "Analytics", icon: PieChart },
+    { to: "/settings", label: "Settings", icon: Settings },
+    ...(isAdmin ? [{ to: "/admin", label: "Admin", icon: Shield }] : []),
+  ];
   return (
     <aside className="sticky top-0 hidden h-screen w-[250px] shrink-0 flex-col justify-between px-6 py-8 lg:flex">
       <div>

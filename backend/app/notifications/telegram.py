@@ -1,13 +1,17 @@
 """Telegram delivery + account linking (phone notifications).
 
-Flow:
-  1. Owner creates a bot with @BotFather, pastes the token as TELEGRAM_BOT_TOKEN.
+Linking flow (Master Upgrade P13 - one developer bot, one-time tokens):
+  1. The ONE developer bot is configured via TELEGRAM_BOT_TOKEN
+     (+ TELEGRAM_BOT_USERNAME for deep links).
   2. Webhook is registered once:  /api/telegram/webhook/<TELEGRAM_WEBHOOK_SECRET>
-  3. In the app, Settings shows the exact message to send the bot:
-        /start <account email>
-  4. The webhook stores telegram_chat_id on the user doc. From then on every
-     notify() (new signal, TP/SL hit, trade completed, approvals) is also
-     delivered to that chat.
+  3. In the app, Settings -> "Link Telegram" creates a ONE-TIME token
+     (short-lived, single-use) and shows the deep link
+         https://t.me/<bot>?start=<token>
+  4. The bot receives /start <token>; the token is consumed (single-use) and
+     telegram_chat_id is stored on that user's doc. Email-based linking was
+     REMOVED: knowing someone's email must never grant notification access.
+From then on every notify() (signals, TP/SL hits, results, approvals) is
+also delivered to that chat.
 """
 from __future__ import annotations
 
@@ -54,6 +58,74 @@ def linked(user_id: str) -> bool:
         return False
 
 
+# ---------------------------------------------------------------------------
+# P13: one-time link tokens (short-lived, single-use)
+# ---------------------------------------------------------------------------
+LINK_TOKEN_TTL_S = 15 * 60
+
+
+def create_link_token(user_id: str, ttl_s: int = LINK_TOKEN_TTL_S) -> Optional[dict]:
+    """Mint a single-use link token; previous unused tokens are invalidated."""
+    import secrets as _secrets
+    from datetime import datetime, timezone
+    if not user_id:
+        return None
+    try:
+        store = get_store()
+        now = datetime.now(timezone.utc)
+        for t in store.list("tg_link_tokens", filters={"userId": user_id,
+                                                       "used": False}, limit=20):
+            store.update("tg_link_tokens", t["id"], {"used": True,
+                                                     "note": "superseded"})
+        alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"   # no ambiguous 0/O/1/I
+        token = "".join(_secrets.choice(alphabet) for _ in range(8))
+        doc = store.create("tg_link_tokens", {
+            "userId": user_id,
+            "token": token,
+            "used": False,
+            "expiresAt": datetime.fromtimestamp(now.timestamp() + ttl_s,
+                                                timezone.utc).isoformat(),
+            "createdAt": now.isoformat(),
+        })
+        deep_link = (f"https://t.me/{settings.telegram_bot_username}"
+                     f"?start={token}") if settings.telegram_bot_username else None
+        return {"token": token, "expires_at": doc["expiresAt"],
+                "deep_link": deep_link,
+                "instructions": (f"Open the bot and send: /start {token}"
+                                 if not deep_link else
+                                 "Tap the link (or send the /start command to "
+                                 "the bot) within 15 minutes.")}
+    except Exception:
+        return None
+
+
+def _consume_link_token(token: str) -> Optional[str]:
+    """Single-use + TTL check. Returns userId or None (honest, no leaks)."""
+    from datetime import datetime, timezone
+    try:
+        store = get_store()
+        docs = store.list("tg_link_tokens", filters={"token": str(token).upper()},
+                          limit=1)
+        if not docs:
+            return None
+        t = docs[0]
+        if t.get("used"):
+            return None
+        try:
+            exp = datetime.fromisoformat(str(t["expiresAt"]).replace("Z", "+00:00"))
+            if datetime.now(timezone.utc) > exp:
+                store.update("tg_link_tokens", t["id"],
+                             {"used": True, "note": "expired"})
+                return None
+        except Exception:
+            return None
+        store.update("tg_link_tokens", t["id"],
+                     {"used": True, "usedAt": datetime.now(timezone.utc).isoformat()})
+        return t.get("userId")
+    except Exception:
+        return None
+
+
 def handle_webhook(payload: dict) -> dict:
     """Telegram update -> /start <email> links the chat to that account."""
     msg = payload.get("message") or payload.get("edited_message") or {}
@@ -80,20 +152,31 @@ def handle_webhook(payload: dict) -> dict:
     parts = text.split()
     cmd = parts[0].lower().split("@")[0]
     if cmd == "/start":
-        email = parts[1].lower() if len(parts) > 1 else ""
-        u = store.list("users", filters={"email": email}, limit=1) if email else []
-        if not u:
-            reply("Welcome to ForexMind AI 🤖\n\nSend:  /start your-account-email\n"
-                  "(use the email you log into the app with) and I'll deliver "
-                  "signals, TP/SL hits and approvals right here.")
+        token = parts[1].strip().upper() if len(parts) > 1 else ""
+        uid = _consume_link_token(token) if token else None
+        if not uid:
+            reply("Welcome to ForexMind AI 🤖\n\n"
+                  "To link this chat, open the app: Settings → Telegram → "
+                  "Get link code, then send me:\n/start CODE\n"
+                  "(Codes are single-use and expire after 15 minutes.)")
             return {"ok": True}
-        store.update("users", u[0]["id"], {"telegram_chat_id": chat_id})
-        reply(f"✅ Linked to ForexMind AI ({u[0]['email']}).\n\n"
+        u = store.get("users", uid) or {}
+        store.update("users", uid, {"telegram_chat_id": chat_id})
+        try:
+            from ..core.permissions import audit
+            audit(uid, "telegram.linked", uid,
+                  {"telegram_linked": bool(u.get("telegram_chat_id"))},
+                  {"telegram_chat_id": chat_id}, "one-time token consumed")
+        except Exception:
+            pass
+        reply(f"✅ Linked to ForexMind AI ({u.get('email')}).\n\n"
               "You'll now receive: new signals, TP/SL hits, trade results and "
               "strategy approvals. Happy trading! 📈")
     elif cmd == "/status":
         u = store.list("users", filters={"telegram_chat_id": chat_id}, limit=1)
-        reply("✅ Linked to ForexMind AI." if u else "Not linked yet. Send:  /start your-account-email")
+        reply("✅ Linked to ForexMind AI." if u else
+              "Not linked yet. Open the app: Settings → Telegram → Get link "
+              "code, then send me /start CODE")
     else:
         reply("ForexMind AI bot 🤖\n/start <email> - link your account\n/status - check link")
     return {"ok": True}

@@ -89,5 +89,11 @@ export const endpoints = {
   notificationTest: "/api/notifications/test",
   daily: "/api/daily",
   aimanager: "/api/aimanager/status",
+  adminCommandCenter: "/api/admin/command-center",
+  adminUsers: "/api/admin/users",
+  adminStatus: (id: string) => `/api/admin/users/${id}/status`,
+  adminTrading: (id: string) => `/api/admin/users/${id}/trading`,
+  adminEStop: (id: string) => `/api/admin/users/${id}/emergency-stop`,
+  telegramLinkToken: "/api/telegram/link-token",
   manualResult: (id: string) => `/api/signals/${id}/manual-result`,
 };
