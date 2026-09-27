@@ -1,9 +1,10 @@
 import { useState } from "react";
-import {ChevronDown, GitBranch, Layers} from "lucide-react";
+import {ChevronDown, GitBranch, Layers, Clock} from "lucide-react";
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
 import type { StrategyDoc, StrategyVersion } from "../lib/types";
-import { DemoTag, Divider, Eyebrow, Glass, GlowDot, Pill, Spinner } from "../components/ui";
+import { ActionButton, DemoTag, Divider, Eyebrow, Glass, GlowDot, Pill, Spinner } from "../components/ui";
+import { useAsyncAction } from "../lib/useAsyncAction";
 
 type EngineMode = "s1" | "s2" | "both" | "none";
 
@@ -170,6 +171,8 @@ export function StrategiesScreen() {
                       ))}
                   </div>
 
+                  <StrategySessionsCard sid={s.id} />
+
                   {/* versions */}
                   {(versions[s.id] ?? []).length > 0 && (
                     <div className="mt-4">
@@ -228,6 +231,148 @@ export function StrategiesScreen() {
           <span className="mt-0.5 block text-[10.5px] text-txt-faint">Register a module under backend/app/strategies - it appears everywhere automatically. The AI can never invent strategies.</span>
         </span>
       </button>
+    </div>
+  );
+}
+
+const ALL_SESSIONS = ["Asian", "London", "NewYork", "Late"] as const;
+
+/** Sessions editor + AI session advisor (P6/P7): SET the sessions a strategy
+ *  may trade (audited PATCH, enforced in both scan loops), see per-session
+ *  performance from previous signals, and apply/reject the AI's best-session
+ *  suggestions (always a DRAFT until you explicitly activate it). */
+export function StrategySessionsCard({ sid }: { sid: string }) {
+  const strategies = usePolling<{ strategies: (StrategyDoc & {
+    sessions?: string[] | null; proposed_sessions?: string[] | null })[] }>(
+    () => api.get(endpoints.strategies), 15000);
+  const recs = usePolling<{ recommendations: any[] }>(
+    () => api.get(endpoints.learningRecommendations + "?status=REVIEW"), 30000);
+  const matrix = usePolling<{ cells: any[] }>(() => api.get(endpoints.learningMatrix), 60000);
+  const save = useAsyncAction();
+  const apply = useAsyncAction();
+  const [picked, setPicked] = useState<string[] | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+
+  const me = (strategies.data?.strategies ?? []).find((x) => x.id === sid);
+  const current = me?.sessions ?? null;                 // null = all sessions
+  const draft = me?.proposed_sessions ?? null;
+  const selected = picked ?? (current ?? [...ALL_SESSIONS]);
+  const dirty = picked !== null &&
+    JSON.stringify([...picked].sort()) !== JSON.stringify([...(current ?? [...ALL_SESSIONS])].sort());
+
+  const toggle = (ses: string) => {
+    const base = picked ?? (current ?? [...ALL_SESSIONS]);
+    setPicked(base.includes(ses) ? base.filter((x) => x !== ses) : [...base, ses]);
+  };
+
+  const myRecs = (recs.data?.recommendations ?? [])
+    .filter((r) => r.strategy_id === sid &&
+      (r.type === "SESSION_SUGGESTION" || r.type === "FILTER_SESSION"));
+
+  // per-session performance for this strategy (previous signals)
+  const perSession: Record<string, { n: number; wr: number; r: number; wins: number }> = {};
+  for (const c of matrix.data?.cells ?? []) {
+    if (c.strategy_id !== sid || !c.session) continue;
+    const a = perSession[c.session] ?? (perSession[c.session] = { n: 0, wr: 0, r: 0, wins: 0 });
+    a.n += c.n ?? 0;
+    a.wins += ((c.win_rate ?? 0) * (c.n ?? 0)) / 100;
+    a.r += (c.avg_r ?? 0) * (c.n ?? 0);
+  }
+  const sessionRows = Object.entries(perSession).map(([ses, a]) => ({
+    ses, n: a.n, wr: a.n ? Math.round((100 * a.wins) / a.n) : 0,
+    avgR: a.n ? a.r / a.n : 0,
+  })).sort((a, b) => b.avgR - a.avgR);
+
+  return (
+    <div className="mt-4 rounded-2xl border border-[rgba(var(--warm-rgb),0.06)] bg-[rgba(var(--warm-rgb),0.035)] p-4">
+      <div className="flex items-center justify-between">
+        <Eyebrow className="!mb-0">Trading sessions <Clock size={11} className="ml-1 inline" /></Eyebrow>
+        {dirty && <Pill tone="warn">unsaved</Pill>}
+      </div>
+      <p className="mt-1 text-[10.5px] text-txt-faint">
+        This strategy only produces signals inside the selected sessions.
+      </p>
+      <div className="mt-2.5 flex flex-wrap gap-1.5">
+        {ALL_SESSIONS.map((ses) => (
+          <button key={ses} onClick={() => toggle(ses)}
+            className={`rounded-full border px-3 py-1.5 text-[10.5px] font-semibold transition ${
+              selected.includes(ses) ? "chip-on-pos" : "chip-off"
+            }`}>
+            {ses}
+          </button>
+        ))}
+        <span className="self-center pl-1">
+          <ActionButton label="Save sessions" busy={save.busy} tone="pos"
+            onRun={async () => {
+              await save.run(() => api.patch(endpoints.strategy(sid), { sessions: selected }),
+                "Saved - applies to every future scan");
+              setPicked(null);
+              strategies.refresh();
+              return "Sessions saved";
+            }} />
+        </span>
+      </div>
+      {draft && draft.length > 0 && (
+        <p className="mt-2 rounded-xl border border-[rgba(var(--amber-rgb),0.3)] bg-[rgba(var(--amber-rgb),0.07)] px-3 py-2 text-[10.5px] text-[var(--accent-amber)]">
+          AI draft pending activation: {draft.join(", ")} - review it below, then Apply to stage it here and Save.
+        </p>
+      )}
+
+      {/* per-session performance from previous signals */}
+      {sessionRows.length > 0 && (
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {sessionRows.map((r) => (
+            <div key={r.ses} className="rounded-xl border border-[rgba(var(--warm-rgb),0.06)] px-3 py-2">
+              <div className="text-[11px] font-semibold text-txt-hi">{r.ses}</div>
+              <div className={`num text-[13px] font-bold ${r.wr >= 50 ? "text-pos" : "text-[var(--accent-red)]"}`}>
+                {r.wr}%<span className="ml-1 text-[9px] font-normal text-txt-faint">n={r.n}</span>
+              </div>
+              <div className="num text-[9.5px] text-txt-faint">{r.avgR >= 0 ? "+" : ""}{r.avgR.toFixed(2)}R avg</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* AI advisor */}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <button
+          disabled={analyzing}
+          onClick={async () => {
+            setAnalyzing(true);
+            try {
+              await api.post(endpoints.learningRecsGenerate, {});
+              recs.refresh(); matrix.refresh();
+            } catch { /* surfaced via list absence + toast upstream */ }
+            setAnalyzing(false);
+          }}
+          className="tap rounded-lg border border-[rgba(var(--p-rgb),0.25)] px-2.5 py-1.5 text-[11px] font-medium text-txt-mid hover:bg-[rgba(var(--p-rgb),0.08)] disabled:opacity-50">
+          {analyzing ? "Analyzing previous signals…" : "AI: analyze best sessions"}
+        </button>
+        {myRecs.length === 0 && <span className="text-[10.5px] text-txt-faint">No suggestions yet - needs ~20 signals.</span>}
+      </div>
+      <div className="mt-2 space-y-2">
+        {myRecs.map((r) => (
+          <div key={r.id} className="rounded-xl border border-[rgba(var(--p-rgb),0.18)] px-3 py-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <Pill tone={r.type === "SESSION_SUGGESTION" ? "cyan" : "warn"}>{r.type === "SESSION_SUGGESTION" ? "best sessions" : "weak session"}</Pill>
+              <span className="text-[9.5px] text-txt-faint">{r.market}</span>
+            </div>
+            <p className="mt-1.5 text-[11px] leading-relaxed text-txt-mid">{r.claim}</p>
+            <div className="mt-2 flex items-center gap-2">
+              <ActionButton label="Apply draft" tone="pos" busy={apply.busy}
+                onRun={async () => {
+                  const res = await apply.run(() => api.post(`/api/learning/recommendations/${r.id}/apply`, {}), "drafted");
+                  setPicked(res?.recommendation?.applied_draft?.proposed_sessions ?? null);
+                  recs.refresh(); strategies.refresh();
+                  return "Draft staged - review the chips and Save";
+                }} />
+              <ActionButton label="Reject" tone="danger" busy={apply.busy}
+                onRun={() => apply.run(() => api.post(`/api/learning/recommendations/${r.id}/reject`, { reason: "user rejected" }), "rejected")
+                  .then(() => { recs.refresh(); return "Rejected"; })} />
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

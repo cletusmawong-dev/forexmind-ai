@@ -27,12 +27,17 @@ def run_research_cycle(user_id: str, max_discoveries: int = 3,
     out: Dict[str, Any] = {"discovered": 0, "experiment": None,
                            "recommended": 0, "skipped": None}
 
-    # 1) DISCOVER --------------------------------------------------------
+    # 1) DISCOVER (divergences + best-session suggestions) ---------------
     try:
         made = research.discover(user_id)
         out["discovered"] = len(made or [])
     except Exception as exc:
         out["skipped"] = f"discover: {type(exc).__name__}"
+    try:
+        from .matrix import suggest_best_sessions
+        out["session_suggestions"] = len(suggest_best_sessions(user_id) or [])
+    except Exception:
+        pass
 
     # 3) EXPERIMENT (max ONE per cycle) -----------------------------------
     hyp = None

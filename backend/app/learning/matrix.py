@@ -145,6 +145,89 @@ def generate_recommendations(user_id: str, max_new: int = 3) -> List[dict]:
     return created
 
 
+def suggest_best_sessions(user_id: str, min_total_n: int = 20,
+                          min_session_n: int = 5,
+                          max_new: int = 3) -> List[dict]:
+    """The 'AI session advisor' (user directive 2026-09-27): analyze previous
+    signals per strategy x market, rank sessions by real outcomes, and
+    SUGGEST the best session set - as a REVIEW recommendation, never applied
+    automatically. Sessions whose win rate holds up at/above the strategy
+    baseline make the proposed set; weak sessions are left out."""
+    store = get_store()
+    mx = build_matrix(user_id)
+    created: List[dict] = []
+    for sid, st in mx["strategies"].items():
+        baseline = st.get("win_rate")
+        if (st.get("n") or 0) < min_total_n or baseline is None:
+            continue
+        by_market: Dict[str, Dict[str, Dict[str, float]]] = {}
+        for c in mx["cells"]:
+            if c["strategy_id"] != sid or not c.get("session"):
+                continue
+            mkt = c["market"]
+            agg = by_market.setdefault(mkt, {}).setdefault(
+                c["session"], {"n": 0.0, "wins": 0.0, "r": 0.0})
+            agg["n"] += c.get("n") or 0
+            agg["wins"] += round((c.get("win_rate") or 0) * (c.get("n") or 0) / 100.0, 2)
+            agg["r"] += (c.get("avg_r") or 0) * (c.get("n") or 0)
+
+        sdoc = store.list("strategies", filters={"id": sid}, limit=1)
+        current = (sdoc[0].get("sessions") if sdoc else None) or \
+            ["Asian", "London", "NewYork", "Late"]
+
+        for mkt, sessions in by_market.items():
+            rows = []
+            for ses, a in sessions.items():
+                n = int(a["n"])
+                if n < min_session_n:
+                    continue
+                rows.append({"session": ses, "n": n,
+                             "win_rate": round(100.0 * a["wins"] / n, 1),
+                             "avg_r": round(a["r"] / n, 3)})
+            if len(rows) < 2:
+                continue          # need a comparison to mean anything
+            rows.sort(key=lambda r: (r["avg_r"], r["win_rate"]), reverse=True)
+            best = [r for r in rows if r["win_rate"] >= baseline]
+            if not best:
+                continue          # nothing beats baseline -> no filter suggestion here
+            proposed = sorted(r["session"] for r in best)
+            if proposed == sorted(current):
+                continue          # already trading exactly the best set
+            worst = rows[-1]
+            key = _dedupe_key("SESSION_SUGGESTION", sid, mkt, None, None)
+            if store.list("recommendations", filters={"dedupe_key": key}, limit=1):
+                continue
+            created.append(store.create("recommendations", {
+                "userId": user_id,
+                "type": "SESSION_SUGGESTION",
+                "status": "REVIEW",
+                "strategy_id": sid,
+                "strategy_name": st.get("name"),
+                "market": mkt,
+                "proposed_sessions": proposed,
+                "current_sessions": sorted(current),
+                "baseline": {k: st.get(k) for k in ("n", "win_rate", "avg_r")},
+                "session_analysis": rows,
+                "claim": (f"Best sessions for {st.get('name')} on {mkt}: "
+                          + ", ".join(proposed) + " - based on previous data: "
+                          + "; ".join(f"{r['session']} {r['win_rate']}% WR, "
+                                      f"{r['avg_r']:+.2f}R, n={r['n']}" for r in rows)
+                          + f". Overall baseline {baseline}%."),
+                "suggestion": (f"Restrict {st.get('name')} on {mkt} to: "
+                               + ", ".join(proposed) +
+                               " (applies as a DRAFT - you activate it)"),
+                "weakest_session": {"session": worst["session"],
+                                    "win_rate": worst["win_rate"],
+                                    "n": worst["n"]},
+                "never_auto_applied": True,
+                "dedupe_key": key,
+                "createdAt": datetime.now(timezone.utc).isoformat(),
+            }))
+            if len(created) >= max_new:
+                return created
+    return created
+
+
 def list_recommendations(user_id: str, status: Optional[str] = None,
                          limit: int = 50) -> List[dict]:
     flt = {"userId": user_id}
@@ -168,7 +251,7 @@ def set_status(user_id: str, rec_id: str, status: str,
     prev = {"status": rec.get("status")}
     patch: Dict[str, Any] = {"status": status}
     applied = None
-    if status == "APPLYING" and rec["type"] == "FILTER_SESSION":
+    if status == "APPLYING" and rec["type"] in ("FILTER_SESSION", "SESSION_SUGGESTION"):
         # DRAFT only: proposed sessions land on the strategy doc; activation
         # requires an explicit audited strategy PATCH - never auto-applied.
         sid = rec["strategy_id"]
@@ -176,13 +259,18 @@ def set_status(user_id: str, rec_id: str, status: str,
         if not sdoc:
             return None
         current = sdoc[0].get("sessions") or ["Asian", "London", "NewYork", "Late"]
-        proposed = [x for x in current if x != rec["session"]]
+        if rec["type"] == "SESSION_SUGGESTION":
+            proposed = sorted(rec.get("proposed_sessions") or current)
+        else:
+            proposed = [x for x in current if x != rec["session"]]
+        note = (f"From recommendation {rec_id} ({rec['type']}): "
+                + (f"drop {rec['session']} on {rec['market']} "
+                   f"(Δ{rec.get('win_rate_delta_pp')}pp)"
+                   if rec["type"] == "FILTER_SESSION" else
+                   f"trade {rec['market']} only in {proposed} "
+                   f"(per-session analysis, baseline {rec.get('baseline', {}).get('win_rate')}%)"))
         store.update("strategies", sid,
-                     {"proposed_sessions": proposed,
-                      "proposed_change_note": (f"From recommendation {rec_id}: "
-                                               f"drop {rec['session']} on "
-                                               f"{rec['market']} "
-                                               f"(Δ{rec.get('win_rate_delta_pp')}pp)")})
+                     {"proposed_sessions": proposed, "proposed_change_note": note})
         patch["proposed_sessions"] = proposed
         applied = {"strategy_id": sid, "proposed_sessions": proposed}
     store.update("recommendations", rec_id, patch)

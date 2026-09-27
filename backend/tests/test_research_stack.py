@@ -373,3 +373,70 @@ def test_news_and_vol_guards(env, monkeypatch):
                         lambda m: {"volatility_rank": 0.5, "regime": "RANGING"})
     ok4, _, _ = check_entry("boss", "EURUSD")
     assert ok4
+
+
+# ===========================================================================
+# P6b: AI SESSION ADVISOR (best-session suggestions from previous data)
+# ===========================================================================
+def _seed_session_data(store):
+    """London strong (90%), NewYork ok (70%) -> baseline 80% -> suggest London."""
+    for i in range(10):
+        store.create("signals", {"userId": "boss", "strategy_id": "strat9",
+                                 "strategy_name": "S9", "market": "EURUSD",
+                                 "completed": True, "outcome": "WIN",
+                                 "r_multiple": 1.5, "n": i,
+                                 "market_conditions": {"session": "London"},
+                                 "candle_time": f"2026-09-20T10:{i:02d}:00",
+                                 "signal_id": f"L{i}"})
+    for i in range(10):
+        store.create("signals", {"userId": "boss", "strategy_id": "strat9",
+                                 "strategy_name": "S9", "market": "EURUSD",
+                                 "completed": True,
+                                 "outcome": "WIN" if i < 7 else "LOSS",
+                                 "r_multiple": 0.8 if i < 7 else -0.8,
+                                 "market_conditions": {"session": "NewYork"},
+                                 "candle_time": f"2026-09-20T15:{i:02d}:00",
+                                 "signal_id": f"N{i}"})
+
+
+def test_session_advisor_suggests_best_sessions(env):
+    c, store, monkeypatch, settings = env
+    _user(store)
+    _seed_session_data(store)
+    r = c.post("/api/learning/recommendations/generate")
+    assert r.status_code == 200
+    recs = [x for x in r.json()["recommendations"]
+            if x["type"] == "SESSION_SUGGESTION"]
+    assert recs, "advisor should suggest the best session set"
+    rec = recs[0]
+    assert rec["proposed_sessions"] == ["London"]   # 100% >= 85% baseline; NY 70% < 85%
+    assert rec["status"] == "REVIEW"
+    assert rec["never_auto_applied"] is True
+    assert "London 100.0% WR" in rec["claim"]
+    assert "NewYork 70.0% WR" in rec["claim"]
+    # dedupe
+    r2 = c.post("/api/learning/recommendations/generate")
+    assert not [x for x in r2.json()["recommendations"]
+                if x["type"] == "SESSION_SUGGESTION"]
+    # APPLY drafts the proposed set on the strategy doc (never auto-activates)
+    store.create("strategies", {"id": "strat9", "status": "ACTIVE"})
+    ap = c.post(f"/api/learning/recommendations/{rec['id']}/apply")
+    assert ap.status_code == 200
+    assert ap.json()["recommendation"]["applied_draft"]["proposed_sessions"] == ["London"]
+    sdoc = store.list("strategies", filters={"id": "strat9"}, limit=1)[0]
+    assert sdoc["proposed_sessions"] == ["London"]
+    assert sdoc.get("sessions") in (None, ["Asian", "London", "NewYork", "Late"])  # NOT activated
+    # explicit audited PATCH activates
+    assert c.patch("/api/strategies/strat9", json={"sessions": ["London"]}).status_code == 200
+    assert store.list("strategies", filters={"id": "strat9"}, limit=1)[0]["sessions"] == ["London"]
+
+
+def test_session_advisor_skips_when_already_optimal(env):
+    c, store, monkeypatch, settings = env
+    _user(store)
+    _seed_session_data(store)
+    store.create("strategies", {"id": "strat9", "status": "ACTIVE",
+                                "sessions": ["London"]})
+    r = c.post("/api/learning/recommendations/generate")
+    sug = [x for x in r.json()["recommendations"] if x["type"] == "SESSION_SUGGESTION"]
+    assert sug == []          # already trading the best set -> nothing to suggest

@@ -180,8 +180,11 @@ def recs(status: str = None, user_id: str = Depends(get_user_id)):
 
 @router.post("/learning/recommendations/generate")
 def recs_generate(user_id: str = Depends(get_user_id)):
-    from ..learning.matrix import generate_recommendations
-    made = generate_recommendations(user_id)
+    """Full analysis pass: weak-session divergences + BEST-session
+    suggestions (from previous signal data). Recommendations land as
+    [REVIEW] - nothing is ever auto-applied."""
+    from ..learning.matrix import generate_recommendations, suggest_best_sessions
+    made = generate_recommendations(user_id) + suggest_best_sessions(user_id)
     return {"created": len(made), "recommendations": made}
 
 
@@ -210,9 +213,9 @@ def rec_apply(rec_id: str, user_id: str = Depends(get_user_id)):
     probe = get_store().get("recommendations", rec_id)
     if not probe or probe.get("userId") != user_id:
         raise _HE(404, "Recommendation not found")
-    if probe["type"] != "FILTER_SESSION":
+    if probe["type"] not in ("FILTER_SESSION", "SESSION_SUGGESTION"):
         # honest refusal BEFORE any state change: nothing is touched
-        raise _HE(422, ("Regime recommendations have no auto-apply. "
+        raise _HE(422, ("This recommendation type has no auto-apply. "
                         "Run a one-variable experiment instead."))
     rec = matrix.set_status(user_id, rec_id, "APPLYING")
     if rec is None:

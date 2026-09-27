@@ -98,5 +98,8 @@ export const endpoints = {
   executions: "/api/aimanager/executions",
   tpAudit: "/api/aimanager/executions/tp-audit",
   positionsLive: "/api/positions/live",
+  learningMatrix: "/api/learning/matrix",
+  learningRecommendations: "/api/learning/recommendations",
+  learningRecsGenerate: "/api/learning/recommendations/generate",
   manualResult: (id: string) => `/api/signals/${id}/manual-result`,
 };
