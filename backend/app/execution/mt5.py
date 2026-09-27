@@ -182,6 +182,20 @@ def _executed_today(user_id: str) -> int:
     return sum(1 for d in docs if d.get("mt5_ticket") or d.get("mt5_command_id"))
 
 
+def _emit(user_id: Optional[str], kind: str, stage: str, market: Optional[str] = None,
+          signal: Optional[dict] = None, ticket: Optional[int] = None,
+          detail: str = "", latency_ms: Optional[float] = None) -> None:
+    """Lifecycle-ledger append (Phase 4). Never raises, never blocks."""
+    try:
+        from .ledger import emit
+        emit(user_id, kind, stage, market=market,
+             signal_id=(signal or {}).get("signal_id"),
+             signal_doc_id=(signal or {}).get("id"),
+             ticket=ticket, detail=detail, latency_ms=latency_ms)
+    except Exception:
+        pass
+
+
 def _log(msg: str, market: Optional[str] = None, kind: str = "EXEC") -> None:
     get_store().create("agent_activity", {"userId": None, "kind": kind,
                                           "message": msg, "market": market})
@@ -291,6 +305,8 @@ def execute_signal(signal: dict, user_id: str) -> None:
                 "execution_status": "SKIPPED_KILL_SWITCH",
                 "mt5_note": "Kill switch is ON - signal kept as advisory"})
         _log("Execution skipped - kill switch is ON (Settings). Signal is advisory only.", market)
+        _emit(user_id, "ENTRY", "SKIPPED", market=market, signal=signal,
+              detail="kill switch ON")
         return
 
     # SS22/SS26: daily walls block automatic NEW entries only - the signal was
@@ -319,6 +335,8 @@ def execute_signal(signal: dict, user_id: str) -> None:
                 "execution_status": "SKIPPED_EXEC_DAILY_CAP",
                 "mt5_note": f"Execution daily cap reached ({settings.execution_max_trades_per_day}/day)"})
         _log(f"Execution skipped - daily cap reached ({settings.execution_max_trades_per_day}/day).", market)
+        _emit(user_id, "ENTRY", "SKIPPED", market=market, signal=signal,
+              detail="daily cap reached")
         notify(user_id, "EXECUTION_SKIPPED", f"NOT EXECUTED - {signal.get('market')} {signal.get('direction')}",
                f"Daily execution cap reached ({settings.execution_max_trades_per_day}/day). "
                "The signal is tracked as research only - no trade was placed.",
@@ -340,6 +358,8 @@ def execute_signal(signal: dict, user_id: str) -> None:
                    f"Stop distance {abs(entry - sl) / pip:.1f} pips is under the broker minimum "
                    f"({MIN_STOP_PIPS:g} pips). Research only - no trade was placed.",
                    signal_id=signal.get("id"))
+            _emit(user_id, "ENTRY", "SKIPPED", market=market, signal=signal,
+                  detail=f"stop too tight (< {MIN_STOP_PIPS:g} pips)")
             return
         risk_pct = min(float(((_goals_doc(user_id) or {}).get("risk_per_trade_pct", 1.0)) or 1.0),
                        settings.execution_risk_pct_cap)
@@ -373,6 +393,8 @@ def execute_signal(signal: dict, user_id: str) -> None:
                 store.update("signals", signal["id"], {"execution_status": "SKIPPED_BRIDGE_OFFLINE"})
                 _log("Execution skipped - VPS bridge offline (signal NOT sent to broker).",
                      market, kind="EXEC_WARN")
+                _emit(user_id, "ENTRY", "SKIPPED", market=market, signal=signal,
+                      detail="bridge offline")
                 notify(user_id, "EXECUTION_SKIPPED", f"NOT EXECUTED - {signal.get('market')} {signal.get('direction')}",
                        "VPS bridge offline - the order was NOT sent to the broker. "
                        "Signal kept as research only.",
@@ -387,6 +409,8 @@ def execute_signal(signal: dict, user_id: str) -> None:
                     _log("Execution skipped - this exact setup (same market, "
                          f"direction and candle) is already on the account via {dup}. "
                          "One broker order per setup.", market, kind="EXEC_WARN")
+                    _emit(user_id, "ENTRY", "SKIPPED", market=market, signal=signal,
+                          detail=f"duplicate setup (already via {dup})")
                     notify(user_id, "EXECUTION_SKIPPED", f"NOT EXECUTED - {signal.get('market')} {signal.get('direction')}",
                            "This exact setup is already on the account (one broker order "
                            "per setup). Research only - no second trade was placed.",
@@ -400,10 +424,14 @@ def execute_signal(signal: dict, user_id: str) -> None:
                 _log(f"Lot size capped {lots} -> {MAX_LOTS} (EXECUTION_MAX_LOTS).", market,
                      kind="EXEC_WARN")
                 lots = MAX_LOTS
+            _emit(user_id, "ENTRY", "REQUESTED", market=market, signal=signal,
+                  detail=f"{signal['direction']} {lots} lots @ {entry}, SL {sl}, TP {tp}")
+            _t0 = time.time()
             res = bridge_post("/execute", {
                 "signal_id": signal["signal_id"], "symbol": market,
                 "direction": signal["direction"], "lots": lots, "sl": sl, "tp": tp,
                 "magic": MAGIC})
+            _lat = (time.time() - _t0) * 1000.0
             if res and res.get("ok"):
                 _apply_fill(store, signal, res, lots)
                 _log(f"MT5 EXECUTED {market} {signal['direction']} {res.get('volume')} lots "
@@ -415,6 +443,8 @@ def execute_signal(signal: dict, user_id: str) -> None:
                 store.update("signals", signal["id"],
                              {"execution_status": "FAILED", "mt5_error": str(err)[:200]})
                 _log(f"Execution FAILED on bridge - {err}", market, kind="EXEC_WARN")
+                _emit(user_id, "ENTRY", "FAILED", market=market, signal=signal,
+                      detail=str(err), latency_ms=_lat)
 
         else:   # manual: queue for the PC connector
             if not connector_online(user_id) and not _connector_seen(user_id):
@@ -464,6 +494,10 @@ def _apply_fill(store, signal: dict, res: dict, lots: float) -> None:
         "mt5_open_price": res.get("price"),
         "mt5_symbol": res.get("symbol"),   # broker-resolved name (suffix/alias included)
         "mt5_executed_at": datetime.now(timezone.utc).isoformat()})
+    _emit(signal.get("userId") or settings.owner_user_id, "ENTRY", "CONFIRMED",
+          market=signal.get("market"), signal=signal,
+          ticket=res.get("ticket"),
+          detail=f"broker ticket {res.get('ticket')} @ {res.get('price')}")
 
 
 # ---------------------------------------------------------------------------
@@ -481,14 +515,24 @@ def modify_sl(user_id: str, ticket: int, new_sl: float, reason: str = "") -> dic
             return {"ok": False, "error": "execution off"}
         note = f" ({reason})" if reason else ""
         if mode == "vps":
+            _emit(user_id, "MODIFY_SL", "REQUESTED", ticket=ticket,
+                  detail=f"SL -> {new_sl}{note}")
+            _t0 = time.time()
             res = bridge_post("/modify_sl",
                               {"ticket": int(ticket), "sl": float(new_sl)}) or {}
+            _lat = (time.time() - _t0) * 1000.0
             if res.get("ok"):
                 _log(f"MT5 SL moved to {new_sl} on #{ticket}{note}.", kind="EXEC")
+                _emit(user_id, "MODIFY_SL", "CONFIRMED", ticket=ticket,
+                      detail=f"SL -> {new_sl}", latency_ms=_lat)
             else:
                 err = res.get("error") or res.get("detail") or res.get("http_status")
                 _log(f"MT5 SL change FAILED on #{ticket} - {err}{note}", kind="EXEC_WARN")
+                _emit(user_id, "MODIFY_SL", "FAILED", ticket=ticket,
+                      detail=str(err), latency_ms=_lat)
             return res
+        _emit(user_id, "MODIFY_SL", "QUEUED", ticket=ticket,
+              detail=f"SL -> {new_sl}{note} (PC connector)")
         cmd = store.create("exec_commands", {
             "userId": user_id, "type": "modify_sl", "status": "PENDING",
             "payload": {"type": "modify_sl", "ticket": int(ticket),
@@ -518,14 +562,25 @@ def partial_close_position(user_id: str, ticket: int, volume: float = None,
             payload["fraction"] = float(fraction)
         note = f" ({reason})" if reason else ""
         if mode == "vps":
+            _emit(user_id, "PARTIAL_CLOSE", "REQUESTED", ticket=ticket,
+                  detail=f"partial {volume or fraction}{note}")
+            _t0 = time.time()
             res = bridge_post("/partial_close", payload) or {}
+            _lat = (time.time() - _t0) * 1000.0
             if res.get("ok"):
                 _log(f"MT5 partial close #{ticket}: closed {res.get('closed_volume')} "
                      f"lots, {res.get('remaining_volume')} left{note}.", kind="EXEC")
+                _emit(user_id, "PARTIAL_CLOSE", "CONFIRMED", ticket=ticket,
+                      detail=f"closed {res.get('closed_volume')}, left "
+                             f"{res.get('remaining_volume')}", latency_ms=_lat)
             else:
                 err = res.get("error") or res.get("detail") or res.get("http_status")
                 _log(f"MT5 partial close FAILED on #{ticket} - {err}{note}", kind="EXEC_WARN")
+                _emit(user_id, "PARTIAL_CLOSE", "FAILED", ticket=ticket,
+                      detail=str(err), latency_ms=_lat)
             return res
+        _emit(user_id, "PARTIAL_CLOSE", "QUEUED", ticket=ticket,
+              detail=f"partial {volume or fraction}{note} (PC connector)")
         cmd = store.create("exec_commands", {
             "userId": user_id, "type": "partial_close", "status": "PENDING",
             "payload": {"type": "partial_close", **payload, "reason": reason[:120]},
@@ -620,13 +675,22 @@ def close_position(user_id: str, ticket: int, reason: str = "") -> dict:
             return {"ok": False, "error": "execution off"}
         note = f" ({reason})" if reason else ""
         if mode == "vps":
+            _emit(user_id, "CLOSE_FULL", "REQUESTED", ticket=ticket, detail=f"close{note}")
+            _t0 = time.time()
             res = bridge_post("/close", {"ticket": int(ticket)}) or {}
+            _lat = (time.time() - _t0) * 1000.0
             if res.get("ok"):
                 _log(f"MT5 position #{ticket} closed{note}.", kind="EXEC")
+                _emit(user_id, "CLOSE_FULL", "CONFIRMED", ticket=ticket,
+                      detail="position closed", latency_ms=_lat)
             else:
                 err = res.get("error") or res.get("detail") or res.get("http_status")
                 _log(f"MT5 close FAILED on #{ticket} - {err}{note}", kind="EXEC_WARN")
+                _emit(user_id, "CLOSE_FULL", "FAILED", ticket=ticket,
+                      detail=str(err), latency_ms=_lat)
             return res
+        _emit(user_id, "CLOSE_FULL", "QUEUED", ticket=ticket,
+              detail=f"close{note} (PC connector)")
         cmd = store.create("exec_commands", {
             "userId": user_id, "type": "close_full", "status": "PENDING",
             "payload": {"type": "close_full", "ticket": int(ticket),
@@ -674,6 +738,8 @@ def ack_command(user_id: str, command_id: str, ok: bool, res: dict) -> Optional[
             store.update("signals", sig["id"], {"execution_status": "FAILED",
                                                 "mt5_error": str(res.get("error"))[:200]})
             _log(f"MT5 PC order FAILED - {res.get('error')}", sig.get("market"), kind="EXEC_WARN")
+            _emit(user_id, "ENTRY", "FAILED", market=sig.get("market"), signal=sig,
+                  detail=f"PC connector: {res.get('error')}")
     return cmd
 
 
@@ -692,6 +758,10 @@ def expire_stale_commands() -> int:
             sig = store.get("signals", c.get("signal_doc_id") or "")
             if sig and sig.get("userId") == c.get("userId"):
                 store.update("signals", sig["id"], {"execution_status": "EXPIRED_PC_OFFLINE"})
+            _emit(c.get("userId"), "ENTRY", "EXPIRED",
+                  market=(sig or {}).get("market"),
+                  signal={"signal_id": c.get("signal_id"), "id": c.get("signal_doc_id")},
+                  detail="PC offline - command TTL expired")
             n += 1
     return n
 

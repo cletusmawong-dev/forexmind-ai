@@ -121,3 +121,29 @@ def brain_review(body: BrainReviewIn,
     return {"brain": result, "world_freshness": world.get("freshness"),
             "note": ("Advice only. Execution happens exclusively through the "
                      "manager tick + deterministic risk gate.")}
+
+
+@router.get("/executions")
+def executions(limit: int = 50, user_id: str = Depends(get_user_id)) -> Dict[str, Any]:
+    """Execution lifecycle ledger (P4): every entry/SL/partial/close attempt
+    with its stage (REQUESTED -> CONFIRMED/FAILED/EXPIRED/SKIPPED)."""
+    from ..execution import ledger
+    return {"events": ledger.recent(user_id, limit=max(1, min(limit, 200))),
+            "note": ("Append-only lifecycle events. CONFIRMED = broker "
+                     "acknowledged; anything else is named, never hidden.")}
+
+
+@router.get("/executions/tp-audit")
+def tp_audit(user_id: str = Depends(get_user_id)) -> Dict[str, Any]:
+    """On-demand TP-leak audit (P4): claims vs broker truth. Read-only."""
+    from datetime import datetime as _dt, timezone as _tz
+    from ..execution.tp_audit import scan_user
+    try:
+        findings = scan_user(user_id)
+    except Exception as exc:
+        raise HTTPException(503, f"audit unavailable: {type(exc).__name__}")
+    return {"findings": findings,
+            "leaks": sum(1 for f in findings if f.get("severity") == "leak"),
+            "scanned_at": _dt.now(_tz.utc).isoformat(),
+            "note": ("TP2_LOCK_MISSING means a hard deterministic rule did "
+                     "not hold on the live ticket - treat as incident.")}

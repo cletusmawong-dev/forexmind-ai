@@ -38,6 +38,7 @@ for r in (routes_auth, routes_markets, routes_signals, routes_trades, routes_age
 
 _scan_counter = 0
 _current_task = "Initializing"
+_last_loop_tick = 0.0          # scheduler heartbeat (health endpoint)
 
 
 @app.on_event("startup")
@@ -146,7 +147,7 @@ def sleep_to_boundary(now: float, period: float = 900.0, lead: float = 2.0,
 async def live_loop():
     """Real-market agent loop: track active signals every minute, scan on
     every closed 15M/1H candle boundary, run a learning pass every ~6h."""
-    global _scan_counter, _current_task, last_deal_sync
+    global _scan_counter, _current_task, last_deal_sync, _last_loop_tick
     last_scan_15m = 0
     last_scan_1h = 0
     last_learning = 0.0
@@ -155,6 +156,7 @@ async def live_loop():
         try:
             await asyncio.sleep(sleep_to_boundary(time.time()))
             now = time.time()
+            _last_loop_tick = now
             _current_task = "Tracking active signals"
             for market in INITIAL_MARKETS:
                 await asyncio.to_thread(State.tracker.update_market, market)
@@ -165,6 +167,15 @@ async def live_loop():
                 mgr = get_manager()
                 for uid in _users_cached():
                     await asyncio.to_thread(mgr.tick, uid)
+            except Exception:
+                pass
+
+            # TP-leak audit (P4): throttled per user; findings -> ledger +
+            # owner notification. Read-only over trading state.
+            try:
+                from .execution import tp_audit as _tp_audit
+                for uid in _users_cached():
+                    await asyncio.to_thread(_tp_audit.run_throttled, uid)
             except Exception:
                 pass
 
@@ -275,11 +286,48 @@ if _QE is not None:
         )
 
 
+_bridge_probe = {"ts": 0.0, "reachable": None, "latency_ms": None}
+
+
 @app.get("/api/health")
 def health():
+    """Liveness + component truth (Phase 4). Existing keys preserved; new
+    `components` block is honest: CONFIGURED is reported separately from
+    REACHABLE, probes are cached 60s so this stays cheap."""
+    comps: dict = {}
+    try:
+        comps["store"] = {"kind": type(get_store()).__name__}
+    except Exception:
+        comps["store"] = {"kind": "unavailable"}
+    comps["execution"] = {"mode": settings.execution_mode,
+                          "bridge_configured": bool(settings.bridge_url)}
+    if settings.bridge_url:
+        now = time.time()
+        if now - _bridge_probe["ts"] > 60:
+            ok, lat = False, None
+            try:
+                from .execution.mt5 import bridge_get
+                t0 = time.time()
+                data = bridge_get("/account", timeout=2.5) or {}
+                ok = "balance" in data
+            except Exception:
+                ok = False
+            finally:
+                lat = round((time.time() - t0) * 1000, 1) if 't0' in dir() else None
+            _bridge_probe.update(ts=now, reachable=ok, latency_ms=lat)
+        comps["bridge"] = {"reachable": _bridge_probe["reachable"],
+                           "latency_ms": _bridge_probe["latency_ms"]}
+    comps["brain_v2"] = bool(settings.brain_v2_enabled)
+    comps["scheduler"] = {
+        "last_tick_age_s": (round(time.time() - _last_loop_tick, 1)
+                            if _last_loop_tick else None)}
+    import os as _os
+    comps["commit"] = (_os.getenv("RENDER_GIT_COMMIT") or _os.getenv("GIT_SHA"))[:7] if (
+        _os.getenv("RENDER_GIT_COMMIT") or _os.getenv("GIT_SHA")) else None
     return {"ok": True, "app": settings.app_name,
             "provider": State.provider.name if State.provider else None,
-            "demo": State.provider.is_demo if State.provider else True}
+            "demo": State.provider.is_demo if State.provider else True,
+            "components": comps}
 
 
 @app.get("/api/agent/current-task")
