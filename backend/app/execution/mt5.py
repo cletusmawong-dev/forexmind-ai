@@ -266,13 +266,21 @@ def execute_signal(signal: dict, user_id: str) -> None:
     # journal (standing directive) - scans for any other user (demo/test)
     # stay advisory so two user contexts can never race for one position.
     if user_id != settings.owner_user_id:
-        if signal.get("id"):
-            get_store().update("signals", signal["id"], {
-                "execution_status": "SKIPPED_NOT_ENGINE_OWNER",
-                "mt5_note": "Engine executes only for the account owner - signal kept as advisory"})
-            _log("Execution skipped - signal belongs to a non-owner user "
-                 "(single-account engine). Kept as advisory.", signal.get("market"))
-        return
+        from ..core.permissions import trading_allowed
+        allowed, why = trading_allowed(user_id)
+        if not allowed:
+            if signal.get("id"):
+                get_store().update("signals", signal["id"], {
+                    "execution_status": "SKIPPED_NOT_AUTHORIZED",
+                    "mt5_note": f"Auto trading not authorized for this user ({why})"})
+                _log(f"Execution skipped - auto trading not authorized ({why}). "
+                     "Signal kept as advisory.", signal.get("market"))
+                notify(user_id, "EXECUTION_SKIPPED",
+                       f"NOT EXECUTED - {signal.get('market')} {signal.get('direction')}",
+                       f"Auto trading is not authorized for this account ({why}). "
+                       "An admin must approve and verify MT5 first.",
+                       signal_id=signal.get("id"))
+            return
 
     store = get_store()
     market = signal.get("market")

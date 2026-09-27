@@ -14,8 +14,11 @@ def get_user_id(authorization: str = Header(default="")) -> str:
     if not uid:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
     store = get_store()
-    if not store.get("users", uid):
+    udoc = store.get("users", uid)
+    if not udoc:
         raise HTTPException(status_code=401, detail="Unknown user")
+    if udoc.get("status") == "suspended":
+        raise HTTPException(status_code=403, detail="Account suspended")
     return uid
 
 

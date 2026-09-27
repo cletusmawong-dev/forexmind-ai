@@ -64,7 +64,7 @@ def test_same_setup_executes_once(env):
     assert len(sent) == 1                          # ONE broker order (owner's)
     assert store.get("signals", d1["id"])["execution_status"] == "SUBMITTED"
     d2doc = store.get("signals", d2["id"])
-    assert d2doc["execution_status"] == "SKIPPED_NOT_ENGINE_OWNER"
+    assert d2doc["execution_status"] == "SKIPPED_NOT_AUTHORIZED"
 
 
 def test_different_candles_both_execute(env):

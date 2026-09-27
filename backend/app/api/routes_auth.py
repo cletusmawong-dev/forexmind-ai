@@ -14,7 +14,9 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 def _public(u: dict) -> dict:
     return {"id": u["id"], "email": u["email"], "display_name": u.get("display_name", ""),
-            "demo": u.get("demo", False), "telegram_linked": bool(u.get("telegram_chat_id"))}
+            "demo": u.get("demo", False), "telegram_linked": bool(u.get("telegram_chat_id")),
+            "role": u.get("role", "user"), "status": u.get("status", "active"),
+            "trading_permission": u.get("trading_permission", "locked")}
 
 
 @router.post("/register")
@@ -27,6 +29,9 @@ def register(body: RegisterIn):
         "email": body.email.lower(), "display_name": body.display_name,
         "salt": salt, "password_hash": hash_password(body.password, salt),
         "demo": False,
+        "role": "user",                    # Phase 12: admin is granted, never self-claimed
+        "status": "active",
+        "trading_permission": "locked",    # Phase 11: new users are SIGNAL ONLY
     })
     return {"token": issue_token(u["id"]), "user": _public(u)}
 

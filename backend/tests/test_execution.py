@@ -223,7 +223,7 @@ def test_non_owner_signals_stay_advisory(monkeypatch):
     env_store = X.get_store()
     X.execute_signal(SIG, "someone_else")
     doc = env_store.get("signals", "sig1")
-    assert doc["execution_status"] == "SKIPPED_NOT_ENGINE_OWNER"
+    assert doc["execution_status"] == "SKIPPED_NOT_AUTHORIZED"
     assert sent == []          # nothing reached the broker
 
 
