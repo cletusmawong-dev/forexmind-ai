@@ -1144,3 +1144,147 @@ html {
   .glass:hover { transform: none; }
   .js-reveal { opacity: 1; transform: none; transition: none; }
 }
+
+/* ===================== GLASSMORPHISM v2 (all themes) =====================
+   Real frosted glass everywhere: backdrop blur + saturation on every glass
+   tier in every theme, specular inner highlights, translucent inputs/chips,
+   a glass sidebar and a slowly drifting aurora behind the UI so the blur has
+   color to refract. Fallback: browsers without backdrop-filter simply show
+   the existing opaque theme surfaces (no breakage). */
+
+/* ---- frost every glass tier in every themed context ---- */
+[data-theme] .glass {
+  backdrop-filter: blur(16px) saturate(145%);
+  -webkit-backdrop-filter: blur(16px) saturate(145%);
+}
+[data-theme] .glass-2 {
+  backdrop-filter: blur(12px) saturate(135%);
+  -webkit-backdrop-filter: blur(12px) saturate(135%);
+}
+[data-theme] .glass-float {
+  backdrop-filter: blur(20px) saturate(155%);
+  -webkit-backdrop-filter: blur(20px) saturate(155%);
+}
+[data-theme] .hero-card {
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+}
+
+/* ---- ONYX: deepen translucency so the aurora refracts through ---- */
+[data-theme="onyx"] .glass {
+  background: linear-gradient(160deg, rgba(30, 30, 37, 0.74) 0%, rgba(20, 20, 25, 0.78) 60%, rgba(14, 14, 18, 0.8) 100%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.07) inset,
+    0 -1px 0 rgba(0, 0, 0, 0.35) inset,
+    0 14px 36px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(212, 175, 55, 0.05);
+}
+[data-theme="onyx"] .glass-2 {
+  background: linear-gradient(160deg, rgba(26, 26, 32, 0.68), rgba(17, 17, 21, 0.74));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 8px 22px rgba(0, 0, 0, 0.4);
+}
+[data-theme="onyx"] .glass-float {
+  background: linear-gradient(160deg, rgba(28, 28, 35, 0.8), rgba(15, 15, 19, 0.84));
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.6), 0 0 30px rgba(212, 175, 55, 0.08), inset 0 1px 0 rgba(232, 201, 106, 0.14);
+}
+[data-theme="onyx"] .glass:hover {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.09) inset,
+    0 -1px 0 rgba(0, 0, 0, 0.35) inset,
+    0 18px 44px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(212, 175, 55, 0.14),
+    0 0 34px rgba(212, 175, 55, 0.07);
+}
+/* onyx inputs/chips/buttons: glass, not paint */
+[data-theme="onyx"] .input,
+[data-theme="onyx"] .input-mini {
+  background: rgba(22, 22, 28, 0.66);
+  backdrop-filter: blur(12px) saturate(130%);
+  -webkit-backdrop-filter: blur(12px) saturate(130%);
+}
+[data-theme="onyx"] .input:focus,
+[data-theme="onyx"] .input-mini:focus {
+  background: rgba(26, 26, 33, 0.74);
+}
+[data-theme="onyx"] .btn-ghost,
+[data-theme="onyx"] .chip-off {
+  backdrop-filter: blur(10px) saturate(125%);
+  -webkit-backdrop-filter: blur(10px) saturate(125%);
+}
+
+/* ---- SLATE + NAVY: frost the already-translucent surfaces ---- */
+[data-theme="slate"] .input,
+[data-theme="slate"] .input-mini,
+[data-theme="navy"] .input,
+[data-theme="navy"] .input-mini {
+  backdrop-filter: blur(12px) saturate(130%);
+  -webkit-backdrop-filter: blur(12px) saturate(130%);
+}
+[data-theme="slate"] .btn-ghost,
+[data-theme="slate"] .chip-off,
+[data-theme="navy"] .btn-ghost,
+[data-theme="navy"] .chip-off {
+  backdrop-filter: blur(10px) saturate(125%);
+  -webkit-backdrop-filter: blur(10px) saturate(125%);
+}
+[data-theme="navy"] .glass {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 12px 32px rgba(40, 60, 100, 0.12),
+    0 2px 8px rgba(40, 60, 100, 0.07);
+}
+
+/* ---- IVORY: match the deeper frost + specular sheen ---- */
+.glass:not([data-theme]) {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 -1px 0 rgba(191, 158, 90, 0.08) inset,
+    0 12px 32px rgba(122, 92, 34, 0.10),
+    0 2px 8px rgba(122, 92, 34, 0.06);
+}
+
+/* ---- glass sidebar (desktop) ---- */
+.glass-nav {
+  background: linear-gradient(180deg, rgba(255, 253, 247, 0.66), rgba(255, 253, 247, 0.4));
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border-right: 1px solid rgba(191, 158, 90, 0.16);
+}
+[data-theme="onyx"] .glass-nav {
+  background: linear-gradient(180deg, rgba(19, 19, 24, 0.62), rgba(12, 12, 16, 0.45));
+  border-right-color: rgba(212, 175, 55, 0.12);
+}
+[data-theme="slate"] .glass-nav {
+  background: linear-gradient(180deg, rgba(52, 63, 82, 0.55), rgba(40, 49, 64, 0.4));
+  border-right-color: rgba(255, 255, 255, 0.14);
+}
+[data-theme="navy"] .glass-nav {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.6), rgba(244, 248, 253, 0.38));
+  border-right-color: rgba(29, 79, 143, 0.14);
+}
+
+/* ---- aurora: drifting light behind everything for the glass to refract ---- */
+.ambient {
+  overflow: hidden;
+}
+.ambient::before {
+  content: "";
+  position: absolute;
+  inset: -22%;
+  background:
+    radial-gradient(620px 460px at 22% 28%, rgba(var(--p-rgb), 0.14), transparent 64%),
+    radial-gradient(700px 520px at 80% 70%, rgba(var(--gold-rgb, 212, 175, 55), 0.10), transparent 66%),
+    radial-gradient(520px 380px at 62% 12%, rgba(var(--p2-rgb, 124, 213, 242), 0.08), transparent 62%);
+  filter: blur(56px);
+  transform: translate3d(0, 0, 0);
+  animation: aurora-drift 30s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+@keyframes aurora-drift {
+  from { transform: translate3d(-2.5%, -1.5%, 0) scale(1) rotate(-1.2deg); }
+  to   { transform: translate3d(2.5%, 2%, 0) scale(1.07) rotate(1.2deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ambient::before { animation: none; }
+}

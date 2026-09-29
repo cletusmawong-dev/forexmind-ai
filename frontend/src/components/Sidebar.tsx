@@ -25,7 +25,7 @@ export function Sidebar() {
     ...(isAdmin ? [{ to: "/admin", label: "Admin", icon: Shield }] : []),
   ];
   return (
-    <aside className="sticky top-0 hidden h-screen w-[250px] shrink-0 flex-col justify-between px-6 py-8 lg:flex">
+    <aside className="glass-nav sticky top-0 hidden h-screen w-[250px] shrink-0 flex-col justify-between px-6 py-8 lg:flex">
       <div>
         <div className="mb-10 px-2">
           <Logo size={38} />
