@@ -409,3 +409,42 @@ def test_legacy_data_shapes_never_500(env):
                              "market": "XAUUSD", "completed": False,
                              "status": "SKIPPED_RISK_NEWS", "sl": "bad", "tp1": None})
     assert c.get("/api/research/blocked").status_code == 200
+
+
+def test_journal_entries_surfaces_user_journaling(env):
+    """Regression for the lost journaling view: taken/skipped signals with
+    user notes must be listable, user-scoped, and stats-consistent."""
+    c, store, monkeypatch, settings = env
+    _user(store, "boss")
+    _user(store, "mallory")
+    base = {"userId": "boss", "strategy_id": "strategy_2_ema_atr",
+            "strategy_name": "EMA", "market": "EURUSD", "direction": "BUY",
+            "completed": True, "outcome": "WIN", "r_multiple": 1.2,
+            "entry": 1.10, "sl": 1.098, "tp1": 1.102}
+    store.create("signals", {**base, "signal_id": "J-1",
+                             "user_action": "entered",
+                             "user_action_at": "2026-09-02T10:00:00",
+                             "user_notes": "clean retest, my size",
+                             "user_entry_price": 1.1005,
+                             "user_trade_result": {"outcome": "WIN", "r_multiple": 1.4}})
+    store.create("signals", {**base, "signal_id": "J-2",
+                             "user_action": "skipped",
+                             "user_action_at": "2026-09-03T10:00:00",
+                             "user_notes": None, "outcome": "LOSS"})
+    store.create("signals", {**base, "signal_id": "J-3"})     # never journaled
+    r = c.get("/api/journal/entries")
+    body = r.json()
+    assert r.status_code == 200 and body["count"] == 2
+    assert body["taken"] == 1 and body["skipped"] == 1
+    assert body["notes_written"] == 1
+    top = body["entries"][0]                                   # newest first
+    assert top["signal_id"] == "J-2"
+    took = next(e for e in body["entries"] if e["action"] == "entered")
+    assert took["notes"] == "clean retest, my size"
+    assert took["user_entry_price"] == 1.1005
+    assert took["outcome"] == "WIN" and took["r_multiple"] == 1.4
+    # isolation
+    from app.api.deps import get_user_id
+    c.app.dependency_overrides[get_user_id] = lambda: "mallory"
+    assert c.get("/api/journal/entries").json()["count"] == 0
+    c.app.dependency_overrides[get_user_id] = lambda: "boss"

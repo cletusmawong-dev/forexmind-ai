@@ -10,7 +10,7 @@ import { useNavigate } from "react-router-dom";
 import {NotebookPen, ArrowUpRight, ArrowDownRight} from "lucide-react";
 
 export function JournalScreen() {
-  const [tab, setTab] = useState<"record" | "history">("record");
+  const [tab, setTab] = useState<"record" | "journal" | "history">("record");
   const stats = usePolling<any>(() => api.get(endpoints.journal), 8000);
   const signals = usePolling<{ signals: Signal[] }>(() => api.get(`${endpoints.signals}?status=closed&limit=200`), 8000);
   const mt5 = usePolling<any>(() => api.get("/api/journal/mt5-trades"), 8000);
@@ -46,6 +46,7 @@ export function JournalScreen() {
         onChange={(k) => setTab(k as any)}
         options={[
           { key: "record", label: "Overview" },
+          { key: "journal", label: "My journal" },
           { key: "history", label: "Trade history" },
         ]}
       />
@@ -114,22 +115,28 @@ export function JournalScreen() {
             </Glass>
 
             <div className="mt-6 grid grid-cols-2 gap-3">
-              <Glass level={2} pad={false} className="px-5 py-4">
-                <div className="eyebrow !text-[9px]">Taken</div>
-                <div className="num mt-1 text-[20px] font-light">{j?.signals_taken ?? 0}</div>
-                <div className="mt-0.5 text-[9.5px] text-txt-faint">of {j?.total_signals ?? 0} signals</div>
-              </Glass>
-              <Glass level={2} pad={false} className="px-5 py-4">
-                <div className="eyebrow !text-[9px]">Skipped</div>
-                <div className="num mt-1 text-[20px] font-light">{j?.signals_skipped ?? 0}</div>
-                <div className="mt-0.5 text-[9.5px] text-txt-faint">still tracked for learning</div>
-              </Glass>
+              <button onClick={() => setTab("journal")} className="text-left">
+                <Glass level={2} pad={false} className="cursor-pointer px-5 py-4 transition hover:bg-[var(--glass-surface-hover)]">
+                  <div className="eyebrow !text-[9px]">Taken</div>
+                  <div className="num mt-1 text-[20px] font-light">{j?.signals_taken ?? 0}</div>
+                  <div className="mt-0.5 text-[9.5px] text-txt-faint">of {j?.total_signals ?? 0} signals - view journal</div>
+                </Glass>
+              </button>
+              <button onClick={() => setTab("journal")} className="text-left">
+                <Glass level={2} pad={false} className="cursor-pointer px-5 py-4 transition hover:bg-[var(--glass-surface-hover)]">
+                  <div className="eyebrow !text-[9px]">Skipped</div>
+                  <div className="num mt-1 text-[20px] font-light">{j?.signals_skipped ?? 0}</div>
+                  <div className="mt-0.5 text-[9.5px] text-txt-faint">still tracked for learning - view journal</div>
+                </Glass>
+              </button>
             </div>
 
             <Link to="/analytics" className="btn-ghost mt-6 w-full">Full analytics</Link>
           </div>
         </div>
       )}
+
+      {tab === "journal" && <MyJournalTab onOpenHistory={() => setTab("history")} />}
 
       {tab === "history" && (
         <HistoryTab raw={signals.data?.signals ?? []} mt5Data={mt5.data} navigate={navigate} />
@@ -496,6 +503,84 @@ function HistoryTab({ raw, mt5Data, navigate }: { raw: LogSignal[]; mt5Data: any
         <div className="space-y-3">
           {tradeLog(filtered, navigate)}
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---- my journal: the user's OWN journaling record (notes + personal result) ---- */
+function MyJournalTab({ onOpenHistory }: { onOpenHistory: () => void }) {
+  const q = usePolling<{ entries: any[]; count: number; taken: number; skipped: number;
+    notes_written: number }>(() => api.get(endpoints.journalEntries), 10000);
+  if (!q.data) {
+    if (q.loading) return <Spinner label="Opening your journal..." />;
+    return <ConnectionState onRetry={q.refresh} label="Can't load your journal" />;
+  }
+  const entries = q.data.entries ?? [];
+  return (
+    <div className="animate-fadeUp" data-reveal>
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <Pill tone="cyan">{q.data.taken} taken</Pill>
+        <Pill tone="warn">{q.data.skipped} skipped</Pill>
+        <Pill tone="pos">{q.data.notes_written} with notes</Pill>
+        <span className="text-[10.5px] text-txt-faint">
+          Written from a signal - open one and tap "I took this trade".
+        </span>
+      </div>
+      {entries.length === 0 && (
+        <Glass className="px-5 py-10 text-center">
+          <NotebookPen size={22} className="mx-auto text-txt-faint" />
+          <p className="mt-2 text-[13px] font-medium text-txt-hi">No journal entries yet</p>
+          <p className="mx-auto mt-1 max-w-sm text-[11.5px] leading-relaxed text-txt-low">
+            Open any signal and record it as taken or skipped - with your own note on why.
+            Your entries and their outcomes collect here, separate from the engine log
+            (<button className="underline" onClick={onOpenHistory}>trade history</button>).
+          </p>
+        </Glass>
+      )}
+      <div className="space-y-3">
+        {entries.map((e) => {
+          const took = e.action === "entered";
+          const win = e.outcome === "WIN";
+          return (
+            <Glass key={e.id} className="px-5 py-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Pill tone={took ? "pos" : "warn"}>{took ? "TOOK" : "SKIPPED"}</Pill>
+                  <span className="text-[13px] font-semibold text-txt-hi">
+                    {e.market} {e.direction}
+                  </span>
+                  <span className="text-[10px] text-txt-faint">{e.strategy_name}</span>
+                </div>
+                {e.outcome ? (
+                  <span className={`num text-[12.5px] font-bold ${win ? "text-pos" : "text-neg"}`}>
+                    {e.outcome}{e.r_multiple != null ? ` - ${e.r_multiple > 0 ? "+" : ""}${e.r_multiple}R` : ""}
+                  </span>
+                ) : (
+                  <span className="text-[10.5px] text-txt-faint">still tracking</span>
+                )}
+              </div>
+              <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5 text-[10.5px] text-txt-faint">
+                {took && e.user_entry_price != null && (
+                  <span className="num">your entry {e.user_entry_price}</span>
+                )}
+                {took && e.signal_entry != null && (
+                  <span className="num">signal {e.signal_entry}</span>
+                )}
+                {e.tp_hits != null && e.action === "entered" && <span>TP hits {e.tp_hits}</span>}
+                {e.broker_confirmed && <span className="text-pos">broker confirmed</span>}
+                {e.journaled_at && <span>{new Date(e.journaled_at).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</span>}
+              </div>
+              {e.notes ? (
+                <p className="mt-2.5 rounded-xl border border-[rgba(var(--warm-rgb),0.08)] bg-[rgba(var(--warm-rgb),0.035)] px-3.5 py-2.5 text-[11.5px] italic leading-relaxed text-txt-mid">
+                  "{e.notes}"
+                </p>
+              ) : (
+                <p className="mt-2 text-[10.5px] text-txt-faint">no note written</p>
+              )}
+            </Glass>
+          );
+        })}
       </div>
     </div>
   );

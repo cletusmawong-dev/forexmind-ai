@@ -99,6 +99,7 @@ export const endpoints = {
   tpAudit: "/api/aimanager/executions/tp-audit",
   positionsLive: "/api/positions/live",
   learningMatrix: "/api/learning/matrix",
+  journalEntries: "/api/journal/entries",
   evidence: "/api/evidence",
   evidenceGenerate: "/api/evidence/generate",
   strategyHealth: (id: string) => `/api/learning/strategy-health/${id}`,

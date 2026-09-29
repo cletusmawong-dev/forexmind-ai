@@ -147,6 +147,43 @@ def mt5_trades(user_id: str = Depends(get_user_id)):
             "demo": State.provider.is_demo}
 
 
+@router.get("/journal/entries")
+def journal_entries(user_id: str = Depends(get_user_id)):
+    """The USER'S OWN journal: every signal they recorded as taken/skipped,
+    with their notes, their entry price and the tracked personal result.
+    This is the journaling record - distinct from the engine/broker log."""
+    store = State.store
+    rows = [s for s in store.list("signals", filters={"userId": user_id}, limit=3000)
+            if s.get("user_action") in ("entered", "skipped")]
+    rows.sort(key=lambda s: str(s.get("user_action_at") or s.get("createdAt") or ""),
+              reverse=True)
+    entries = []
+    for s in rows:
+        utr = s.get("user_trade_result") or {}
+        entries.append({
+            "id": s.get("id"), "signal_id": s.get("signal_id"),
+            "market": s.get("market"), "direction": s.get("direction"),
+            "strategy_name": s.get("strategy_name"), "timeframe": s.get("timeframe"),
+            "action": s.get("user_action"),
+            "notes": s.get("user_notes"),
+            "user_entry_price": s.get("user_entry_price"),
+            "signal_entry": s.get("entry"), "sl": s.get("sl"),
+            "tp1": s.get("tp1"), "tp2": s.get("tp2"), "tp3": s.get("tp3"),
+            "tp_hits": s.get("tp_hits"),
+            "outcome": utr.get("outcome") or s.get("outcome"),
+            "r_multiple": utr.get("r_multiple") if utr.get("r_multiple") is not None
+            else s.get("r_multiple"),
+            "broker_confirmed": bool(s.get("mt5_confirmed")),
+            "candle_time": s.get("candle_time"),
+            "journaled_at": s.get("user_action_at"),
+        })
+    taken = sum(1 for e in entries if e["action"] == "entered")
+    skipped = len(entries) - taken
+    return {"entries": entries, "count": len(entries),
+            "taken": taken, "skipped": skipped,
+            "notes_written": sum(1 for e in entries if e.get("notes"))}
+
+
 @router.get("/journal/stats")
 def journal_stats(user_id: str = Depends(get_user_id)):
     store = State.store

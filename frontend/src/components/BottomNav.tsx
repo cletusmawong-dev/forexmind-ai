@@ -1,12 +1,12 @@
 import { NavLink } from "react-router-dom";
-import { Home, Radio, Bot, Activity, GraduationCap, Settings } from "lucide-react";
+import { Home, Radio, Bot, Activity, NotebookPen, Settings } from "lucide-react";
 
 const tabs = [
   { to: "/", label: "Home", icon: Home },
   { to: "/signals", label: "Signals", icon: Radio },
   { to: "/positions", label: "Positions", icon: Activity },
   { to: "/agent", label: "AI", icon: Bot },
-  { to: "/learning", label: "Learn", icon: GraduationCap },
+  { to: "/journal", label: "Journal", icon: NotebookPen },
   { to: "/settings", label: "Settings", icon: Settings },
 ];
 

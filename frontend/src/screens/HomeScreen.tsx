@@ -269,6 +269,18 @@ export function HomeScreen() {
         </Glass>
 
         {/* ---- AI active ---- */}
+        {/* mobile quick tools: everything not on the bottom dock */}
+        <div className="mt-4 grid grid-cols-4 gap-2 lg:hidden">
+          {([["/strategies", "Strategies"], ["/learning", "Research"],
+             ["/execution", "Execution"], ["/analytics", "Analytics"]] as const).map(
+            ([to, label]) => (
+              <Link key={to} to={to}
+                className="glass tap flex flex-col items-center gap-1 px-2 py-3 text-[10px] font-medium text-txt-mid">
+                {label}
+              </Link>
+            ))}
+        </div>
+
         <Link to="/agent" className="glass glass-hover tap mt-4 flex items-center gap-3.5 p-4">
           <StatusDot tone="green" size={9} />
           <div className="min-w-0 flex-1">
