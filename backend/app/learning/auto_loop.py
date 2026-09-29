@@ -38,6 +38,13 @@ def run_research_cycle(user_id: str, max_discoveries: int = 3,
         out["session_suggestions"] = len(suggest_best_sessions(user_id) or [])
     except Exception:
         pass
+    # 2b) EVIDENCE refresh (3.0 spec Stage 1): deterministic recompute of every
+    # strategy x market subject - classification only, never mutates anything.
+    try:
+        from ..evidence import engine as ev_engine
+        out["evidence_refreshed"] = len(ev_engine.refresh_all(user_id) or [])
+    except Exception:
+        pass
 
     # 3) EXPERIMENT (max ONE per cycle) -----------------------------------
     hyp = None

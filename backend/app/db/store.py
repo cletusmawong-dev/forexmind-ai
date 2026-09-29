@@ -36,6 +36,7 @@ COLLECTIONS = [
     "exec_commands", "market_regimes", "version_events", "research_hypotheses",
     "ai_decisions", "strategy2_state", "autopsies", "audit_log", "ai_memory",
     "exec_events", "regime_events", "recommendations", "tg_link_tokens",
+    "evidence",
 ]
 
 

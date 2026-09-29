@@ -50,8 +50,13 @@ CHALLENGE_INSTRUCTIONS = (
     "You are the devil's advocate for a trading management decision. Given "
     "the world model and the proposed decision, find the STRONGEST evidence-"
     "based objections (data contradictions, missing evidence, risk-state "
-    "conflicts). Reply with ONLY: {\"survives\": bool, \"objections\": "
-    "[\"...\"]}. survives=false means the decision must NOT be executed."
+    "conflicts). Answer explicitly: 1) What supports this? 2) What "
+    "contradicts it? 3) What evidence is missing? 4) How large is the "
+    "sample? 5) Is the historical environment comparable? 6) Could regime "
+    "change explain the result? 7) Could execution quality explain the "
+    "result? 8) What would falsify this conclusion? Reply with ONLY: "
+    "{\"survives\": bool, \"objections\": [\"...\"]}. survives=false "
+    "means the decision must NOT be executed."
 )
 
 
@@ -131,8 +136,8 @@ def _observe(world: dict) -> Optional[str]:
 
 
 # ---------------------------------------------------------------------------
-def run_brain(user_id: str, world: dict, escalate: bool = False,
-              router=None, signal: Optional[dict] = None) -> dict:
+def _run_brain(user_id: str, world: dict, escalate: bool = False,
+                  router=None, signal: Optional[dict] = None) -> dict:
     """Full pipeline. NEVER raises (callers fall back honestly on error)."""
     from ..agent.router import get_router
     router = router or get_router()
@@ -255,3 +260,19 @@ def _remember(user_id: str, market: Optional[str], world: dict,
                   "answer": answer, "action": action})
     except Exception:
         pass
+
+# ---------------------------------------------------------------------------
+# EVIDENCE stage (3.0 spec section 7): OBSERVE -> GENERATE -> CHALLENGE ->
+# EVIDENCE -> DECIDE. Runs on EVERY exit path; purely additive annotation -
+# the deterministic evidence view NEVER modifies the decision itself.
+# ---------------------------------------------------------------------------
+def run_brain(user_id: str, world: dict, escalate: bool = False,
+              router=None, signal: Optional[dict] = None) -> dict:
+    out = _run_brain(user_id, world, escalate, router, signal)
+    try:
+        from ..evidence.brain_bridge import attach_evidence
+        attach_evidence(user_id, world, signal, out)
+    except Exception as exc:                      # never break the brain
+        out["evidence"] = None
+        out["evidence_error"] = type(exc).__name__
+    return out

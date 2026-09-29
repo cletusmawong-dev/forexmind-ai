@@ -166,6 +166,14 @@ def autopsy_experiment_report(experiment_id: str, user_id: str = Depends(get_use
 # or honestly refuses (regime notes); activation is an explicit audited
 # strategy PATCH by the user.
 # ===========================================================================
+@router.get("/learning/strategy-health/{strategy_id}")
+def strategy_health_route(strategy_id: str, user_id: str = Depends(get_user_id)):
+    """Spec 14: historical vs recent performance per strategy. Reporting
+    only - never pauses or mutates anything."""
+    from ..learning.health import strategy_health
+    return strategy_health(user_id, strategy_id)
+
+
 @router.get("/learning/matrix")
 def learning_matrix(user_id: str = Depends(get_user_id)):
     from ..learning.matrix import build_matrix
