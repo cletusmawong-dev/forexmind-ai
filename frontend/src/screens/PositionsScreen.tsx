@@ -48,8 +48,10 @@ export function PositionsScreen() {
           </Glass>
         ) : (
           <div className="space-y-3">
-            {rows.map((p) => (
-              <Glass key={p.ticket} className="p-4">
+            {rows.map((p: any) => (
+              <Glass key={p.ticket}
+                className={`p-4 ${p.signal_doc_id ? "cursor-pointer transition hover:bg-[var(--glass-surface-hover)]" : ""}`}
+                onClick={p.signal_doc_id ? () => navigate(`/signals/${p.signal_doc_id}`) : undefined}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="text-[14px] font-semibold">

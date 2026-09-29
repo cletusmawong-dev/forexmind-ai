@@ -195,9 +195,10 @@ export function ResearchToolsPanel() {
   );
 }
 
-export function ReplayPanel({ signalId }: { signalId: string }) {
-  const replay = usePolling<any>(() => api.get(endpoints.replay(signalId)), 30000);
-  if (!replay.data) return null;
+export function ReplayPanel({ signalId }: { signalId?: string }) {
+  const replay = usePolling<any>(
+    async () => (signalId ? api.get(endpoints.replay(signalId)) : null), 30000);
+  if (!signalId || !replay.data) return null;
   const r = replay.data;
   const chain = Array.isArray(r.execution_chain) ? r.execution_chain : [];
   return (

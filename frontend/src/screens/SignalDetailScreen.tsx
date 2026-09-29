@@ -79,7 +79,7 @@ export function SignalDetailScreen() {
         </button>
         <DemoTag />
       </header>
-      <ReplayPanel signalId={signal?.signal_id || id} />
+      <ReplayPanel signalId={s?.signal_id || id} />
 
       {/* ---- title ---- */}
       <div className="flex items-start justify-between px-1">

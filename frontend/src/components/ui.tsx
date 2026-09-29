@@ -39,14 +39,20 @@ export function Glass({
   level = 1,
   className = "",
   pad = true,
+  onClick,
 }: {
   children: React.ReactNode;
   level?: 1 | 2 | "float";
   className?: string;
   pad?: boolean;
+  onClick?: () => void;
 }) {
   const cls = level === 1 ? "glass" : level === 2 ? "glass-2" : "glass-float";
-  return <section className={`${cls} ${pad ? "p-5" : ""} ${className}`}>{children}</section>;
+  return (
+    <section onClick={onClick} className={`${cls} ${pad ? "p-5" : ""} ${className}`}>
+      {children}
+    </section>
+  );
 }
 
 export function Divider({ className = "" }: { className?: string }) {

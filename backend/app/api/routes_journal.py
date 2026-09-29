@@ -71,6 +71,7 @@ def positions_live(user_id: str = Depends(get_user_id)):
                                               (entry - cur)) / risk, 2)
                                        if risk else None),
                     "signal_id": sid or None,
+                    "signal_doc_id": (sig or {}).get("id"),
                     "strategy": (sig or {}).get("strategy_name"),
                     "opened_at": pos.get("time"),
                     "last_ai": ({"trigger": dec.get("trigger"),
