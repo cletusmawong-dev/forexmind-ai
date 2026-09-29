@@ -306,17 +306,21 @@ def subject_ids(strategy_id: str, market: str, session: Optional[str]) -> tuple:
 
 
 def build_evidence(user_id: str, strategy_id: str, market: str,
-                   session: Optional[str] = None, persist: bool = True) -> dict:
+                   session: Optional[str] = None, persist: bool = True,
+                   rows: Optional[List[dict]] = None,
+                   mx: Optional[dict] = None) -> dict:
     store = get_store()
     subject_type, subject_id = subject_ids(strategy_id, market, session)
 
     # strategy baseline from the learning matrix (never invented)
     from ..learning.matrix import build_matrix
-    mx = build_matrix(user_id)
+    if mx is None:
+        mx = build_matrix(user_id)
     st = (mx.get("strategies") or {}).get(strategy_id) or {}
     baseline_wr = st.get("win_rate")
 
-    rows = _completed(store, user_id, strategy_id, market, session)
+    if rows is None:
+        rows = _completed(store, user_id, strategy_id, market, session)
     sc = score_observations(rows, baseline_wr, store=store, strategy_id=strategy_id)
     state = state_for(sc["n"], sc["total"], sc["contradiction_strength"],
                       sc["recent_view"].get("recent_wr"), baseline_wr)
@@ -387,11 +391,24 @@ def build_evidence(user_id: str, strategy_id: str, market: str,
 
 
 def refresh_all(user_id: str, limit: int = 40) -> List[dict]:
-    """Recompute evidence for every strategy x market the user actually trades."""
+    """Recompute evidence for every strategy x market the user actually
+    trades. ONE matrix build + ONE signal pass total (hot path - the old
+    per-pair rebuilds blew past gateway timeouts on real data)."""
+    from collections import defaultdict
     from ..learning.matrix import build_matrix
     mx = build_matrix(user_id)
-    pairs = sorted({(c["strategy_id"], c["market"]) for c in mx.get("cells", [])})
-    return [build_evidence(user_id, sid, mkt) for sid, mkt in pairs[:limit]]
+    store = get_store()
+    groups: Dict[tuple, List[dict]] = defaultdict(list)
+    for s in store.list("signals", filters={"userId": user_id}, limit=2000):
+        if s.get("completed") and s.get("strategy_id") and s.get("market"):
+            groups[(s["strategy_id"], s["market"])].append(s)
+    docs = []
+    for key in sorted(groups)[:limit]:
+        rows = groups[key]
+        rows.sort(key=lambda x: str(x.get("completed_at") or x.get("candle_time") or ""))
+        docs.append(build_evidence(user_id, key[0], key[1],
+                                   persist=True, rows=rows, mx=mx))
+    return docs
 
 
 def list_evidence(user_id: str, subject_type: Optional[str] = None,
