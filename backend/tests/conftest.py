@@ -5,6 +5,8 @@ import pandas as pd
 import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# allow tests to import sibling test modules regardless of the pytest cwd
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app.core.indicators import resample_ohlcv  # noqa: E402
 
