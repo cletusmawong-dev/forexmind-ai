@@ -78,9 +78,12 @@ def blocked_analysis(user_id: str, limit: int = 200) -> dict:
         mkt = s.get("market") or "EURUSD"
         buy = (s.get("direction") or "BUY").upper() == "BUY"
         follow = "not_evaluated"
-        if s.get("sl") and s.get("tp1") and candles.get(mkt):
-            follow = _first_touch(candles[mkt], str(s.get("candle_time") or ""),
-                                  buy, float(s["sl"]), float(s["tp1"]))
+        try:
+            if s.get("sl") and s.get("tp1") and candles.get(mkt):
+                follow = _first_touch(candles[mkt], str(s.get("candle_time") or ""),
+                                      buy, float(s["sl"]), float(s["tp1"]))
+        except (TypeError, ValueError):
+            follow = "not_evaluated"
         rows.append({"market": mkt, "at": s.get("candle_time"),
                      "reason": reason, "afterward": follow})
         a = per_filter.setdefault(guard, {"blocked": 0, "would_SL": 0,

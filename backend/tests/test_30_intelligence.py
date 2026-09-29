@@ -389,3 +389,23 @@ def test_nl_research_deterministic_and_ai_whitelist(env):
                                         "unparsed")
     for k in r2["translation"]["filters"]:
         assert k in ("strategy_id", "market", "outcome", "session", "regime")
+
+
+def test_legacy_data_shapes_never_500(env):
+    """Regression: prod has old experiment docs (result as string) and
+    odd signal docs - aggregation endpoints must tolerate them."""
+    c, store, monkeypatch, settings = env
+    _user(store)
+    store.create("experiments", {"userId": "boss", "result": "passed 3 folds",
+                                 "combinations": None})
+    store.create("experiments", {"userId": "boss", "result": {"passed": True},
+                                 "combinations": [1, 2]})
+    monkeypatch.setattr(settings, "bridge_url", "")
+    r = c.get("/api/research/summary").json()
+    assert r["experiments_total"] == 2 and r["experiments_passed"] == 1
+    assert r["parameter_combinations_tested"] == 3
+    assert c.get("/api/risk/exposure").status_code == 200
+    store.create("signals", {"userId": "boss", "strategy_id": "strategy_2_ema_atr",
+                             "market": "XAUUSD", "completed": False,
+                             "status": "SKIPPED_RISK_NEWS", "sl": "bad", "tp1": None})
+    assert c.get("/api/research/blocked").status_code == 200

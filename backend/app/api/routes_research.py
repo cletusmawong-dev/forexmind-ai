@@ -98,8 +98,16 @@ def research_summary(user_id: str = Depends(get_user_id)):
     """Multiple-testing control (spec 29): the full research context."""
     store = get_store()
     exps = store.list("experiments", filters={"userId": user_id}, limit=500)
-    passed = [e for e in exps if (e.get("result") or {}).get("passed")]
-    combos = sum(len(e.get("combinations") or []) or 1 for e in exps)
+    # old experiment docs may carry result as a string / combinations as
+    # anything - aggregation must never 500 on legacy shapes
+    def _is_passed(e):
+        res = e.get("result")
+        return isinstance(res, dict) and bool(res.get("passed"))
+    def _combos(e):
+        c = e.get("combinations")
+        return len(c) if isinstance(c, list) else 1
+    passed = [e for e in exps if _is_passed(e)]
+    combos = sum(_combos(e) for e in exps)
     return {"experiments_total": len(exps),
             "experiments_passed": len(passed),
             "experiments_failed": len(exps) - len(passed),

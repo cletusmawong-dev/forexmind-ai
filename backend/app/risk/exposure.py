@@ -41,9 +41,16 @@ def exposure_snapshot(user_id: str) -> dict:
 
     per_ccy: Dict[str, dict] = {}
     for p in positions:
-        sym = (p.get("symbol") or p.get("app_market") or "?").upper()
-        side = "BUY" if int(p.get("type") or 0) == 0 else "SELL"
-        vol = float(p.get("volume") or 0)
+        try:
+            sym = str(p.get("symbol") or p.get("app_market") or "?").upper()
+            raw_type = p.get("type") or 0
+            try:
+                side = "SELL" if int(raw_type) != 0 else "BUY"
+            except (TypeError, ValueError):
+                side = "BUY" if "BUY" in str(raw_type).upper() else "SELL"
+            vol = float(p.get("volume") or 0)
+        except (TypeError, ValueError):
+            continue          # one malformed position never breaks the report
         for c in _roots(sym):
             a = per_ccy.setdefault(c, {"buy_lots": 0.0, "sell_lots": 0.0})
             a["buy_lots" if side == "BUY" else "sell_lots"] += vol
@@ -54,7 +61,7 @@ def exposure_snapshot(user_id: str) -> dict:
         tot = a["buy_lots"] + a["sell_lots"]
         a["concentration"] = round(max(a["buy_lots"], a["sell_lots"]) / tot, 2) if tot else 0.0
 
-    instruments = sorted({(p.get("symbol") or p.get("app_market") or "?").upper()
+    instruments = sorted({str(p.get("symbol") or p.get("app_market") or "?").upper()
                           for p in positions})
     return {
         "basis": basis,
