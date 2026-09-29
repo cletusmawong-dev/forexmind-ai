@@ -188,10 +188,11 @@ def _experiment_strength(store, strategy_id: str) -> tuple:
         return 0.0, 0.0, False
     exps.sort(key=lambda e: str(e.get("created_at") or ""))
     e = exps[-1]
-    wf = e.get("walk_forward") or {}
+    # legacy docs may carry result/walk_forward as strings - tolerate
+    wf = e.get("walk_forward") if isinstance(e.get("walk_forward"), dict) else {}
     wf_strength = 1.0 if wf.get("consistent") is True else \
         0.0 if wf.get("consistent") is False else 0.0
-    res = e.get("result") or {}
+    res = e.get("result") if isinstance(e.get("result"), dict) else {}
     oos = None
     for key in ("oos_win_rate", "holdout_win_rate"):
         if isinstance(res.get(key), (int, float)):
@@ -406,8 +407,20 @@ def refresh_all(user_id: str, limit: int = 40) -> List[dict]:
     for key in sorted(groups)[:limit]:
         rows = groups[key]
         rows.sort(key=lambda x: str(x.get("completed_at") or x.get("candle_time") or ""))
-        docs.append(build_evidence(user_id, key[0], key[1],
-                                   persist=True, rows=rows, mx=mx))
+        try:
+            docs.append(build_evidence(user_id, key[0], key[1],
+                                       persist=True, rows=rows, mx=mx))
+        except Exception:
+            # one malformed subject never blocks the rest (spec: fail loud,
+            # not fatal) - record a visible incident-level marker instead
+            store.create("evidence", {
+                "evidence_id": f"ev-error-{key[0]}-{key[1]}",
+                "userId": user_id, "subject_type": "error",
+                "subject_id": f"{key[0]}:{key[1]}",
+                "strategy_id": key[0], "instrument": key[1],
+                "state": "ERROR", "score": None,
+                "conclusion": "evidence build failed on this subject",
+                "updated_at": datetime.now(timezone.utc).isoformat()})
     return docs
 
 
