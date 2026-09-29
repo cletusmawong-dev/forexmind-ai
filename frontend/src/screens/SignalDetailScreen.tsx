@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, ChevronDown, CircleSlash, FlaskConical, NotebookPen } from "lucide-react";
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
+import { ReplayPanel } from "../components/intel30";
 import type { Candle, ReplayData, Signal } from "../lib/types";
 import { DemoTag, Divider, Glass, MetricGrid, Pill, Spinner, StatusDot, ProgressBar } from "../components/ui";
 import { CandleChart, ChartLine } from "../components/CandleChart";
@@ -78,6 +79,7 @@ export function SignalDetailScreen() {
         </button>
         <DemoTag />
       </header>
+      <ReplayPanel signalId={signal?.signal_id || id} />
 
       {/* ---- title ---- */}
       <div className="flex items-start justify-between px-1">

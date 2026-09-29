@@ -45,6 +45,20 @@ def run_research_cycle(user_id: str, max_discoveries: int = 3,
         out["evidence_refreshed"] = len(ev_engine.refresh_all(user_id) or [])
     except Exception:
         pass
+    # 2c) INCIDENT sweep (stage 7): cheap detectors, deduped, advisory.
+    try:
+        from ..system.incidents import sweep as inc_sweep
+        out["incidents_raised"] = inc_sweep(user_id).get("raised", 0)
+    except Exception:
+        pass
+    # 2d) SHADOW cycle (stage 5): no-op unless a strategy is flagged shadow.
+    try:
+        from ..research.shadow import run_shadow_cycle
+        sh = run_shadow_cycle(user_id) or {}
+        out["shadow"] = {k: sh.get(k) for k in ("detected", "evaluated")
+                         if sh.get(k) is not None}
+    except Exception:
+        pass
 
     # 3) EXPERIMENT (max ONE per cycle) -----------------------------------
     hyp = None

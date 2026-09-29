@@ -510,6 +510,18 @@ def execute_signal(signal: dict, user_id: str) -> None:
                                                    "mt5_error": type(exc).__name__[:200]})
         except Exception:
             pass
+        # 3.0 spec: EVERY failure is loud - ledger + Telegram, never silent.
+        try:
+            _emit(user_id, "ENTRY", "FAILED", market=signal.get("market"),
+                  signal=signal,
+                  detail=f"{type(exc).__name__}: {str(exc)[:120]}")
+            notify(user_id, "EXECUTION_FAILED",
+                   f"ENTRY FAILED - {signal.get('market')} {signal.get('direction')}",
+                   f"Execution error: {type(exc).__name__}. No trade was opened. "
+                   "The failure is recorded in the Execution ledger.",
+                   signal_id=signal.get("id"))
+        except Exception:
+            pass
         _log(f"Execution error - {type(exc).__name__}", market, kind="EXEC_WARN")
 
 

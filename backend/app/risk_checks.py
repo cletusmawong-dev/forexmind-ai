@@ -125,8 +125,19 @@ def settings_value(name: str):
     return getattr(settings, name)
 
 
-def check_entry(user_id: str, market: str) -> Tuple[bool, str, str]:
-    """Run all guards. Returns (ok, guard_name, reason). First failure wins."""
+def check_entry(user_id: str, market: str,
+                strategy_id: Optional[str] = None) -> Tuple[bool, str, str]:
+    """Run all guards. Returns (ok, guard_name, reason). First failure wins.
+
+    The kill-switch hierarchy (3.0 spec section 47) is evaluated FIRST and
+    regardless of risk_guards_enabled. Level 0 (default) is a no-op."""
+    try:
+        from .risk.killswitch import check as ks_check
+        ok, why = ks_check(market, strategy_id)
+        if not ok:
+            return False, "KILLSWITCH", why
+    except Exception:
+        pass
     if not settings_value("risk_guards_enabled"):
         return True, "", ""
     for name, fn in (("NEWS", _news_ok), ("SPREAD", _spread_ok),

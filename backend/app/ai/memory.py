@@ -56,10 +56,16 @@ def _trim(user_id: str) -> int:
 def recall(user_id: Optional[str], market: Optional[str] = None,
            strategy: Optional[str] = None, k: int = 5) -> List[dict]:
     """Newest-first relevant memories: entries for this market/strategy when
-    given, plus global notes. Bounded to k items. Never raises."""
+    given, plus global notes. Bounded to k items. Never raises.
+
+    3.0 spec section 43: every memory carries a lifecycle state
+    (ACTIVE/STALE/CONTRADICTED/INVALIDATED) and an `authority` flag -
+    only ACTIVE entries are authoritative; the rest stay visible but flagged
+    so old beliefs can never be silently trusted."""
     if not user_id:
         return []
     try:
+        lifecycle_sweep(user_id)
         docs = get_store().list(COLL, filters={"userId": user_id},
                                 order_by="createdAt", desc=True,
                                 limit=MAX_PER_USER)
@@ -72,8 +78,55 @@ def recall(user_id: Optional[str], market: Optional[str] = None,
                (strategy and m.get("strategy") == strategy) or
                d.get("kind") == "global")
         if hit:
+            state = d.get("state") or "ACTIVE"
             out.append({"kind": d.get("kind"), "text": d.get("text"),
-                        "meta": m, "createdAt": d.get("createdAt")})
+                        "meta": m, "createdAt": d.get("createdAt"),
+                        "state": state,
+                        "authority": state == "ACTIVE"})
         if len(out) >= k:
             break
     return out
+
+
+# ---- lifecycle (3.0 spec section 43) ---------------------------------------
+STALE_AFTER_DAYS = 60
+
+
+def lifecycle_sweep(user_id: Optional[str] = None) -> int:
+    """Mark memory states: CONTRADICTED/INVALIDATED (explicit meta flags) win
+    over everything; otherwise entries untouched for STALE_AFTER_DAYS become
+    STALE. States stay visible - they just lose authority. Returns the number
+    of state changes. Never raises."""
+    try:
+        store = get_store()
+        from datetime import datetime, timezone
+        filters = {"userId": user_id} if user_id else None
+        docs = store.list(COLL, filters=filters, limit=MAX_PER_USER * 2)
+        changed = 0
+        now = datetime.now(timezone.utc)
+        for d in docs:
+            state = d.get("state") or "ACTIVE"
+            if state in ("CONTRADICTED", "INVALIDATED"):
+                continue
+            new_state = state
+            meta = d.get("meta") or {}
+            if meta.get("invalidated"):
+                new_state = "INVALIDATED"
+            elif meta.get("contradicted"):
+                new_state = "CONTRADICTED"
+            else:
+                try:
+                    created = datetime.fromisoformat(
+                        str(d.get("createdAt")).replace("Z", "+00:00"))
+                    if created.tzinfo is None:
+                        created = created.replace(tzinfo=timezone.utc)
+                    if (now - created).days >= STALE_AFTER_DAYS:
+                        new_state = "STALE"
+                except Exception:
+                    pass
+            if new_state != state:
+                store.update(COLL, d["id"], {"state": new_state})
+                changed += 1
+        return changed
+    except Exception:
+        return 0

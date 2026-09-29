@@ -21,7 +21,12 @@ def next_hypothesis_id() -> str:
 def create_hypothesis(user_id: str, strategy_id: str, variable: str, new_value: Any,
                       reason: str, expected_effect: str,
                       dataset: Optional[Dict[str, Any]] = None,
-                      source_lesson: Optional[str] = None) -> Dict[str, Any]:
+                      source_lesson: Optional[str] = None,
+                      observation: Optional[str] = None,
+                      supporting_evidence: Optional[List[Dict[str, Any]]] = None,
+                      contradictory_evidence: Optional[List[Dict[str, Any]]] = None,
+                      evidence_state: Optional[str] = None,
+                      falsification: Optional[str] = None) -> Dict[str, Any]:
     strategy = get_strategy(strategy_id)
     spec = strategy.experiment_variables.get(variable)
     if spec is None:
@@ -48,6 +53,12 @@ def create_hypothesis(user_id: str, strategy_id: str, variable: str, new_value: 
         "source_lesson": source_lesson,
         "status": "PROPOSED",
         "user_decision": None,
+        # 3.0 spec section 9: full testable-hypothesis structure
+        "observation": observation,
+        "supporting_evidence": supporting_evidence or [],
+        "contradictory_evidence": contradictory_evidence or [],
+        "evidence_state": evidence_state,
+        "falsification_criteria": falsification,
     }, doc_id=None)
     store.update("hypotheses", hyp["id"], {"hypothesis_id": hyp["hypothesis_id"]})
     return store.get("hypotheses", hyp["id"])

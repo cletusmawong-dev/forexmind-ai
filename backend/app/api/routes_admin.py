@@ -113,9 +113,8 @@ def set_trading(user_id: str, body: PermissionIn, admin: str = Depends(require_a
     return {"user": _public(store.get("users", user_id)), "changed": True}
 
 
-@router.post("/users/{user_id}/emergency-stop")
-def emergency_stop(user_id: str, admin: str = Depends(require_admin)):
-    """Kill switch + revoke + suspend, one action, fully audited."""
+def _emergency_stop_inner(user_id: str, admin: str) -> dict:
+    """Core of the per-user emergency stop (shared with the L5 kill-switch)."""
     store = get_store()
     u = store.get("users", user_id)
     if not u:
@@ -130,6 +129,86 @@ def emergency_stop(user_id: str, admin: str = Depends(require_admin)):
           {"status": "suspended", "trading_permission": "locked",
            "execution_enabled": False}, "EMERGENCY STOP")
     return {"user": _public(store.get("users", user_id)), "stopped": True}
+
+
+@router.post("/users/{user_id}/emergency-stop")
+def emergency_stop(user_id: str, admin: str = Depends(require_admin)):
+    """Kill switch + revoke + suspend, one action, fully audited."""
+    return _emergency_stop_inner(user_id, admin)
+
+
+class KillSwitchIn(BaseModel):
+    level: int
+    reason: str = ""
+    instruments: list = []
+    strategies: list = []
+
+
+class CloseAllIn(BaseModel):
+    confirm: bool = False
+
+
+@router.get("/killswitch")
+def killswitch_status(admin: str = Depends(require_admin)):
+    from ..risk.killswitch import current_level
+    return current_level()
+
+
+@router.post("/killswitch")
+def killswitch_set(body: KillSwitchIn, admin: str = Depends(require_admin)):
+    """Activate a kill-switch level (0-5). Explicit, audited, visible."""
+    from ..risk.killswitch import LEVELS, set_level
+    if not (0 <= body.level <= 4):
+        raise HTTPException(422, "use /killswitch/close-all for level 5 (guarded)")
+    prev = current = None
+    from ..risk.killswitch import current_level as _cl
+    prev = _cl()
+    r = set_level(body.level, admin, body.reason,
+                  instruments=body.instruments, strategies=body.strategies)
+    audit(admin, f"killswitch.L{body.level}", "system",
+          {"level": prev.get("level")}, {"level": body.level}, body.reason)
+    return r
+
+
+@router.post("/killswitch/close-all")
+def killswitch_close_all(body: CloseAllIn, admin: str = Depends(require_admin)):
+    """LEVEL 5: emergency close-all. Requires confirm=true. Audited. Stops
+    automated trading (level 4) after closing."""
+    from ..risk.killswitch import emergency_close_all
+    if not body.confirm:
+        raise HTTPException(422, "close-all requires confirm=true")
+    r = emergency_close_all(admin)
+    audit(admin, "killswitch.L5_close_all", "system",
+          {"level": 0}, {"level": 4, "closed": r.get("closed")}, "EMERGENCY CLOSE ALL")
+    return r
+
+
+@router.get("/security")
+def security_center(admin: str = Depends(require_admin)):
+    """Security Center (3.0 spec section 51): honest status booleans ONLY -
+    secret VALUES are never returned, configured/unconfigured is enough."""
+    from ..config import settings
+    store = get_store()
+    jwt_dev_default = settings.jwt_secret == "dev-only-secret-change-me"
+    return {
+        "jwt": {"configured": not jwt_dev_default,
+                "using_dev_fallback": jwt_dev_default,
+                "token_ttl_days": 30,
+                "risk": ("HIGH - public repo + dev fallback secret: tokens can "
+                         "be forged. Rotation awaits explicit owner approval."
+                         if jwt_dev_default else "ok")},
+        "telegram": {"configured": bool(getattr(settings, "telegram_bot_token", None))},
+        "bridge": {"configured": bool(getattr(settings, "bridge_url", None))},
+        "secrets_in_code": False,
+        "secret_policy": "env-only; values never served by any endpoint",
+        "admin_users": sum(1 for u in store.list("users", limit=200)
+                           if u.get("role") == "admin"),
+        "suspended_users": sum(1 for u in store.list("users", limit=200)
+                               if u.get("status") == "suspended"),
+        "audit_entries": store.count("audit_log"),
+        "killswitch_level": (store.get("settings", "killswitch") or {}).get("level", 0),
+        "note": "booleans and counts only - no secret material leaves the backend",
+    }
 
 
 @router.get("/overview")
@@ -248,6 +327,55 @@ def command_center(admin: str = Depends(require_admin)):
         return {"recent": store.list("regime_events", order_by="createdAt",
                                      desc=True, limit=8)}
     section("regime_events", _regime_events)
+
+    # ---- 3.0 additions (stages 1/4/5/7) --------------------------------
+    def _owner():
+        from ..config import settings
+        return getattr(settings, "owner_user_id", "cletusmawa")
+
+    def _evidence():
+        from ..evidence import engine
+        docs = engine.list_evidence(_owner())
+        return {"count": len(docs),
+                "states": {s: sum(1 for d in docs if d.get("state") == s)
+                           for s in ("INSUFFICIENT", "PRELIMINARY", "SUPPORTED",
+                                     "STRONGER", "CONTRADICTED")},
+                "contradictions": sum(len(d.get("contradictions") or [])
+                                      for d in docs)}
+    section("evidence", _evidence)
+
+    def _killswitch():
+        from ..risk.killswitch import current_level
+        return current_level()
+    section("killswitch", _killswitch)
+
+    def _incidents():
+        docs = store.list("incidents", limit=100)
+        return {"open": sum(1 for d in docs if d.get("status") != "RESOLVED"),
+                "critical": sum(1 for d in docs if d.get("severity") == "CRITICAL"
+                                and d.get("status") != "RESOLVED"),
+                "recent": [{k: d.get(k) for k in ("kind", "subject", "severity",
+                                                  "status", "last_seen_at")}
+                           for d in docs[:8]]}
+    section("incidents", _incidents)
+
+    def _tca():
+        from ..execution.tca import tca_report
+        return tca_report(_owner())
+    section("tca", _tca)
+
+    def _exposure():
+        from ..risk.exposure import exposure_snapshot
+        return exposure_snapshot(_owner())
+    section("exposure", _exposure)
+
+    def _research_ctx():
+        exps = store.list("experiments", limit=500)
+        return {"experiments_total": len(exps),
+                "passed": sum(1 for e in exps if (e.get("result") or {}).get("passed")),
+                "hypotheses": store.count("hypotheses"),
+                "note": "multiple-testing context for any single result"}
+    section("research_context", _research_ctx)
 
     section("audit_tail", lambda: {"entries": store.list(
         "audit_log", order_by="createdAt", desc=True, limit=15)})

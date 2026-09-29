@@ -1,6 +1,7 @@
 import { RefreshCw, ListChecks } from "lucide-react";
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
+import { TcaPanel } from "../components/intel30";
 import { Empty, ErrorNote, Glass, PageHeader, Pill, SectionHeader, Spinner } from "../components/ui";
 import { shortAgo } from "../lib/format";
 
@@ -83,6 +84,10 @@ export function ExecutionScreen() {
               ))}
             </Glass>
           )}
+      </section>
+
+      <section>
+        <TcaPanel />
       </section>
     </div>
   );

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeft, RefreshCw, Shield, ShieldAlert, OctagonX } from "lucide-react";
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
+import { IncidentsPanel, KillSwitchPanel, SecurityPanel } from "../components/intel30";
 import { ActionButton, Empty, Glass, PageHeader, Pill, SectionHeader, Spinner, StatusDot } from "../components/ui";
 import { shortAgo } from "../lib/format";
 
@@ -211,6 +212,15 @@ export function AdminScreen() {
             </div>
           ))}
         </Glass>
+      </section>
+
+      <section className="grid gap-3 lg:grid-cols-2">
+        <KillSwitchPanel />
+        <SecurityPanel />
+      </section>
+
+      <section>
+        <IncidentsPanel />
       </section>
     </div>
   );

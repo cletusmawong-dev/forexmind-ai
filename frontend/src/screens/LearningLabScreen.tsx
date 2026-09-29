@@ -2,16 +2,18 @@ import { useState } from "react";
 import { ArrowRight, FlaskConical, GraduationCap, ShieldAlert } from "lucide-react";
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
+import { EvidencePanel, ResearchToolsPanel } from "../components/intel30";
 import type { Experiment, Hypothesis, Lesson, Observation, ResearchHypothesis, Signal, StrategyDoc, StrategyVersion } from "../lib/types";
 import { DemoTag, Divider, Eyebrow, Glass, GlowDot, Pill, Segmented, Spinner } from "../components/ui";
 import { ChevronDown } from "lucide-react";
 import { fmtDateTime } from "../lib/format";
 
 const FLOW = ["Trade", "Result", "Analysis", "Lesson", "Hypothesis", "1-Var Test", "Approval", "New version"];
-const TABS = ["SIGNAL IQ", "RESEARCH", "AUTOPSIES", "QUEUE", "EXPERIMENTS", "PATTERNS", "INSIGHTS", "HISTORY"] as const;
+const TABS = ["SIGNAL IQ", "RESEARCH", "AUTOPSIES", "QUEUE", "EXPERIMENTS", "PATTERNS", "INSIGHTS", "HISTORY","EVIDENCE"] as const;
 
 export function LearningLabScreen() {
   const [tab, setTab] = useState<(typeof TABS)[number]>("SIGNAL IQ");
+  // EVIDENCE tab lives alongside the existing tabs (3.0 stage 9)
   const obs = usePolling<{ observations: Observation[] }>(() => api.get(endpoints.observations), 10000);
   const signals = usePolling<{ signals: Signal[] }>(() => api.get(endpoints.signals), 10000);
   const research = usePolling<{ hypotheses: ResearchHypothesis[]; discovered: number }>(() => api.get(endpoints.research), 15000);
@@ -211,6 +213,7 @@ export function LearningLabScreen() {
           onChange={(k) => setTab(k as any)}
           options={[
             { key: "SIGNAL IQ", label: "Signal IQ" },
+            { key: "EVIDENCE", label: "Evidence" },
             { key: "RESEARCH", label: research.data?.discovered ? `Research (${research.data.discovered})` : "Research" },
             { key: "QUEUE", label: pendingCount ? `Queue (${pendingCount})` : "Queue" },
             { key: "EXPERIMENTS", label: "Experiments" },
@@ -258,6 +261,13 @@ export function LearningLabScreen() {
       )}
 
       {/* ---------------- AI OBSERVATIONS ---------------- */}
+      {tab === "EVIDENCE" && (
+        <div className="space-y-6">
+          <EvidencePanel />
+          <ResearchToolsPanel />
+        </div>
+      )}
+
       {tab === "INSIGHTS" && (
         <div className="mt-5 space-y-4">
           <p className="px-1 text-[11px] leading-relaxed text-txt-faint">
