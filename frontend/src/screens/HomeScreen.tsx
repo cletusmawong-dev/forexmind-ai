@@ -134,7 +134,7 @@ export function HomeScreen() {
         <div className="page-head-divider mb-6" aria-hidden="true" />
 
         {/* ---- hero ---- */}
-        <Glass className="hero-card relative overflow-hidden" pad={false}>
+        <Glass className="hero-card relative overflow-hidden" pad={false} data-reveal>
           <img src={heroBull} alt="" aria-hidden="true"
                className="pointer-events-none absolute right-0 top-0 h-full w-[74%] object-cover object-right opacity-80"
                style={{ mixBlendMode: HERO_BLEND[activeTheme] ?? "screen", maskImage: "linear-gradient(to right, transparent 8%, black 52%)", WebkitMaskImage: "linear-gradient(to right, transparent 8%, black 52%)" }} />
@@ -248,7 +248,7 @@ export function HomeScreen() {
           })()}
 
         {/* ---- goal ---- */}
-        <Glass level={2} className="mt-4" pad={false}>
+        <Glass level={2} className="mt-4" pad={false} data-reveal>
           <div className="flex items-center justify-between px-5 pb-4 pt-5">
             <div className="flex items-center gap-2.5">
               <span
@@ -310,7 +310,7 @@ export function HomeScreen() {
         <MorningBriefCard />
 
         <SectionHeader className="mt-8" right={<DemoTag />}>Market Watch</SectionHeader>
-        <Glass pad={false} className="overflow-hidden !p-1.5">
+        <Glass pad={false} className="overflow-hidden !p-1.5" data-reveal>
           {marketList.length === 0 && <div className="px-4 py-6 text-center text-[12px] text-[var(--text-muted)]">Loading markets...</div>}
           <div className="space-y-1">
             {marketList.map((m) => (
@@ -350,7 +350,7 @@ export function HomeScreen() {
         <SectionHeader className="mt-8" right={<Link to="/agent" className="text-[11.5px] font-semibold text-[#1b69b8]">Agent</Link>}>
           AI Activity
         </SectionHeader>
-        <Glass pad={false} className="!p-5">
+        <Glass pad={false} className="!p-5" data-reveal>
           <div className="relative space-y-4">
             <span className="absolute bottom-1 left-[4px] top-1 w-px bg-gradient-to-b from-[rgba(var(--p-rgb),0.35)] to-transparent" />
             {(activity.data?.activity ?? []).slice(0, 6).map((a, i) => (

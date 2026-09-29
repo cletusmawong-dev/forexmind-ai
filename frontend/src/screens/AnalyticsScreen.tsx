@@ -31,7 +31,7 @@ export function AnalyticsScreen() {
       </header>
 
       {/* hero numbers - typography only */}
-      <section className="flex flex-wrap items-end gap-x-10 gap-y-5 px-1">
+      <section className="flex flex-wrap items-end gap-x-10 gap-y-5 px-1" data-reveal>
         <HeroNum label="Total" value={fmtR(m.total_r)} tone={m.total_r >= 0 ? "text-pos" : "text-neg"} />
         <HeroNum label="Win rate" value={`${m.win_rate ?? 0}%`} />
         <HeroNum label="Profit factor" value={String(m.profit_factor ?? "-")} />
@@ -39,7 +39,7 @@ export function AnalyticsScreen() {
       </section>
 
       {/* equity */}
-      <Glass className="mt-8 !p-5">
+      <Glass className="mt-8 !p-5" data-reveal>
         <div className="eyebrow mb-3 px-1">Equity curve - cumulative R</div>
         <ResponsiveContainer width="100%" height={190}>
           <AreaChart data={curve} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>

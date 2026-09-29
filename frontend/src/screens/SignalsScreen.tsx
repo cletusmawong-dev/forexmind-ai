@@ -105,7 +105,7 @@ export function SignalsScreen() {
       ) : (
         <div className="space-y-3">
           {signals.map((s, i) => (
-            <div key={s.id} className="anim-fadeUp" style={{ animationDelay: `${Math.min(i * 40, 300)}ms` }}>
+            <div key={s.id} data-reveal style={{ transitionDelay: `${Math.min(i * 40, 300)}ms` }}>
               <SignalRow signal={s} onClick={() => navigate(`/signals/${s.id}`)} />
             </div>
           ))}

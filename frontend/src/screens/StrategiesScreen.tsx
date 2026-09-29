@@ -142,7 +142,7 @@ export function StrategiesScreen() {
 
       <Glass pad={false} className="divide-y divide-[rgba(var(--warm-rgb),0.06)] !p-0">
         {(data?.strategies ?? []).map((s, idx) => (
-          <div key={s.id}>
+          <div key={s.id} data-reveal style={{ transitionDelay: `${Math.min(idx * 60, 240)}ms` }}>
             <button onClick={() => loadVersions(s.id)} className="tap flex w-full items-center gap-4 px-5 py-5 text-left transition hover:bg-[rgba(var(--warm-rgb),0.03)]">
               {s.status === "ACTIVE" ? <GlowDot tone="pos" /> : s.status === "PAUSED" ? <GlowDot tone="warn" pulse={false} /> : <span className="h-[7px] w-[7px] rounded-full bg-[rgba(var(--warm-rgb),0.18)]" />}
               <div className="min-w-0 flex-1">
@@ -284,7 +284,7 @@ export function StrategySessionsCard({ sid }: { sid: string }) {
   })).sort((a, b) => b.avgR - a.avgR);
 
   return (
-    <div className="mt-4 rounded-2xl border border-[rgba(var(--warm-rgb),0.06)] bg-[rgba(var(--warm-rgb),0.035)] p-4">
+    <div className="mt-4 rounded-2xl border border-[rgba(var(--warm-rgb),0.06)] bg-[rgba(var(--warm-rgb),0.035)] p-4" data-reveal>
       <div className="flex items-center justify-between">
         <Eyebrow className="!mb-0">Trading sessions <Clock size={11} className="ml-1 inline" /></Eyebrow>
         {dirty && <Pill tone="warn">unsaved</Pill>}

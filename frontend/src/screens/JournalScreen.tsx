@@ -12,7 +12,7 @@ import {NotebookPen, ArrowUpRight, ArrowDownRight} from "lucide-react";
 export function JournalScreen() {
   const [tab, setTab] = useState<"record" | "history">("record");
   const stats = usePolling<any>(() => api.get(endpoints.journal), 8000);
-  const signals = usePolling<{ signals: Signal[] }>(() => api.get(`${endpoints.signals}?status=closed&limit=30`), 8000);
+  const signals = usePolling<{ signals: Signal[] }>(() => api.get(`${endpoints.signals}?status=closed&limit=200`), 8000);
   const mt5 = usePolling<any>(() => api.get("/api/journal/mt5-trades"), 8000);
   const navigate = useNavigate();
 
@@ -46,13 +46,13 @@ export function JournalScreen() {
         onChange={(k) => setTab(k as any)}
         options={[
           { key: "record", label: "Overview" },
-          { key: "history", label: "History" },
+          { key: "history", label: "Trade history" },
         ]}
       />
 
       {tab === "record" && (
         <div className="lg:grid lg:grid-cols-12 lg:gap-10">
-          <div className="lg:col-span-7">
+          <div className="lg:col-span-7" data-reveal>
             {/* hero numbers */}
             <section>
               <p className="eyebrow">This week</p>
@@ -91,7 +91,7 @@ export function JournalScreen() {
             </Glass>
           </div>
 
-          <div className="mt-10 lg:col-span-5 lg:mt-0 lg:border-l lg:border-[rgba(var(--warm-rgb),0.06)] lg:pl-10">
+          <div className="mt-10 lg:col-span-5 lg:mt-0 lg:border-l lg:border-[rgba(var(--warm-rgb),0.06)] lg:pl-10" data-reveal>
             <Eyebrow className="mb-3">Daily R - last 14 days</Eyebrow>
             <Glass pad={false} className="!p-5">
               <div className="flex h-24 items-end gap-[5px]">
@@ -132,13 +132,7 @@ export function JournalScreen() {
       )}
 
       {tab === "history" && (
-        <div>
-          {mt5Trades(mt5.data?.trades ?? [], navigate, mt5.data?.mode)}
-          <Eyebrow className="mt-8 mb-2">Trade log - every closed signal, full story</Eyebrow>
-          <div className="space-y-3">
-            {tradeLog(signals.data?.signals ?? [], navigate)}
-          </div>
-        </div>
+        <HistoryTab raw={signals.data?.signals ?? []} mt5Data={mt5.data} navigate={navigate} />
       )}
     </div>
   );
@@ -368,5 +362,141 @@ function mt5Trades(trades: any[], navigate: (p: string) => void, mode: string) {
         })}
       </div>
     </>
+  );
+}
+
+/* ---- trade history: win-rate stats + breakdowns + filters + full log ---- */
+function StatTile({ label, value, tone, sub }: { label: string; value: string; tone?: string; sub?: string }) {
+  return (
+    <div className="glass px-4 py-3.5">
+      <div className="eyebrow !text-[9px]">{label}</div>
+      <div className={`num mt-1 text-[19px] font-bold ${tone ?? "text-txt-hi"}`}>{value}</div>
+      {sub && <div className="mt-0.5 text-[9.5px] text-txt-faint">{sub}</div>}
+    </div>
+  );
+}
+
+function BreakdownTable({ title, rows }: { title: string; rows: { name: string; c: number; wr: number; r: number }[] }) {
+  if (!rows.length) return null;
+  return (
+    <div className="glass px-5 py-4">
+      <div className="eyebrow !text-[9px]">{title}</div>
+      <div className="mt-2 space-y-2">
+        {rows.map((r) => (
+          <div key={r.name} className="flex items-center gap-3">
+            <span className="w-24 shrink-0 truncate text-[11.5px] text-txt-mid">{r.name}</span>
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[rgba(var(--warm-rgb),0.1)]">
+              <div className={`h-full rounded-full ${r.wr >= 50 ? "bg-pos" : "bg-[var(--accent-amber)]"}`}
+                style={{ width: `${Math.max(4, r.wr)}%`, transition: "width .6s ease" }} />
+            </div>
+            <span className={`num w-10 text-right text-[11.5px] font-bold ${r.wr >= 50 ? "text-pos" : "text-[var(--accent-amber)]"}`}>{r.wr}%</span>
+            <span className="num w-16 text-right text-[10px] text-txt-faint">{r.c} trd - {fmtR(r.r)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function HistoryTab({ raw, mt5Data, navigate }: { raw: LogSignal[]; mt5Data: any; navigate: (p: string) => void }) {
+  const [outcome, setOutcome] = useState<"all" | "win" | "loss">("all");
+  const [strat, setStrat] = useState("all");
+
+  const closed = raw.filter((s) => s.completed).sort((a, b) =>
+    String(b.completed_at || b.candle_time).localeCompare(String(a.completed_at || a.candle_time)));
+  const wins = closed.filter((s) => s.outcome === "WIN").length;
+  const losses = closed.length - wins;
+  const wr = closed.length ? Math.round((100 * wins) / closed.length) : 0;
+  const rs = closed.map((s) => s.r_multiple ?? 0);
+  const totalR = rs.reduce((a, b) => a + b, 0);
+  const avgR = closed.length ? totalR / closed.length : 0;
+  const best = rs.length ? Math.max(...rs) : 0;
+  const worst = rs.length ? Math.min(...rs) : 0;
+  const posR = rs.filter((r) => r > 0).reduce((a, b) => a + b, 0);
+  const negR = Math.abs(rs.filter((r) => r < 0).reduce((a, b) => a + b, 0));
+  const pf = negR > 0 ? posR / negR : posR > 0 ? Infinity : 0;
+
+  const mt5Closed = (mt5Data?.trades ?? []).filter((t: any) => t.closed_at || (t.status ?? "") === "closed");
+  const mt5Sum = mt5Closed.reduce((a: number, t: any) => a + (t.pl_usd ?? 0), 0);
+
+  const breakdown = (key: "strategy_name" | "market") => {
+    const groups = [...new Set(closed.map((s) => s[key]).filter((g): g is string => !!g))];
+    return groups.map((g) => {
+      const arr = closed.filter((s) => s[key] === g);
+      const w = arr.filter((s) => s.outcome === "WIN").length;
+      return {
+        name: g, c: arr.length,
+        wr: arr.length ? Math.round((100 * w) / arr.length) : 0,
+        r: arr.reduce((a, s) => a + (s.r_multiple ?? 0), 0),
+      };
+    }).sort((a, b) => b.wr - a.wr || b.c - a.c);
+  };
+  const byStrat = breakdown("strategy_name");
+  const byPair = breakdown("market");
+  const stratNames = byStrat.map((b) => b.name);
+
+  const filtered = closed.filter((s) =>
+    (outcome === "all" || (outcome === "win" ? s.outcome === "WIN" : s.outcome !== "WIN")) &&
+    (strat === "all" || s.strategy_name === strat));
+
+  const chip = (on: boolean) =>
+    `rounded-full px-3 py-1.5 text-[10.5px] font-semibold transition ${on ? "chip-on-pos" : "chip-off"}`;
+
+  return (
+    <div>
+      {/* win-rate stat tiles */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4" data-reveal>
+        <div className="glass relative overflow-hidden px-5 py-4">
+          <div className="eyebrow !text-[9px]">Win rate</div>
+          <div className={`num mt-1 text-[34px] font-extrabold leading-none ${wr >= 50 ? "text-pos" : wr > 0 ? "text-[var(--accent-amber)]" : "text-neg"}`}>{wr}%</div>
+          <div className="mt-1 text-[9.5px] text-txt-faint">{wins}W - {losses}L of {closed.length} closed</div>
+          <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-[rgba(var(--warm-rgb),0.1)]">
+            <div className={`h-full rounded-full ${wr >= 50 ? "bg-pos" : "bg-[var(--accent-amber)]"}`}
+              style={{ width: `${wr}%`, transition: "width .6s ease" }} />
+          </div>
+        </div>
+        <StatTile label="Closed trades" value={String(closed.length)} sub={`${wins} wins - ${losses} losses`} />
+        <StatTile label="Total R" value={fmtR(totalR)} tone={totalR >= 0 ? "text-pos" : "text-neg"}
+          sub={`best ${fmtR(best)} - worst ${fmtR(worst)}`} />
+        <StatTile label="Avg R / trade" value={fmtR(avgR)} tone={avgR >= 0 ? "text-pos" : "text-neg"} sub="across all closed" />
+        <StatTile label="Profit factor" value={pf === Infinity ? "\u221e" : pf.toFixed(2)}
+          tone={pf >= 1 ? "text-pos" : "text-neg"} sub="gross win R \u00f7 gross loss R" />
+        <StatTile label="MT5 realized" value={`${mt5Sum >= 0 ? "+" : ""}$${Math.abs(mt5Sum).toFixed(2)}`}
+          tone={mt5Sum >= 0 ? "text-pos" : "text-neg"} sub={`${mt5Closed.length} broker-confirmed`} />
+        <StatTile label="Taken / skipped" value={`${wins + losses}`} sub="closed vs tracked signals" />
+      </div>
+
+      {/* win rate by strategy / by pair */}
+      <div className="mt-5 grid gap-3 lg:grid-cols-2" data-reveal>
+        <BreakdownTable title="Win rate by strategy" rows={byStrat} />
+        <BreakdownTable title="Win rate by pair" rows={byPair} />
+      </div>
+
+      {/* filters */}
+      <div className="mt-7 flex flex-wrap items-center gap-2" data-reveal>
+        <span className="eyebrow !mb-0 !text-[9px]">Filter</span>
+        {(["all", "win", "loss"] as const).map((k) => (
+          <button key={k} onClick={() => setOutcome(k)} className={chip(outcome === k)}>
+            {k === "all" ? `All (${closed.length})` : k === "win" ? `Wins ${wins}` : `Losses ${losses}`}
+          </button>
+        ))}
+        <span className="mx-1 h-4 w-px bg-[rgba(var(--warm-rgb),0.12)]" />
+        <button onClick={() => setStrat("all")} className={chip(strat === "all")}>All strategies</button>
+        {stratNames.map((n) => (
+          <button key={n} onClick={() => setStrat(n)} className={chip(strat === n)}>{n}</button>
+        ))}
+      </div>
+
+      {/* logs */}
+      <div className="mt-5" data-reveal>
+        {mt5Trades(mt5Data?.trades ?? [], navigate, mt5Data?.mode)}
+        <Eyebrow className="mt-8 mb-2">
+          Trade log - every closed signal, full story{filtered.length !== closed.length ? ` (${filtered.length} of ${closed.length} shown)` : ""}
+        </Eyebrow>
+        <div className="space-y-3">
+          {tradeLog(filtered, navigate)}
+        </div>
+      </div>
+    </div>
   );
 }

@@ -77,6 +77,41 @@ export default function App() {
     });
   }, []);
 
+  // P19 polish: scroll-reveal engine - [data-reveal] elements slide in the first
+  // time they enter the viewport; rescans on DOM changes (routes, polling).
+  useEffect(() => {
+    if (typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) {
+            e.target.classList.add("in");
+            io.unobserve(e.target);
+          }
+        }
+      },
+      { threshold: 0.05, rootMargin: "0px 0px -4% 0px" }
+    );
+    let timer: number | undefined;
+    const scan = () => {
+      timer = undefined;
+      document.querySelectorAll("[data-reveal]:not(.js-reveal)").forEach((el) => {
+        el.classList.add("js-reveal");
+        io.observe(el);
+      });
+    };
+    const mo = new MutationObserver(() => {
+      if (timer === undefined) timer = window.setTimeout(scan, 120);
+    });
+    scan();
+    mo.observe(document.body, { childList: true, subtree: true });
+    return () => {
+      mo.disconnect();
+      io.disconnect();
+      if (timer !== undefined) clearTimeout(timer);
+    };
+  }, []);
+
   if (!booted) return <Splash />;
   if (!authed) return <LoginScreen onAuthed={() => setAuthed(true)} />;
 

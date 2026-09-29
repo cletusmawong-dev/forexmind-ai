@@ -1099,3 +1099,48 @@ body {
   .chip-on-muted {
     @apply border-transparent bg-[#8a91a5] text-white;
   }
+
+/* ====== P19 UI POLISH: smooth scrolling, crisp tiles, hover + scroll-reveal motion ====== */
+html {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* thin, quiet scrollbars (thumb colors are themed) */
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { border-radius: 99px; border: 2px solid transparent; background-clip: padding-box; }
+* { scrollbar-width: thin; }
+
+/* crisp tiles: every glass tile lifts gently on hover with a soft depth shadow */
+.glass {
+  transition:
+    transform 0.2s cubic-bezier(0.22, 0.61, 0.36, 1),
+    box-shadow 0.25s ease,
+    border-color 0.25s ease,
+    background-color 0.25s ease;
+}
+.glass:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.35);
+}
+
+/* scroll-reveal: [data-reveal] elements slide up once, the first time they enter the viewport
+   (class is added by JS only - with JS disabled nothing is ever hidden) */
+.js-reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition:
+    opacity 0.55s cubic-bezier(0.22, 0.61, 0.36, 1),
+    transform 0.55s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.js-reveal.in {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .glass:hover { transform: none; }
+  .js-reveal { opacity: 1; transform: none; transition: none; }
+}
