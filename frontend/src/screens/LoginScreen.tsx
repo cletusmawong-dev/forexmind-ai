@@ -55,8 +55,8 @@ export function LoginScreen({ onAuthed }: { onAuthed: () => void }) {
               <path d="M30.5 19.5h-4.4M30.5 19.5v4.4" stroke="#2fd98a" strokeWidth="1.9" strokeLinecap="round" />
             </svg>
           </div>
-          <h1 className="text-[24px] font-semibold tracking-tight">
-            ForexMind <span className="text-acc">AI</span>
+          <h1 className="txt-aurora text-[24px] font-bold tracking-tight">
+            ForexMind <span className="font-black">AI</span>
           </h1>
           <p className="mt-2 text-[12.5px] leading-relaxed text-txt-low">Your personal AI trading research agent.</p>
         </div>

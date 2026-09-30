@@ -1288,3 +1288,223 @@ html {
 @media (prefers-reduced-motion: reduce) {
   .ambient::before { animation: none; }
 }
+
+/* ============================================================
+   PRO POLISH (2026-09-30) - fonts, hover choreography, focus
+   Theme-aware throughout (uses --p-rgb/--p2-rgb/--gold-rgb).
+   ============================================================ */
+
+/* ---------- self-hosted fonts (no external requests) ---------- */
+@font-face {
+  font-family: "Space Grotesk";
+  font-style: normal; font-weight: 400; font-display: swap;
+  src: url("/fonts/space-grotesk-latin-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Space Grotesk";
+  font-style: normal; font-weight: 500; font-display: swap;
+  src: url("/fonts/space-grotesk-latin-500-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Space Grotesk";
+  font-style: normal; font-weight: 700; font-display: swap;
+  src: url("/fonts/space-grotesk-latin-700-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal; font-weight: 400; font-display: swap;
+  src: url("/fonts/jetbrains-mono-latin-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal; font-weight: 600; font-display: swap;
+  src: url("/fonts/jetbrains-mono-latin-600-normal.woff2") format("woff2");
+}
+
+:root {
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.35, 0.44, 1);
+  --hover-lift: -2px;
+  --hover-glow: 0 0 0 1px rgba(var(--p-rgb), 0.22),
+                0 10px 30px rgba(var(--p-rgb), 0.14),
+                0 18px 44px rgba(0, 0, 0, 0.16);
+}
+
+/* theme-aware selection + focus */
+::selection {
+  background: rgba(var(--p-rgb), 0.30);
+}
+:focus-visible {
+  outline: 2px solid rgba(var(--p-rgb), 0.65);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* ---------- cards: confident, weightless lift ---------- */
+.glass-hover {
+  /* replaced the hardcoded-blue hover: now every theme glows in its own accent */
+  transition:
+    transform 0.28s var(--ease-out),
+    box-shadow 0.28s var(--ease-out),
+    border-color 0.28s var(--ease-out),
+    background 0.28s var(--ease-out);
+  will-change: transform;
+}
+.glass-hover:hover {
+  transform: translateY(var(--hover-lift));
+  border-color: rgba(var(--p-rgb), 0.36);
+  box-shadow:
+    inset 0 1px 0 rgba(var(--p2-rgb), 0.20),
+    0 0 34px rgba(var(--p-rgb), 0.16),
+    0 18px 44px rgba(0, 0, 0, 0.18);
+}
+/* sheen line that sweeps across a hovered card's top edge */
+.glass-hover::after {
+  content: "";
+  position: absolute;
+  inset: 0 12% auto 12%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(var(--p2-rgb), 0.75), transparent);
+  opacity: 0;
+  transition: opacity 0.32s var(--ease-out);
+  pointer-events: none;
+}
+.glass-hover:hover::after {
+  opacity: 0.9;
+}
+
+/* ---------- buttons & tap targets ---------- */
+.tap {
+  transition:
+    transform 0.2s var(--ease-spring),
+    filter 0.2s var(--ease-out),
+    box-shadow 0.2s var(--ease-out),
+    background 0.2s var(--ease-out);
+}
+button:not(:disabled):hover,
+[role="button"]:not(:disabled):hover,
+a:not(.no-lift):hover {
+  filter: brightness(1.05);
+}
+button:not(:disabled):active,
+[role="button"]:not(:disabled):active {
+  transform: scale(0.98);
+}
+
+/* ---------- sidebar nav: slide + accent rail ---------- */
+.glass-nav a,
+.glass-nav button {
+  transition:
+    background 0.22s var(--ease-out),
+    color 0.22s var(--ease-out),
+    transform 0.22s var(--ease-spring),
+    box-shadow 0.22s var(--ease-out);
+}
+.glass-nav a:hover,
+.glass-nav button:hover {
+  transform: translateX(3px);
+  box-shadow: inset 3px 0 0 0 rgba(var(--p-rgb), 0.85),
+              inset 12px 0 24px -14px rgba(var(--p-rgb), 0.45);
+}
+
+/* ---------- inputs, selects ---------- */
+.input {
+  transition:
+    border-color 0.2s var(--ease-out),
+    box-shadow 0.2s var(--ease-out),
+    background 0.2s var(--ease-out);
+}
+.input:hover {
+  border-color: rgba(var(--p-rgb), 0.34);
+}
+.input:focus {
+  border-color: rgba(var(--p-rgb), 0.6);
+  box-shadow: 0 0 0 3px rgba(var(--p-rgb), 0.18),
+              0 0 18px rgba(var(--p-rgb), 0.10);
+}
+
+/* ---------- chips ---------- */
+.chip-off {
+  transition: transform 0.2s var(--ease-spring),
+              border-color 0.2s var(--ease-out),
+              color 0.2s var(--ease-out),
+              background 0.2s var(--ease-out);
+}
+.chip-off:hover {
+  transform: translateY(-1px);
+}
+.chip-on {
+  box-shadow: 0 6px 16px rgba(var(--p-rgb), 0.30),
+              inset 0 1px 0 rgba(255, 255, 255, 0.26);
+}
+
+/* ---------- segmented mode control (strategy entry settings) ---------- */
+.seg {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  border-radius: 999px;
+  background: rgba(127, 127, 127, 0.10);
+  border: 1px solid rgba(var(--p-rgb), 0.14);
+}
+.seg button {
+  position: relative;
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: color-mix(in srgb, currentColor 78%, transparent);
+  transition:
+    color 0.18s var(--ease-out),
+    background 0.22s var(--ease-out),
+    box-shadow 0.22s var(--ease-out),
+    transform 0.18s var(--ease-spring);
+}
+.seg button:hover:not(.seg-on) {
+  color: rgb(var(--p-rgb));
+  background: rgba(var(--p-rgb), 0.08);
+  transform: translateY(-1px);
+}
+.seg button.seg-on {
+  color: #fff;
+  background: linear-gradient(120deg, rgb(var(--p-rgb)) 0%, rgb(var(--p2-rgb)) 100%);
+  box-shadow: 0 4px 14px rgba(var(--p-rgb), 0.35),
+              inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+
+/* ---------- aurora text for brand/headers ---------- */
+.txt-aurora {
+  background: linear-gradient(92deg, rgb(var(--p-rgb)) 0%, rgb(var(--p2-rgb)) 55%, rgba(var(--gold-rgb), 0.9) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ---------- themed scrollbar ---------- */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--p-rgb), 0.35) transparent;
+}
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb {
+  background: rgba(var(--p-rgb), 0.30);
+  border-radius: 8px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--p-rgb), 0.50);
+}
+*::-webkit-scrollbar-track { background: transparent; }
+
+/* ---------- numbered values shine a touch brighter ---------- */
+.num { font-family: "JetBrains Mono", ui-monospace, monospace; }
+
+/* ---------- reduced motion: kill lifts/sweeps, keep function ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .glass-hover, .glass-hover::after, .tap, .seg button,
+  .glass-nav a, .glass-nav button, .chip-off {
+    transition: none !important;
+  }
+  .glass-hover:hover, .seg button:hover:not(.seg-on),
+  .chip-off:hover { transform: none !important; }
+}

@@ -164,6 +164,9 @@ export function StrategiesScreen() {
                   Strategy {idx + 1} - <span className="font-mono">v{s.active_version}</span> - {s.status.toLowerCase()}
                 </div>
               </div>
+              <span className="mr-1 hidden shrink-0 items-center gap-1 rounded-full border border-[rgba(var(--warm-rgb),0.14)] px-2.5 py-1 text-[9.5px] font-bold uppercase tracking-[0.14em] text-txt-faint sm:flex">
+                Settings
+              </span>
               <ChevronDown size={16} className={`shrink-0 text-txt-faint transition-transform duration-500 ${openId === s.id ? "rotate-180" : ""}`} />
             </button>
 
@@ -172,36 +175,23 @@ export function StrategiesScreen() {
                 <div className="px-5 pb-6">
                   <p className="text-[12px] leading-relaxed text-txt-low">{s.description}</p>
 
-                  {/* parameters - quiet two-column */}
-                  <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 rounded-2xl border border-[rgba(var(--warm-rgb),0.06)] bg-[rgba(var(--warm-rgb),0.035)] p-4">
+                  {/* MODE settings - prominent, one tap to change */}
+                  {Object.entries(s.active_params ?? {})
+                    .filter(([k]) => (s.experiment_variables ?? {})[k]?.type === "select")
+                    .map(([k, v]) => (
+                      <ModeControl key={k} sid={s.id} k={k} v={String(v)}
+                                   spec={(s.experiment_variables ?? {})[k]}
+                                   busy={busy} onSet={setParam} />
+                    ))}
+
+                  {/* numeric parameters - click a value to edit */}
+                  <div className="mt-1 grid grid-cols-2 gap-x-6 gap-y-2 rounded-2xl border border-[rgba(var(--warm-rgb),0.06)] bg-[rgba(var(--warm-rgb),0.035)] p-4">
                     {Object.entries(s.active_params ?? {})
-                      .filter(([k]) => k !== "expire_bars")
-                      .map(([k, v]) => {
-                        const spec = (s.experiment_variables ?? {})[k];
-                        if (spec?.type === "select") {
-                          return (
-                            <div key={k} className="flex items-center justify-between gap-3">
-                              <span className="font-mono text-[10.5px] text-txt-faint">{k}</span>
-                              <select
-                                className="input max-w-[190px] py-1.5 text-[12px]"
-                                value={String(v)}
-                                disabled={busy === `param:${k}`}
-                                onChange={(e) => setParam(s.id, k, e.target.value)}
-                              >
-                                {(spec.options ?? []).map((o: string) => (
-                                  <option key={o} value={o}>{o}</option>
-                                ))}
-                              </select>
-                            </div>
-                          );
-                        }
-                        return (
-                          <div key={k} className="flex items-baseline justify-between">
-                            <span className="font-mono text-[10.5px] text-txt-faint">{k}</span>
-                            <span className="num text-[12px] font-medium text-txt-mid">{String(v)}</span>
-                          </div>
-                        );
-                      })}
+                      .filter(([k]) => k !== "expire_bars" && (s.experiment_variables ?? {})[k]?.type !== "select")
+                      .map(([k, v]) => (
+                        <NumParam key={k} k={k} v={v} busy={busy}
+                                  onSet={(sid, variable, value) => setParam(s.id, variable, value)} />
+                      ))}
                   </div>
 
                   <StrategySessionsCard sid={s.id} />
@@ -269,6 +259,89 @@ export function StrategiesScreen() {
 }
 
 const ALL_SESSIONS = ["Asian", "London", "NewYork", "Late"] as const;
+
+const MODE_HINTS: Record<string, Record<string, string>> = {
+  entry_mode: {
+    hvn_rejection: "Price wicks into a high-volume pivot level and closes back - fade the rejection.",
+    breakout: "Price CLOSES through an active volume-backed level - trade the break.",
+    poc_bounce: "Price taps the Point of Control and closes back in the bounce direction.",
+  },
+};
+
+/** Prominent control for select-type settings (e.g. entry_mode).
+ *  The user picks the strategy's trigger mode right on the card. */
+function ModeControl({ sid, k, v, spec, busy, onSet }: {
+  sid: string; k: string; v: string; spec: any;
+  busy: string; onSet: (sid: string, variable: string, value: string) => void;
+}) {
+  const opts: string[] = spec?.options ?? [];
+  const hint = MODE_HINTS[k]?.[String(v)];
+  return (
+    <div className="mb-4 rounded-2xl border border-[rgba(var(--warm-rgb),0.10)] bg-[rgba(var(--warm-rgb),0.045)] p-4">
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-txt-faint">
+          {spec?.description || k}
+        </span>
+        {busy === `param:${k}` && (
+          <span className="h-2 w-2 animate-pulse rounded-full bg-[rgb(var(--p-rgb))]" />
+        )}
+      </div>
+      <div className="seg mt-3 w-full justify-stretch">
+        {opts.map((o) => (
+          <button
+            key={o}
+            className={`flex-1 ${String(v) === o ? "seg-on" : ""}`}
+            disabled={busy === `param:${k}`}
+            onClick={() => onSet(sid, k, o)}
+          >
+            {o.replace(/_/g, " ")}
+          </button>
+        ))}
+      </div>
+      {hint && (
+        <p className="mt-2.5 text-[11px] leading-relaxed text-txt-low">{hint}</p>
+      )}
+    </div>
+  );
+}
+
+/** Inline-editable numeric setting: click the value, type, Enter/blur saves. */
+function NumParam({ k, v, onSet, busy }: {
+  k: string; v: any; onSet: (sid: string, variable: string, value: string) => void; busy: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(String(v));
+  const commit = () => {
+    setEditing(false);
+    if (draft !== String(v)) onSet("", k, draft);
+  };
+  return (
+    <div className="flex items-baseline justify-between">
+      <span className="font-mono text-[10.5px] text-txt-faint">{k}</span>
+      {editing ? (
+        <input
+          autoFocus
+          className="input w-[92px] px-2 py-0.5 text-right text-[12px]"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commit();
+            if (e.key === "Escape") { setDraft(String(v)); setEditing(false); }
+          }}
+        />
+      ) : (
+        <button
+          className="num rounded-lg px-1.5 py-0.5 text-[12px] font-medium text-txt-mid underline-offset-2 decoration-dotted hover:bg-[rgba(var(--warm-rgb),0.07)] hover:text-txt-hi"
+          title="Click to edit"
+          onClick={() => { setDraft(String(v)); setEditing(true); }}
+        >
+          {String(v)}
+        </button>
+      )}
+    </div>
+  );
+}
 
 /** Sessions editor + AI session advisor (P6/P7): SET the sessions a strategy
  *  may trade (audited PATCH, enforced in both scan loops), see per-session

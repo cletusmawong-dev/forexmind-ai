@@ -15,8 +15,13 @@ export default {
       },
       fontFamily: {
         sans: [
-          "-apple-system", "BlinkMacSystemFont", '"SF Pro Display"', '"SF Pro Text"',
-          "Inter", '"Segoe UI"', "Roboto", '"Helvetica Neue"', "sans-serif",
+          '"Space Grotesk"', "-apple-system", "BlinkMacSystemFont",
+          '"SF Pro Display"', '"SF Pro Text"', "Inter", '"Segoe UI"', "Roboto",
+          '"Helvetica Neue"', "sans-serif",
+        ],
+        mono: [
+          '"JetBrains Mono"', "ui-monospace", "SFMono-Regular", "Menlo",
+          "Consolas", "monospace",
         ],
       },
       boxShadow: {

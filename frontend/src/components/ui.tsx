@@ -24,8 +24,8 @@ export function Logo({ size = 34, subtitle }: { size?: number; subtitle?: string
     <div className="flex shrink-0 items-center gap-2.5">
       <LogoMark size={size} />
       <div className="whitespace-nowrap leading-tight">
-        <div className="text-[15px] font-bold tracking-[0.06em]">
-          FOREXMIND <span className="text-grad-blue">AI</span>
+        <div className="txt-aurora text-[15px] font-bold tracking-[0.06em]">
+          FOREXMIND <span className="font-black">AI</span>
         </div>
         {subtitle && <div className="text-[9px] tracking-[0.18em] text-[var(--text-muted)]">{subtitle}</div>}
       </div>
