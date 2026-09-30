@@ -123,7 +123,7 @@ export function ResearchToolsPanel() {
   const act = useAsyncAction();
   const [q, setQ] = useState("");
   const ask = useAsyncAction();
-  const strategies = ["strategy_2_ema_atr", "strategy_1_zero_lag"];
+  const strategies = ["strategy_2_ema_atr", "strategy_1_vp_pivots"];
 
   const run = async (label: string, fn: () => Promise<any>): Promise<string> => {
     try {

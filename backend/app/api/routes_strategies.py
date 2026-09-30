@@ -38,6 +38,24 @@ def strategy_detail(strategy_id: str, user_id: str = Depends(get_user_id)):
             "active_version": vc.active_version(strategy_id)}
 
 
+@router.patch("/{strategy_id}/params")
+def set_strategy_param(strategy_id: str, body: dict, user_id: str = Depends(get_user_id)):
+    """User-initiated strategy parameter change (e.g. entry_mode).
+    Validated against the strategy's experiment_variables, versioned and
+    audited - the user IS the approver (SPEC: AI never applies changes)."""
+    variable = body.get("variable")
+    if not variable:
+        raise HTTPException(422, "variable is required")
+    try:
+        doc = vc.set_param_direct(user_id, strategy_id, variable, body.get("value"))
+    except KeyError as e:
+        raise HTTPException(404, str(e))
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    return {"version": doc["version"], "params": doc["params"],
+            "changes": doc["changes"]}
+
+
 @router.patch("/{strategy_id}")
 def set_status(strategy_id: str, body: dict, user_id: str = Depends(get_user_id)):
     """Update strategy status and/or per-strategy sessions (P7).

@@ -12,7 +12,16 @@ from ..db.store import get_store
 from ..strategies import get_strategy
 
 
+# Retired strategies (user directive 2026-09-30): Zero Lag replaced by the
+# ChartPrime Volume Profile + Pivot strategy. The module stays registered so
+# signal history, replay and the executor still resolve old signals - but any
+# FRESH registry doc is created DISABLED so the engine never scans it. The
+# live doc is flipped once (audited PATCH) at deploy time.
+RETIRED_STRATEGIES = {"strategy_1_zero_lag": "DISABLED"}
+
+
 def _bump(version: str) -> str:
+
     major, minor = version.split(".")
     return f"{major}.{int(minor) + 1}"
 
@@ -29,7 +38,8 @@ def ensure_strategy_docs() -> None:
                 "name": strategy.name,
                 "short_name": strategy.short_name,
                 "description": strategy.description,
-                "status": "ACTIVE",          # ACTIVE | PAUSED | DISABLED
+                "status": RETIRED_STRATEGIES.get(sid, "ACTIVE"),
+                                              # ACTIVE | PAUSED | DISABLED
                 "active_version": strategy.version,
             }, doc_id=sid)
             store.create("strategy_versions", {
@@ -116,6 +126,67 @@ def approve_hypothesis(user_id: str, hypothesis_id: str) -> Dict[str, Any]:
         "applied_version": new_version,
     })
     return store.get("strategy_versions", version_doc["id"])
+
+
+def set_param_direct(user_id: str, strategy_id: str, variable: str,
+                     value: Any) -> Dict[str, Any]:
+    """USER-initiated parameter change from the Strategy Manager UI.
+
+    Human-set = human-approved (SPEC: the AI can never apply a strategy
+    change automatically). Same immutability contract as hypothesis
+    approval: a NEW active version is created, the previous ones retained
+    and rollback-able, and the change is audited (P17)."""
+    from ..core.permissions import audit
+    strat = get_strategy(strategy_id)
+    spec = (getattr(strat, "experiment_variables", {}) or {}).get(variable)
+    if spec is None:
+        raise KeyError(f"unknown variable '{variable}'")
+    kind = spec.get("type")
+    if kind == "select":
+        opts = list(spec.get("options") or [])
+        if value not in opts:
+            raise ValueError(f"{variable} must be one of {opts}")
+    else:
+        try:
+            value = int(value) if kind == "int" else float(value)
+        except (TypeError, ValueError):
+            raise ValueError(f"{variable} must be a number")
+        if "min" in spec and value < spec["min"]:
+            raise ValueError(f"{variable} below minimum {spec['min']}")
+        if "max" in spec and value > spec["max"]:
+            raise ValueError(f"{variable} above maximum {spec['max']}")
+    store = get_store()
+    params = active_params(strategy_id)
+    old_value = params.get(variable)
+    if old_value == value:
+        raise ValueError(f"{variable} is already {value}")
+    params[variable] = value
+    new_version = _bump(active_version(strategy_id))
+    doc = store.create("strategy_versions", {
+        "strategy_id": strategy_id,
+        "version": new_version,
+        "params": params,
+        "changes": [{"variable": variable,
+                     "old_value": old_value,
+                     "new_value": value}],
+        "hypothesis_id": None,
+        "experiment_id": None,
+        "active": True,
+        "note": f"{variable}: {old_value} -> {value} (user setting)",
+    })
+    for v in store.list("strategy_versions", filters={"strategy_id": strategy_id}):
+        if v["id"] != doc["id"]:
+            store.update("strategy_versions", v["id"], {"active": False})
+    sdoc = store.get("strategies", strategy_id)
+    store.update("strategies", strategy_id, {
+        "active_version": new_version,
+        "status": (sdoc or {}).get("status", "ACTIVE"),
+    })
+    audit(user_id, "strategy.param.set", None,
+          {"strategy_id": strategy_id, variable: old_value},
+          {"strategy_id": strategy_id, variable: value},
+          f"user set {variable} on {strategy_id}")
+    return doc
 
 
 def reject_hypothesis(user_id: str, hypothesis_id: str) -> Dict[str, Any]:

@@ -8,11 +8,11 @@ import { useAsyncAction } from "../lib/useAsyncAction";
 
 type EngineMode = "s1" | "s2" | "both" | "none";
 
-const S1 = "strategy_1_zero_lag";
+const S1 = "strategy_1_vp_pivots";
 const S2 = "strategy_2_ema_atr";
 
 const MODE_LABEL: Record<EngineMode, string> = {
-  s1: "Zero Lag Trend only",
+  s1: "VP + Pivots only",
   s2: "9/21 EMA Smart TP/SL only",
   both: "both strategies",
   none: "no strategy - signals are OFF",
@@ -28,6 +28,19 @@ export function StrategiesScreen() {
   const flash = (m: string) => {
     setToast(m);
     setTimeout(() => setToast(""), 4000);
+  };
+
+  const setParam = async (sid: string, variable: string, value: string) => {
+    setBusy(`param:${variable}`);
+    try {
+      await api.patch(endpoints.strategyParams(sid), { variable, value });
+      flash(`Saved - ${variable} = ${value} (new version created, old version kept)`);
+      refresh();
+    } catch (e: any) {
+      flash(e.message || "Could not save setting");
+    } finally {
+      setBusy("");
+    }
   };
 
   const loadVersions = async (sid: string) => {
@@ -163,12 +176,32 @@ export function StrategiesScreen() {
                   <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 rounded-2xl border border-[rgba(var(--warm-rgb),0.06)] bg-[rgba(var(--warm-rgb),0.035)] p-4">
                     {Object.entries(s.active_params ?? {})
                       .filter(([k]) => k !== "expire_bars")
-                      .map(([k, v]) => (
-                        <div key={k} className="flex items-baseline justify-between">
-                          <span className="font-mono text-[10.5px] text-txt-faint">{k}</span>
-                          <span className="num text-[12px] font-medium text-txt-mid">{String(v)}</span>
-                        </div>
-                      ))}
+                      .map(([k, v]) => {
+                        const spec = (s.experiment_variables ?? {})[k];
+                        if (spec?.type === "select") {
+                          return (
+                            <div key={k} className="flex items-center justify-between gap-3">
+                              <span className="font-mono text-[10.5px] text-txt-faint">{k}</span>
+                              <select
+                                className="input max-w-[190px] py-1.5 text-[12px]"
+                                value={String(v)}
+                                disabled={busy === `param:${k}`}
+                                onChange={(e) => setParam(s.id, k, e.target.value)}
+                              >
+                                {(spec.options ?? []).map((o: string) => (
+                                  <option key={o} value={o}>{o}</option>
+                                ))}
+                              </select>
+                            </div>
+                          );
+                        }
+                        return (
+                          <div key={k} className="flex items-baseline justify-between">
+                            <span className="font-mono text-[10.5px] text-txt-faint">{k}</span>
+                            <span className="num text-[12px] font-medium text-txt-mid">{String(v)}</span>
+                          </div>
+                        );
+                      })}
                   </div>
 
                   <StrategySessionsCard sid={s.id} />

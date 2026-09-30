@@ -76,6 +76,7 @@ export const endpoints = {
   strategies: "/api/strategies",
   strategy: (id: string) => `/api/strategies/${id}`,
   strategyVersions: (id: string) => `/api/strategies/${id}/versions`,
+  strategyParams: (id: string) => `/api/strategies/${id}/params`,
   rollback: (id: string) => `/api/strategies/${id}/rollback`,
   compare: (id: string, a: string, b: string) => `/api/strategies/${id}/compare?a=${a}&b=${b}`,
   backtest: (id: string) => `/api/strategies/${id}/backtest`,

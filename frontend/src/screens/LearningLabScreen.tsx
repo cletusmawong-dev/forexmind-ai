@@ -25,7 +25,7 @@ export function LearningLabScreen() {
   const autopsies = usePolling<{ autopsies: any[]; count: number }>(() => api.get(`${endpoints.autopsies}?limit=25`), 10000);
   const exps = usePolling<{ experiments: Experiment[] }>(() => api.get(endpoints.experiments), 8000);
   const versions2 = usePolling<{ versions: StrategyVersion[] }>(() => api.get(endpoints.strategyVersions("strategy_2_ema_atr")), 10000);
-  const versions1 = usePolling<{ versions: StrategyVersion[] }>(() => api.get(endpoints.strategyVersions("strategy_1_zero_lag")), 10000);
+  const versions1 = usePolling<{ versions: StrategyVersion[] }>(() => api.get(endpoints.strategyVersions("strategy_1_vp_pivots")), 10000);
 
   const [busy, setBusy] = useState("");
   const [toast, setToast] = useState("");
@@ -670,7 +670,7 @@ export function LearningLabScreen() {
                   </Pill>
                 </div>
                 <p className="px-6 pt-1 text-[11px] text-txt-faint">
-                  {e.strategy_id === "strategy_1_zero_lag" ? "Zero Lag Trend" : "9/21 EMA Smart TP/SL"} - <span className="font-mono">{e.variable}</span> {String(e.old_value)} {'->'} {String(e.new_value)} - {e.market} {e.timeframe}
+                  {e.strategy_id === "strategy_1_vp_pivots" ? "VP + Pivots" : e.strategy_id === "strategy_1_zero_lag" ? "Zero Lag Trend" : "9/21 EMA Smart TP/SL"} - <span className="font-mono">{e.variable}</span> {String(e.old_value)} {'->'} {String(e.new_value)} - {e.market} {e.timeframe}
                 </p>
 
                 {e.overfitting_risk && (
@@ -776,7 +776,7 @@ export function LearningLabScreen() {
 
           {/* versions + rollback */}
           {[
-            { id: "strategy_1_zero_lag", title: "Strategy 1 - Zero Lag Trend", data: versions1.data?.versions },
+            { id: "strategy_1_vp_pivots", title: "Strategy 1 - VP + Pivots", data: versions1.data?.versions },
             { id: "strategy_2_ema_atr", title: "Strategy 2 - 9/21 EMA Smart TP/SL", data: versions2.data?.versions },
           ].map((group) => (
             <div key={group.id}>

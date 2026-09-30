@@ -224,7 +224,7 @@ export function AgentScreen() {
                 <a key={sid} href="/strategies" className="glass glass-hover tap flex items-center justify-between p-4">
                   <div>
                     <div className="text-[13px] font-semibold">
-                      Strategy {i + 1} - {sid === "strategy_1_zero_lag" ? "Zero Lag Trend" : "9/21 EMA Smart TP/SL"}
+                      Strategy {i + 1} - {sid === "strategy_1_vp_pivots" ? "VP + Pivots" : sid === "strategy_1_zero_lag" ? "Zero Lag Trend" : "9/21 EMA Smart TP/SL"}
                     </div>
                     <div className="mt-0.5 text-[10.5px] text-[var(--text-muted)]">version {v}</div>
                   </div>
