@@ -440,3 +440,115 @@ def test_session_advisor_skips_when_already_optimal(env):
     r = c.post("/api/learning/recommendations/generate")
     sug = [x for x in r.json()["recommendations"] if x["type"] == "SESSION_SUGGESTION"]
     assert sug == []          # already trading the best set -> nothing to suggest
+
+
+# ===========================================================================
+# DUPLICATE-PLACEMENT INCIDENT FIXES (2026-09-29: 3x USDJPY BUY stacked)
+# ===========================================================================
+def test_stacking_guard_blocks_same_market_same_direction(env, monkeypatch):
+    """Second USDJPY BUY while one is open MUST be blocked - this exact
+    sequence triple-stacked on 2026-09-29."""
+    c, store, monkeypatch, settings = env
+    _user(store)
+    from app.execution import mt5 as X
+    from app.risk_checks import check_entry
+    monkeypatch.setattr(settings, "risk_max_correlated", 2)
+    orig = X.bridge_get
+    X.bridge_get = lambda p, timeout=8: (
+        {"positions": [{"ticket": 1, "magic": X.MAGIC, "symbol": "USDJPYm",
+                        "type": "BUY", "profit": -1.0}]} if p == "/positions" else {})
+    try:
+        ok, guard, why = check_entry("boss", "USDJPY", direction="BUY")
+        assert not ok and guard == "STACKING" and "no stacking" in why
+        # hedge (opposite direction) is not stacking - left to correlation cap
+        ok2, _, _ = check_entry("boss", "USDJPY", direction="SELL")
+        assert ok2
+        # different market is fine
+        ok3, _, _ = check_entry("boss", "EURUSD", direction="BUY")
+        assert ok3
+    finally:
+        X.bridge_get = orig
+
+
+def test_symbol_suffix_normalization_in_guards(env, monkeypatch):
+    """EURUSDm open must correlate with a new EURUSD (suffix-blind before)."""
+    c, store, monkeypatch, settings = env
+    _user(store)
+    from app.execution import mt5 as X
+    from app.risk_checks import check_entry, _norm_symbol, _roots
+    assert _norm_symbol("USDJPYm") == "USDJPY"
+    assert _roots("XAUUSDm") == {"XAU", "USD"}     # metals split like fx pairs
+    monkeypatch.setattr(settings, "risk_max_correlated", 2)
+    orig = X.bridge_get
+    X.bridge_get = lambda p, timeout=8: (
+        {"positions": [{"ticket": 2, "magic": X.MAGIC, "symbol": "EURUSDm",
+                        "type": "SELL", "profit": 0.5}]} if p == "/positions" else {})
+    try:
+        ok, guard, why = check_entry("boss", "EURUSD", direction="SELL")
+        assert not ok and guard == "STACKING"          # same instrument+direction
+        # drop the cap: GBPUSD now correlates with the open EURUSDm via USD
+        monkeypatch.setattr(settings, "risk_max_correlated", 1)
+        ok2, guard2, _ = check_entry("boss", "GBPUSD", direction="BUY")
+        assert not ok2 and guard2 == "CORRELATION"     # shares USD via suffix-normalized root
+    finally:
+        X.bridge_get = orig
+
+
+def test_position_guards_fail_closed_on_bridge_error(env, monkeypatch):
+    """Bridge/DB read failure MUST block the entry (the old fail-open allowed
+    unlimited duplicates when reads erred)."""
+    c, store, monkeypatch, settings = env
+    _user(store)
+    from app.execution import mt5 as X
+    from app.risk_checks import check_entry
+    orig = X.bridge_get
+    def dead(path, timeout=8, **kw):
+        raise ConnectionError("bridge down")
+    X.bridge_get = dead
+    try:
+        ok, guard, why = check_entry("boss", "USDJPY", direction="BUY")
+        assert not ok and guard == "CORRELATION" and "fail-closed" in why
+    finally:
+        X.bridge_get = orig
+    # DB-side failure (user_mode raises) -> also fail-closed
+    X.bridge_get = orig
+    from app.execution import mt5 as X2
+    orig_um = X2.user_mode
+    def boom(uid):
+        raise RuntimeError("db quota")
+    X2.user_mode = boom
+    try:
+        ok, guard, why = check_entry("boss", "USDJPY", direction="BUY")
+        assert not ok and "fail-closed" in why
+    finally:
+        X2.user_mode = orig_um
+
+
+def test_execute_signal_stacking_refusal_is_loud(env, monkeypatch):
+    """Full executor path: a stacking attempt is refused loudly, no order."""
+    c, store, monkeypatch, settings = env
+    _user(store)
+    store.create("agent_goals", {"userId": "boss", "execution_enabled": True,
+                                 "execution_mode": "vps"})
+    from app.execution import mt5 as X
+    orig = X.bridge_get
+    posts = []
+    X.bridge_get = lambda p, timeout=8: (
+        {"positions": [{"ticket": 9, "magic": X.MAGIC, "symbol": "USDJPYm",
+                        "type": "BUY", "profit": 0.0}]} if p == "/positions" else {})
+    X.bridge_post = lambda p, j=None, timeout=30: posts.append(p) or {}
+    try:
+        store.create("signals", {"id": "sg-stack", "userId": "boss",
+                                 "signal_id": "STACK-1", "market": "USDJPY"})
+        sig = {"id": "sg-stack", "signal_id": "STACK-1", "market": "USDJPY",
+               "direction": "BUY", "strategy_id": "strategy_2_ema_atr",
+               "entry": 157.4, "sl": 157.2, "tp1": 157.8, "tp2": 158.0,
+               "tp3": 158.4, "timeframe": "15M", "lot": 0.01}
+        X.execute_signal(sig, "boss")
+        doc = store.get("signals", "sg-stack")
+        assert doc["execution_status"] == "SKIPPED_RISK_STACKING"
+        assert posts == []                              # nothing sent to broker
+        evs = [e for e in store.list("exec_events", limit=10) if e["kind"] == "ENTRY"]
+        assert evs and evs[0]["stage"] == "SKIPPED" and "STACKING" in evs[0]["detail"]
+    finally:
+        X.bridge_get, X.bridge_post = orig, None

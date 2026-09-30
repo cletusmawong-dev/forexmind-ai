@@ -13,7 +13,8 @@ CURRENCIES = ("USD", "EUR", "GBP", "JPY", "AUD", "CHF", "CAD", "NZD", "XAU")
 
 
 def _roots(market: str) -> set:
-    m = (market or "").upper()
+    from ..risk_checks import _norm_symbol
+    m = _norm_symbol(market)
     found = {c for c in CURRENCIES if c in m}
     return found or {m[:3]}
 

@@ -369,9 +369,12 @@ def execute_signal(signal: dict, user_id: str) -> None:
         # Every refusal is loud (status + ledger + log + notification).
         try:
             from ..risk_checks import check_entry
-            ok, guard, gwhy = check_entry(user_id, market)
-        except Exception:
-            ok, guard, gwhy = True, "", ""
+            ok, guard, gwhy = check_entry(user_id, market,
+                                          direction=signal.get("direction"))
+        except Exception as exc:
+            # the guard chain itself must never fail-open (2026-09-29 lesson)
+            ok, guard, gwhy = False, "GUARDS", (
+                f"guard chain error ({type(exc).__name__}) - entry blocked (fail-closed)")
         if not ok:
             status_key = f"SKIPPED_RISK_{guard}"
             store.update("signals", signal["id"], {

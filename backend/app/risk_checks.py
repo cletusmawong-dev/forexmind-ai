@@ -90,20 +90,35 @@ def _vol_ok(market: str) -> Tuple[bool, str]:
     return True, ""
 
 
+def _norm_symbol(market: str) -> str:
+    """Broker-suffix normalization: USDJPYm -> USDJPY, XAUUSDm -> XAUUSD.
+    Without this, suffixed and unsuffixed symbols never correlate."""
+    m = str(market or "").upper().strip()
+    while m and (m[-1] in "MC." or m[-1].isdigit()):
+        m = m[:-1]
+    return m
+
+
 def _roots(market: str) -> set:
-    m = (market or "").upper()
+    m = _norm_symbol(market)
     if len(m) == 6 and m.isalpha():
         return {m[:3], m[3:]}
     return {m}          # indices/metals keep their own root
 
 
+def _open_engine_positions(user_id: str) -> list:
+    """Broker-truth open engine positions. RAISES on failure - trading guards
+    treat that as fail-closed; reporting callers catch their own."""
+    from .execution.mt5 import MAGIC, bridge_get, user_mode
+    if user_mode(user_id) != "vps":
+        return []                    # nothing engine-owned on the broker
+    pos = (bridge_get("/positions", timeout=6) or {}).get("positions") or []
+    return [p for p in pos if int(p.get("magic") or 0) == MAGIC]
+
+
 def _correlation_ok(user_id: str, market: str) -> Tuple[bool, str]:
     try:
-        from .execution.mt5 import MAGIC, bridge_get, user_mode
-        if user_mode(user_id) != "vps":
-            return True, ""
-        pos = (bridge_get("/positions", timeout=6) or {}).get("positions") or []
-        mine = [p for p in pos if int(p.get("magic") or 0) == MAGIC]
+        mine = _open_engine_positions(user_id)
         roots = _roots(market)
         related = 0
         for p in mine:
@@ -113,8 +128,34 @@ def _correlation_ok(user_id: str, market: str) -> Tuple[bool, str]:
         if related >= cap:
             return False, (f"{related} open position(s) share currency roots "
                            f"with {market} (cap {cap})")
-    except Exception:
-        pass
+    except Exception as exc:
+        # FAIL-CLOSED (spec: a failed critical gate blocks the order). The old
+        # fail-open behavior let stacked duplicates through whenever the DB or
+        # bridge read errored - the 2026-09-29 3x-USDJPY incident.
+        return False, (f"position check unavailable ({type(exc).__name__}) "
+                       f"- entry blocked (fail-closed)")
+    return True, ""
+
+
+def _stacking_ok(user_id: str, market: str,
+                 direction: Optional[str]) -> Tuple[bool, str]:
+    """Hard rule (2026-09-29 incident): never open a SECOND position on the
+    same instrument in the same direction while one is already open. Same
+    instrument opposite direction (hedge) is left to the correlation cap."""
+    try:
+        mine = _open_engine_positions(user_id)
+        m0 = _norm_symbol(market)
+        d = (direction or "").upper()
+        for p in mine:
+            if _norm_symbol(p.get("symbol") or "") != m0:
+                continue
+            pdir = str(p.get("type") or "").upper()
+            if pdir in ("BUY", "SELL") and (not d or pdir == d):
+                return False, (f"already holding {m0} {pdir} "
+                               f"(ticket {p.get('ticket')}) - no stacking")
+    except Exception as exc:
+        return False, (f"position check unavailable ({type(exc).__name__}) "
+                       f"- entry blocked (fail-closed)")
     return True, ""
 
 
@@ -126,11 +167,14 @@ def settings_value(name: str):
 
 
 def check_entry(user_id: str, market: str,
-                strategy_id: Optional[str] = None) -> Tuple[bool, str, str]:
+                strategy_id: Optional[str] = None,
+                direction: Optional[str] = None) -> Tuple[bool, str, str]:
     """Run all guards. Returns (ok, guard_name, reason). First failure wins.
 
     The kill-switch hierarchy (3.0 spec section 47) is evaluated FIRST and
-    regardless of risk_guards_enabled. Level 0 (default) is a no-op."""
+    regardless of risk_guards_enabled. Level 0 (default) is a no-op.
+    CORRELATION and STACKING are FAIL-CLOSED: if the broker-position check
+    cannot be performed, the entry is blocked, never waved through."""
     try:
         from .risk.killswitch import check as ks_check
         ok, why = ks_check(market, strategy_id)
@@ -140,12 +184,12 @@ def check_entry(user_id: str, market: str,
         pass
     if not settings_value("risk_guards_enabled"):
         return True, "", ""
-    for name, fn in (("NEWS", _news_ok), ("SPREAD", _spread_ok),
-                     ("VOL", _vol_ok), ("CORRELATION", _correlation_ok)):
-        if name == "CORRELATION":
-            ok, why = fn(user_id, market)
-        else:
-            ok, why = fn(market)
+    for name, fn in (("NEWS", lambda uid, mkt: _news_ok(mkt)),
+                     ("SPREAD", lambda uid, mkt: _spread_ok(mkt)),
+                     ("VOL", lambda uid, mkt: _vol_ok(mkt)),
+                     ("CORRELATION", _correlation_ok),
+                     ("STACKING", lambda uid, mkt: _stacking_ok(uid, mkt, direction))):
+        ok, why = fn(user_id, market)
         if not ok:
             return False, name, why
     return True, "", ""
