@@ -52,30 +52,47 @@ class FakeHTTP:
         self.calls.append({"method": method, "coll": coll, "params": params,
                            "data": json.loads(data) if data else None,
                            "headers": headers})
+        FIELD = "data->>"
+
+        def field_of(k):
+            return k[len(FIELD):] if k.startswith(FIELD) else None
+
         if method == "POST":
             d = json.loads(data) if data else {}
             rows = d if isinstance(d, list) else [d]
-            self.rows.setdefault(coll, []).extend(
-                [{"id": x.get("id"), "data": x} for x in rows])
+            for x in rows:
+                assert set(x.keys()) == {"id", "data"}, "narrow row contract"
+            self.rows.setdefault(coll, []).extend(rows)
             return FakeResp(201, rows)
         if method == "GET":
             out = list(self.rows.get(coll, []))
             for k, v in params.items():
-                if k == "order":
+                f = field_of(k)
+                if k == "order" or f is None:
                     continue
                 if v.startswith("eq."):
-                    out = [r for r in out if str(r.get("data", {}).get(k)) == v[3:]]
-            total = len(out)                      # count=exact: full count regardless of limit
+                    out = [r for r in out if str(r["data"].get(f)) == v[3:]]
+            if "order" in params:
+                spec = params["order"]
+                field = spec.split("data->>")[-1].split(".")[0]
+                desc = ".desc" in spec
+                out.sort(key=lambda r: str(r["data"].get(field) or ""), reverse=desc)
+            total = len(out)
             if "limit" in params:
                 out = out[:int(params["limit"])]
-            return FakeResp(200, out, headers={"Content-Range": f"0-{max(0, total-1)}/{total}"})
+            prefer = (headers or {}).get("Prefer", "")
+            code = 206 if "count=exact" in prefer else 200
+            return FakeResp(code, out,
+                            headers={"Content-Range": f"0-{max(0, total - 1)}/{total}"})
         if method == "PATCH":
             d = json.loads(data) if data else {}
+            matched = []
             for r in self.rows.get(coll, []):
                 if str(r.get("id")) == params.get("id", "").replace("eq.", ""):
-                    r["data"].update(d)
-            return FakeResp(200, [r for r in self.rows.get(coll, [])
-                                  if str(r.get("id")) == params.get("id", "").replace("eq.", "")])
+                    assert set(d.keys()) <= {"data"}, "update merges via data column"
+                    r["data"].update(d["data"])
+                    matched = [r]
+            return FakeResp(200, matched)
         if method == "DELETE":
             before = len(self.rows.get(coll, []))
             self.rows[coll] = [r for r in self.rows.get(coll, [])
@@ -130,14 +147,19 @@ def test_supabase_list_filters_order_limit_and_count(sb):
     assert len(rows) == 2
     # correct PostgREST query shape
     last = http.calls[-1]
-    assert last["params"]["userId"] == "eq.u1"
-    assert last["params"]["order"] == "createdAt.desc"
+    assert last["params"]["data->>userId"] == "eq.u1"      # jsonb text filter
+    assert last["params"]["order"] == "data->>createdAt.desc.nullslast"
     assert last["params"]["limit"] == "2"
     # operator filters translate
     store.list("signals", filters={
         "market": ("in", ["M1", "M2"]), "n": ("gte", 1), "n2": ("lte", 9)})
     p = http.calls[-1]["params"]
-    assert p["market"] == "in.(M1,M2)" and p["n"] == "gte.1" and p["n2"] == "lte.9"
+    assert p["data->>market"] == "in.(M1,M2)"
+    assert p["data->>n"] == "gte.1" and p["data->>n2"] == "lte.9"
+    # arrows survive URL building (PostgREST operators must not be encoded away)
+    from urllib.parse import urlparse
+    assert "data->>" in urlparse(http.calls[-1]["params"] and "https://x/?"
+                                 + "&".join(f"{k}={v}" for k, v in p.items())).query
     # count uses Prefer: count=exact
     n = store.count("signals", filters={"userId": "u1"})
     assert n == 5

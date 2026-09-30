@@ -57,8 +57,13 @@ class SupabaseStore:
     def _url(self, coll: str, params: Optional[Dict[str, str]] = None) -> str:
         u = f"{self.base}/rest/v1/{coll}"
         if params:
-            from urllib.parse import urlencode
-            u += "?" + urlencode(params)
+            # manual encoding: PostgREST jsonb operators (data->>field) must
+            # keep their '>' characters - urlencode would mangle them
+            from urllib.parse import quote
+            q = "&".join(
+                f"{quote(str(k), safe='->>=(){},. \"')}={quote(str(v), safe='>=().,{}\" ')}"
+                for k, v in params.items())
+            u += "?" + q
         return u
 
     @staticmethod
@@ -75,12 +80,15 @@ class SupabaseStore:
 
     # -- interface ---------------------------------------------------------
     def create(self, coll: str, doc: dict, doc_id: Optional[str] = None) -> dict:
+        """Narrow-row contract: every doc is stored as {"id", "data": doc} -
+        schema-free like Firestore (any new field just works; no migrations)."""
         from .store import new_id
         d = dict(doc)
         d["id"] = doc_id or d.get("id") or new_id()
         if "createdAt" not in d:
             d["createdAt"] = datetime.now(timezone.utc).isoformat()
-        r = requests.post(self._url(coll), data=json.dumps(d),
+        row = {"id": d["id"], "data": {k: v for k, v in d.items() if k != "id"}}
+        r = requests.post(self._url(coll), data=json.dumps(row),
                           headers=self._headers({"Prefer": "return=representation"}),
                           timeout=self.timeout)
         if r.status_code not in (200, 201):
@@ -97,8 +105,15 @@ class SupabaseStore:
         return self._row_to_doc(rows[0]) if rows else None
 
     def update(self, coll: str, doc_id: str, patch: dict) -> Optional[dict]:
+        # jsonb merge is read-modify-write (PATCH alone would replace the row)
+        cur = self.get(coll, doc_id)
+        if cur is None:
+            return None
+        merged = {**{k: v for k, v in cur.items() if k != "id"},
+                  **{k: v for k, v in patch.items() if k != "id"}}
+        row = {"data": merged}
         r = requests.patch(self._url(coll, {"id": f"eq.{doc_id}"}),
-                           data=json.dumps(dict(patch)),
+                           data=json.dumps(row),
                            headers=self._headers({"Prefer": "return=representation"}),
                            timeout=self.timeout)
         if r.status_code not in (200, 204):
@@ -119,14 +134,14 @@ class SupabaseStore:
             if isinstance(v, tuple):
                 op, val = v
                 if op == "in":
-                    params[k] = f"in.({','.join(str(x) for x in val)})"
+                    params[f"data->>{k}"] = f"in.({','.join(str(x) for x in val)})"
                 elif op in ("gte", "lte"):
-                    params[k] = f"{op}.{val}"
+                    params[f"data->>{k}"] = f"{op}.{val}"
                 else:
-                    params[k] = f"eq.{val}"
+                    params[f"data->>{k}"] = f"eq.{val}"
             else:
-                params[k] = f"eq.{v}"
-        params["order"] = f"{order_by}.{'desc' if desc else 'asc'}"
+                params[f"data->>{k}"] = f"eq.{v}"
+        params["order"] = f"data->>{order_by}.{'desc' if desc else 'asc'}.nullslast"
         if limit:
             params["limit"] = str(limit)
         r = requests.get(self._url(coll, params), headers=self._headers(),
@@ -139,11 +154,13 @@ class SupabaseStore:
               limit: int = 0) -> int:
         params: Dict[str, str] = {"limit": "1"}
         for k, v in (filters or {}).items():
-            params[k] = f"eq.{v}" if not isinstance(v, tuple) else f"eq.{v[1]}"
+            key = f"data->>{k}"
+            params[key] = f"eq.{v[1]}" if isinstance(v, tuple) else f"eq.{v}"
         r = requests.get(self._url(coll, params),
                          headers=self._headers({"Prefer": "count=exact"}),
                          timeout=self.timeout)
-        if r.status_code != 200:
+        # PostgREST answers 206 Partial Content when a Content-Range is present
+        if r.status_code not in (200, 206):
             raise RuntimeError(f"supabase count {coll}: {r.status_code}")
         rng = r.headers.get("Content-Range", "")
         try:
