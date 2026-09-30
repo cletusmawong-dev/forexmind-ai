@@ -177,6 +177,32 @@ class DualStore:
         self.primary = primary
         self.shadow = shadow
 
+    @staticmethod
+    def _jsonify(doc):
+        """Firestore docs can carry non-JSON values returned by the primary:
+        SERVER_TIMESTAMP arrives as a Sentinel, timestamps as datetimes. The
+        JSON-backed shadow needs plain values (incident 2026-09-30: shadow
+        create failed on every doc until this sanitizer)."""
+        import datetime
+        try:
+            from google.cloud.firestore_v1 import _helpers as _fh
+            sentinels = (_fh.Sentinel,)
+        except Exception:
+            sentinels = ()
+
+        def cv(v):
+            if isinstance(v, datetime.datetime):
+                return v.isoformat()
+            if sentinels and isinstance(v, sentinels):
+                return None
+            if isinstance(v, dict):
+                return {k: cv(x) for k, x in v.items()}
+            if isinstance(v, (list, tuple)):
+                return [cv(x) for x in v]
+            return v
+
+        return {k: cv(v) for k, v in dict(doc).items()}
+
     def _shadow(self, op: str, fn):
         try:
             return fn()
@@ -187,8 +213,9 @@ class DualStore:
 
     def create(self, coll, doc, doc_id=None):
         out = self.primary.create(coll, doc, doc_id)
+        out = out or dict(doc, id=doc_id)
         self._shadow("create", lambda: self.shadow.create(
-            coll, dict(out or doc, id=(out or doc)["id"]), (out or doc)["id"]))
+            coll, self._jsonify(dict(out, id=out["id"])), out["id"]))
         return out
 
     def get(self, coll, doc_id):
@@ -197,7 +224,8 @@ class DualStore:
     def update(self, coll, doc_id, patch):
         out = self.primary.update(coll, doc_id, patch)
         if out:
-            self._shadow("update", lambda: self.shadow.update(coll, doc_id, out))
+            self._shadow("update", lambda: self.shadow.update(
+                coll, doc_id, self._jsonify(out)))
         return out
 
     def delete(self, coll, doc_id):
