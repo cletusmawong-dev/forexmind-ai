@@ -53,7 +53,7 @@ class Settings:
     telegram_bot_username: str = os.getenv("TELEGRAM_BOT_USERNAME", "")
     # Database backend (§21.9 Supabase migration): firestore (default) |
     # supabase | dual (write both, read firestore - the 48h parallel-run).
-    database_backend: str = os.getenv("DATABASE", "firestore").lower()
+    database_backend: str = os.getenv("DATABASE", "supabase").lower()  # Firestore retired as default (user directive 2026-09-30: quota pauses unacceptable) - explicit DATABASE=firestore still available for rollback
     supabase_url: str = os.getenv("SUPABASE_URL", "")
     supabase_service_key: str = os.getenv("SUPABASE_SERVICE_KEY", "")
 

@@ -166,7 +166,20 @@ def test_supabase_list_filters_order_limit_and_count(sb):
     assert http.calls[-1]["headers"]["Prefer"] == "count=exact"
 
 
-def test_database_selector_defaults_to_firestore(clean_store_global, monkeypatch):
+def test_database_selector_defaults_to_supabase(clean_store_global, monkeypatch):
+    """User directive 2026-09-30: Supabase is the default backend - even an
+    unset/garbage DATABASE must never resurrect the Firestore quota path."""
+    store_mod = clean_store_global
+    from app.config import settings
+    monkeypatch.setattr(settings, "database_backend", "")
+    monkeypatch.setattr(settings, "supabase_url", "https://fake.supabase.co")
+    monkeypatch.setattr(settings, "supabase_service_key", "svc-key")
+    s = store_mod.get_store()
+    assert type(s).__name__ == "SupabaseStore"
+
+
+def test_database_selector_firestore_still_explicit(clean_store_global, monkeypatch):
+    """Explicit rollback mode keeps working."""
     store_mod = clean_store_global
     from app.config import settings
     monkeypatch.setattr(settings, "database_backend", "firestore")

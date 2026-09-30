@@ -390,12 +390,13 @@ store_init_error: Optional[str] = None
 
 
 def get_store() -> Any:
-    """Backend selector (§21.9): DATABASE=firestore (default) | supabase |
-    dual (write both, read firestore). Unset/unknown -> firestore. The flip
-    stays gated on the user's go after 7 stable days."""
+    """Backend selector (§21.9): DATABASE=supabase (default since
+    2026-09-30, user directive: Firestore quota pauses are unacceptable)
+    | firestore (explicit rollback mode) | dual (write both, read primary).
+    Unset/unknown -> supabase."""
     global _store, store_init_error
     if _store is None:
-        backend = (settings.database_backend or "firestore").lower()
+        backend = (settings.database_backend or "supabase").lower()
         if backend == "supabase":
             try:
                 from .supabase_store import SupabaseStore
