@@ -111,6 +111,10 @@ class SupabaseStore:
             return None
         merged = {**{k: v for k, v in cur.items() if k != "id"},
                   **{k: v for k, v in patch.items() if k != "id"}}
+        # body-id invariant (incident 2026-09-30): every row's jsonb MUST carry
+        # its own id - all data->>id filters (engine, version control, status
+        # routes) return EMPTY otherwise. update() used to strip it.
+        merged["id"] = doc_id
         row = {"data": merged}
         r = requests.patch(self._url(coll, {"id": f"eq.{doc_id}"}),
                            data=json.dumps(row),
@@ -166,7 +170,13 @@ class SupabaseStore:
         return out
 
     def count(self, coll: str, filters: Optional[Dict[str, Any]] = None,
-              limit: int = 0) -> int:
+              limit: int = 0, fresh: bool = False) -> int:
+        """fresh is accepted for interface parity with the other stores
+        (the engine's daily-cap wall passes fresh=True): PostgREST
+        count=exact is computed server-side and is ALWAYS live - there is
+        no client cache to bypass. Incident 2026-09-30: missing this kwarg
+        raised TypeError inside the wall and silently killed ALL signal
+        generation for the day."""
         params: Dict[str, str] = {"limit": "1"}
         for k, v in (filters or {}).items():
             key = f"data->>{k}"
@@ -252,6 +262,10 @@ class DualStore:
         return self.primary.list(coll, filters=filters, order_by=order_by,
                                  desc=desc, limit=limit)
 
-    def count(self, coll, filters=None, limit=0):
-        # primary backends have differing count() signatures; filters only
-        return self.primary.count(coll, filters=filters)
+    def count(self, coll, filters=None, limit=0, fresh: bool = False):
+        # primary backends have differing count() signatures; forward what
+        # they accept (Firestore uses fresh to bypass its read cache)
+        try:
+            return self.primary.count(coll, filters=filters, fresh=fresh)
+        except TypeError:
+            return self.primary.count(coll, filters=filters)

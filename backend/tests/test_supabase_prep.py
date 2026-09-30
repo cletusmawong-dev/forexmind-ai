@@ -232,3 +232,19 @@ def test_supabase_misconfig_falls_back_honestly(clean_store_global, monkeypatch)
     s = store_mod.get_store()
     assert type(s).__name__ != "SupabaseStore"                    # never half-broken
     assert store_mod.store_init_error and "supabase" in store_mod.store_init_error
+
+
+def test_update_preserves_body_id_invariant(sb):
+    """data->>id filters (engine walls, version control, status routes) need
+    id INSIDE the jsonb - update() must never strip it (2026-09-30 incident:
+    a status update silently broke every subsequent id-filter for the row)."""
+    store, http, _ = sb
+    store.create("strategies", {"id": "s1", "status": "ACTIVE"}, doc_id="s1")
+    store.update("strategies", "s1", {"status": "DISABLED"})
+    rows = store.list("strategies", filters={"id": "s1"})
+    assert len(rows) == 1 and rows[0]["status"] == "DISABLED"
+    patch_call = [c for c in http.calls if c["method"] == "PATCH"][-1]
+    body = patch_call["data"]
+    if isinstance(body, str):
+        body = __import__("json").loads(body)
+    assert body["data"]["id"] == "s1"
