@@ -6,17 +6,6 @@ import type { StrategyDoc, StrategyVersion } from "../lib/types";
 import { ActionButton, DemoTag, Divider, Eyebrow, Glass, GlowDot, Pill, Spinner } from "../components/ui";
 import { useAsyncAction } from "../lib/useAsyncAction";
 
-type EngineMode = "s1" | "s2" | "both" | "none";
-
-const S1 = "strategy_1_vp_pivots";
-const S2 = "strategy_2_ema_atr";
-
-const MODE_LABEL: Record<EngineMode, string> = {
-  s1: "VP + Pivots only",
-  s2: "9/21 EMA Smart TP/SL only",
-  both: "both strategies",
-  none: "no strategy - signals are OFF",
-};
 
 export function StrategiesScreen() {
   const { data, loading, refresh } = usePolling<{ strategies: StrategyDoc[] }>(() => api.get(endpoints.strategies), 8000);
@@ -24,6 +13,7 @@ export function StrategiesScreen() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [toast, setToast] = useState("");
   const [busy, setBusy] = useState("");
+  const activeCount = (data?.strategies ?? []).filter((st) => st.status === "ACTIVE").length;
 
   const flash = (m: string) => {
     setToast(m);
@@ -62,30 +52,17 @@ export function StrategiesScreen() {
     refresh();
   };
 
-  const engineMode: EngineMode = (() => {
-    const list = data?.strategies ?? [];
-    const s1on = list.find((s) => s.id === S1)?.status === "ACTIVE";
-    const s2on = list.find((s) => s.id === S2)?.status === "ACTIVE";
-    return s1on && s2on ? "both" : s1on ? "s1" : s2on ? "s2" : "none";
-  })();
-
-  const applyEngineMode = async (mode: EngineMode) => {
-    if (mode === "none" || mode === engineMode) return;
-    setBusy("engine");
+  const toggleStatus = async (st: StrategyDoc) => {
+    const next = st.status === "ACTIVE" ? "PAUSED" : "ACTIVE";
+    setBusy(`toggle:${st.id}`);
     try {
-      const plan: Record<string, [string, string]> = {
-        s1: [S1, S2], s2: [S2, S1], both: [S1, S2],
-      };
-      const [on, off] = plan[mode];
-      await api.patch(endpoints.strategy(on), { status: "ACTIVE" });
-      if (mode !== "both") await api.patch(endpoints.strategy(off), { status: "PAUSED" });
-      else await api.patch(endpoints.strategy(off), { status: "ACTIVE" });
-      flash(`Signal engine: ${MODE_LABEL[mode]}. New signals only - tracked signals finish normally.`);
+      await api.patch(endpoints.strategy(st.id), { status: next });
+      flash(`${st.short_name}: ${next === "ACTIVE" ? "ON - generating signals" : "OFF - paused"}`);
+      refresh();
     } catch (e: any) {
-      flash(e.message);
+      flash(e.message || "Could not update strategy");
     } finally {
       setBusy("");
-      refresh();
     }
   };
 
@@ -121,34 +98,57 @@ export function StrategiesScreen() {
 
       {toast && <div className="glass-2 mb-5 px-4 py-3 text-[12px] font-medium text-acc-cyan">{toast}</div>}
 
-      {/* ---- signal engine selector: which strategy generates signals ---- */}
+      {/* ---- signal engine: per-strategy switches (scales to N strategies) ---- */}
       <Glass className="mb-6">
         <div className="flex items-center justify-between">
           <Eyebrow>Signal engine</Eyebrow>
-          <GlowDot tone={engineMode === "none" ? "warn" : "pos"} size={6} pulse={engineMode !== "none"} />
+          <GlowDot tone={activeCount === 0 ? "warn" : "pos"} size={6} pulse={activeCount > 0} />
         </div>
         <p className="mt-1 text-[11.5px] leading-relaxed text-txt-low">
-          Choose the strategy that generates signals. Currently:{" "}
-          <span className={engineMode === "none" ? "font-semibold text-warn" : "font-semibold text-txt-hi"}>
-            {MODE_LABEL[engineMode]}
-          </span>
+          Switch each strategy ON or OFF. Currently{" "}
+          <span className={activeCount === 0 ? "font-semibold text-warn" : "font-semibold text-txt-hi"}>
+            {activeCount === 0 ? "no strategy is generating signals" : `${activeCount} generating signals`}
+          </span>.
         </p>
-        <div className={`mt-4 grid grid-cols-3 gap-2 ${busy === "engine" ? "pointer-events-none opacity-50" : ""}`}>
-          {([["s1", "Strategy 1"], ["s2", "Strategy 2"], ["both", "Both"]] as const).map(([k, label]) => (
-            <button
-              key={k}
-              onClick={() => applyEngineMode(k)}
-              disabled={busy === "engine" || engineMode === k}
-              aria-pressed={engineMode === k}
-              className={`tap min-h-[46px] rounded-2xl border px-2 py-3 text-[12px] font-bold tracking-wide ${
-                engineMode === k ? "chip-on" : "chip-off"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+        <div className={`mt-4 space-y-2 ${busy.startsWith("toggle:") ? "pointer-events-none opacity-50" : ""}`}>
+          {(data?.strategies ?? []).map((st) => {
+            const retired = st.status === "DISABLED";
+            return (
+              <div key={st.id} className="flex items-center justify-between gap-3 rounded-2xl border border-[rgba(var(--warm-rgb),0.07)] bg-[rgba(var(--warm-rgb),0.035)] px-4 py-3">
+                <div className="min-w-0">
+                  <div className="truncate text-[12.5px] font-semibold text-txt-hi">{st.short_name}</div>
+                  <div className="text-[10px] text-txt-faint">
+                    {retired ? "Retired - signal history kept" : st.status === "ACTIVE" ? "Generating signals" : "Paused - no new signals"}
+                  </div>
+                </div>
+                {retired ? (
+                  <span className="shrink-0 rounded-full border border-[rgba(var(--warm-rgb),0.14)] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-txt-faint">Retired</span>
+                ) : (
+                  <button
+                    onClick={() => toggleStatus(st)}
+                    disabled={busy.startsWith("toggle:")}
+                    aria-pressed={st.status === "ACTIVE"}
+                    className={`tap min-h-[38px] shrink-0 rounded-full px-5 text-[11px] font-bold uppercase tracking-[0.12em] ${st.status === "ACTIVE" ? "chip-on" : "chip-off"}`}
+                  >
+                    {st.status === "ACTIVE" ? "On" : "Off"}
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
-        <p className="mt-3 text-[10px] leading-relaxed text-txt-faint">
+
+        {/* ENTRY MODE - the new strategy's trigger, visible right here */}
+        {(data?.strategies ?? [])
+          .filter((st) => st.id === "strategy_1_vp_pivots" && st.active_params?.entry_mode)
+          .map((st) => (
+            <ModeControl key="entry-mode" sid={st.id} k="entry_mode"
+                         v={String(st.active_params!.entry_mode)}
+                         spec={(st.experiment_variables ?? {})["entry_mode"]}
+                         busy={busy} onSet={setParam} />
+          ))}
+
+        <p className="mt-1 text-[10px] leading-relaxed text-txt-faint">
           Applies to new signals only. Signals already tracking always run to completion.
         </p>
       </Glass>
@@ -247,7 +247,9 @@ export function StrategiesScreen() {
       </Glass>
 
       {/* add strategy - part of the interface */}
-      <button className="tap mt-4 flex w-full items-center gap-4 rounded-[24px] border border-dashed border-[rgba(var(--warm-rgb),0.12)] px-5 py-5 text-left text-txt-low transition hover:border-[rgba(var(--warm-rgb),0.20)] hover:text-txt-mid">
+      <button
+        onClick={() => flash("Strategies are code modules: drop a file under backend/app/strategies and it appears here automatically - the AI can never invent one.")}
+        className="tap mt-4 flex w-full items-center gap-4 rounded-[24px] border border-dashed border-[rgba(var(--warm-rgb),0.12)] px-5 py-5 text-left text-txt-low transition hover:border-[rgba(var(--warm-rgb),0.20)] hover:text-txt-mid">
         <span className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-[rgba(var(--warm-rgb),0.045)] text-[15px] font-light">+</span>
         <span>
           <span className="text-[13px] font-medium">Add a strategy</span>

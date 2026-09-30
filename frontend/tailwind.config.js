@@ -6,8 +6,17 @@ export default {
       colors: {
         /* palette mirrors the CSS custom-property tokens in index.css */
         base: { DEFAULT: "#f7f1e3", 2: "#f2e9d5", 3: "#fdf9ef" },
-        txt: { hi: "#232a3b", mid: "#4c5670", low: "#6a7186", faint: "#98a0b0" },
-        acc: { DEFAULT: "#0f8f78", cyan: "#b8912f", violet: "#f2695c", magenta: "#d94fb8" },
+        /* text + accent tokens are THEME-DRIVEN (rgb triplets keep alpha
+           modifiers working). Before 2026-09-30 these were static dark hex -
+           every text-txt-* string was invisible on the dark themes. */
+        txt: {
+          hi: "rgb(var(--txt-hi-rgb) / <alpha-value>)",
+          mid: "rgb(var(--txt-mid-rgb) / <alpha-value>)",
+          low: "rgb(var(--txt-low-rgb) / <alpha-value>)",
+          faint: "rgb(var(--txt-faint-rgb) / <alpha-value>)",
+        },
+        acc: { DEFAULT: "var(--accent-green)", cyan: "var(--accent-cyan)",
+               violet: "var(--accent-purple)", magenta: "var(--accent-magenta)" },
         /* themed via CSS vars - each theme defines these in index.css */
         pos: "var(--accent-green)",
         neg: "var(--accent-red)",

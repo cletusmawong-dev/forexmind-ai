@@ -1508,3 +1508,62 @@ button:not(:disabled):active,
   .glass-hover:hover, .seg button:hover:not(.seg-on),
   .chip-off:hover { transform: none !important; }
 }
+
+
+/* ============================================================
+   THEME PERSONALITIES (2026-09-30) - every theme gets its own
+   typeface + readable text tokens (fixes invisible text on dark)
+   ivory = Space Grotesk / navy = Sora / onyx = Rajdhani / slate = Manrope
+   ============================================================ */
+@font-face { font-family: "Sora"; font-style: normal; font-weight: 400; font-display: swap;
+  src: url("/fonts/sora-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "Sora"; font-style: normal; font-weight: 600; font-display: swap;
+  src: url("/fonts/sora-latin-600-normal.woff2") format("woff2"); }
+@font-face { font-family: "Sora"; font-style: normal; font-weight: 700; font-display: swap;
+  src: url("/fonts/sora-latin-700-normal.woff2") format("woff2"); }
+@font-face { font-family: "Rajdhani"; font-style: normal; font-weight: 400; font-display: swap;
+  src: url("/fonts/rajdhani-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "Rajdhani"; font-style: normal; font-weight: 600; font-display: swap;
+  src: url("/fonts/rajdhani-latin-600-normal.woff2") format("woff2"); }
+@font-face { font-family: "Rajdhani"; font-style: normal; font-weight: 700; font-display: swap;
+  src: url("/fonts/rajdhani-latin-700-normal.woff2") format("woff2"); }
+@font-face { font-family: "Manrope"; font-style: normal; font-weight: 400; font-display: swap;
+  src: url("/fonts/manrope-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "Manrope"; font-style: normal; font-weight: 600; font-display: swap;
+  src: url("/fonts/manrope-latin-600-normal.woff2") format("woff2"); }
+@font-face { font-family: "Manrope"; font-style: normal; font-weight: 700; font-display: swap;
+  src: url("/fonts/manrope-latin-700-normal.woff2") format("woff2"); }
+
+:root {
+  --font-ui: "Space Grotesk";
+  --txt-hi-rgb: 35 42 59;
+  --txt-mid-rgb: 76 86 112;
+  --txt-low-rgb: 106 113 134;
+  --txt-faint-rgb: 152 160 176;
+}
+[data-theme="navy"] {
+  --font-ui: "Sora";
+  --txt-hi-rgb: 233 238 248;
+  --txt-mid-rgb: 184 195 217;
+  --txt-low-rgb: 143 157 185;
+  --txt-faint-rgb: 104 117 145;
+}
+[data-theme="onyx"] {
+  --font-ui: "Rajdhani";
+  --txt-hi-rgb: 242 238 226;
+  --txt-mid-rgb: 201 195 180;
+  --txt-low-rgb: 160 154 140;
+  --txt-faint-rgb: 122 117 106;
+}
+[data-theme="slate"] {
+  --font-ui: "Manrope";
+  --txt-hi-rgb: 236 239 245;
+  --txt-mid-rgb: 192 199 212;
+  --txt-low-rgb: 152 162 179;
+  --txt-faint-rgb: 111 122 141;
+}
+body {
+  font-family: var(--font-ui), "Space Grotesk", -apple-system, BlinkMacSystemFont,
+    "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+}
+[data-theme="onyx"] body { letter-spacing: 0.012em; }
