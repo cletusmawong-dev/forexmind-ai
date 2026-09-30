@@ -148,7 +148,7 @@ def test_supabase_list_filters_order_limit_and_count(sb):
     # correct PostgREST query shape
     last = http.calls[-1]
     assert last["params"]["data->>userId"] == "eq.u1"      # jsonb text filter
-    assert last["params"]["order"] == "data->>createdAt.desc.nullslast"
+    assert last["params"]["order"] == "data->>createdAt.desc.nullslast,id.asc"  # id tiebreaker for paging
     assert last["params"]["limit"] == "2"
     # operator filters translate
     store.list("signals", filters={

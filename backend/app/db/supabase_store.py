@@ -129,26 +129,41 @@ class SupabaseStore:
 
     def list(self, coll: str, filters: Optional[Dict[str, Any]] = None,
              order_by: str = "createdAt", desc: bool = True, limit: int = 0) -> List[dict]:
-        params: Dict[str, str] = {}
+        base_params: Dict[str, str] = {}
         for k, v in (filters or {}).items():
             if isinstance(v, tuple):
                 op, val = v
                 if op == "in":
-                    params[f"data->>{k}"] = f"in.({','.join(str(x) for x in val)})"
+                    base_params[f"data->>{k}"] = f"in.({','.join(str(x) for x in val)})"
                 elif op in ("gte", "lte"):
-                    params[f"data->>{k}"] = f"{op}.{val}"
+                    base_params[f"data->>{k}"] = f"{op}.{val}"
                 else:
-                    params[f"data->>{k}"] = f"eq.{val}"
+                    base_params[f"data->>{k}"] = f"eq.{val}"
             else:
-                params[f"data->>{k}"] = f"eq.{v}"
-        params["order"] = f"data->>{order_by}.{'desc' if desc else 'asc'}.nullslast"
-        if limit:
-            params["limit"] = str(limit)
-        r = requests.get(self._url(coll, params), headers=self._headers(),
-                         timeout=self.timeout)
-        if r.status_code != 200:
-            raise RuntimeError(f"supabase list {coll}: {r.status_code} {r.text[:200]}")
-        return [self._row_to_doc(row) for row in (r.json() or [])]
+                base_params[f"data->>{k}"] = f"eq.{v}"
+        # deterministic pagination: createdAt + row id tiebreaker (PostgREST
+        # caps a single page at max_rows (default 1000) - incident 2026-09-30:
+        # limit=0 silently truncated 12k-row tables to 1000)
+        page = 1000
+        out: List[dict] = []
+        offset = 0
+        while True:
+            params = dict(base_params)
+            params["order"] = (f"data->>{order_by}.{'desc' if desc else 'asc'}.nullslast,"
+                               "id.asc")
+            params["limit"] = str(min(page, max(1, min(limit - offset, page)))
+                                  if limit else page)
+            params["offset"] = str(offset)
+            r = requests.get(self._url(coll, params), headers=self._headers(),
+                             timeout=self.timeout)
+            if r.status_code != 200:
+                raise RuntimeError(f"supabase list {coll}: {r.status_code} {r.text[:200]}")
+            rows = r.json() or []
+            out.extend(self._row_to_doc(row) for row in rows)
+            offset += len(rows)
+            if len(rows) < page or (limit and offset >= limit):
+                break
+        return out
 
     def count(self, coll: str, filters: Optional[Dict[str, Any]] = None,
               limit: int = 0) -> int:
