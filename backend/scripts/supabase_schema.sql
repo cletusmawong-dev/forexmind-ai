@@ -40,3 +40,9 @@ create index if not exists idx_events_user_created on exec_events ((data->>'user
 create index if not exists idx_decisions_user_created on ai_decisions ((data->>'userId'), (data->>'createdAt') desc);
 create index if not exists idx_audit_created on audit_log ((data->>'createdAt') desc);
 create index if not exists idx_recos_user_status on recommendations ((data->>'userId'), (data->>'status'));
+
+-- 3.0 collections (stages 1/5/7 - added with the flip prep)
+create table if not exists evidence (id text primary key, data jsonb not null);
+create table if not exists debates (id text primary key, data jsonb not null);
+create table if not exists incidents (id text primary key, data jsonb not null);
+create table if not exists shadow_trades (id text primary key, data jsonb not null);
