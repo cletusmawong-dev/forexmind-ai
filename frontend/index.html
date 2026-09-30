@@ -5,6 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#f7f1e3" />
     <script>
+      // self-heal: if any old build left a service worker or CacheStorage
+      // shell behind, evict it BEFORE the app loads (never show stale UI)
+      try {
+        if ("serviceWorker" in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function (rs) {
+            rs.forEach(function (r) { r.unregister(); });
+          });
+        }
+        if (window.caches && caches.keys) {
+          caches.keys().then(function (ks) {
+            ks.forEach(function (k) { caches.delete(k); });
+          });
+        }
+      } catch (e) {}
+    </script>
+    <script>
       // apply saved theme before first paint (no flash)
       try {
         var t = localStorage.getItem("fm_theme");

@@ -1,3 +1,4 @@
+import { BUILD_STAMP as __BUILD_STAMP__ } from "../lib/version";
 import { NavLink } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Home, Radio, Bot, Activity, ListChecks, GraduationCap, NotebookPen, Settings, PieChart, Shield, Layers } from "lucide-react";
@@ -62,6 +63,7 @@ export function Sidebar() {
           Research & signals only - never executes trades.
           <br />v0.1.0 - Trade - Learn - Grow
         </p>
+        <p className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-[var(--text-faint)]">{__BUILD_STAMP__}</p>
       </div>
     </aside>
   );

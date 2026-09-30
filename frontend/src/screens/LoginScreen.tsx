@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api, endpoints, setToken } from "../lib/api";
+import { BUILD_STAMP } from "../lib/version";
 
 export function LoginScreen({ onAuthed }: { onAuthed: () => void }) {
   const [mode, setMode] = useState<"login" | "register">("login");
@@ -94,6 +95,7 @@ export function LoginScreen({ onAuthed }: { onAuthed: () => void }) {
           <br />
           You stay in control of every decision.
         </p>
+        <p className="mt-3 font-mono text-[9.5px] uppercase tracking-[0.14em] text-txt-faint">{BUILD_STAMP}</p>
       </div>
     </div>
   );
