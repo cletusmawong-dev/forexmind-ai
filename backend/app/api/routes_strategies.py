@@ -22,7 +22,11 @@ def list_strategies(user_id: str = Depends(get_user_id)):
         doc = store.list("strategies", filters={"id": sid}, limit=1)
         doc = doc[0] if doc else {"id": sid, "status": "ACTIVE",
                                   "active_version": strat.version}
-        out.append({**doc, "metadata": strat.get_metadata(),
+        md = strat.get_metadata()
+        # Friendly names live on the strategy class; older stored docs predate
+        # them and rendered blank rows on the Strategies screen (2026-10-01).
+        # doc wins over md (stored truth), md fills any gaps.
+        out.append({**md, **doc, "id": sid, "metadata": md,
                     "active_params": vc.active_params(sid),
                     "experiment_variables": strat.experiment_variables})
     return {"strategies": out}

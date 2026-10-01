@@ -153,6 +153,13 @@ class SupabaseStore:
              order_by: str = "createdAt", desc: bool = True, limit: int = 0) -> List[dict]:
         base_params: Dict[str, str] = {}
         for k, v in (filters or {}).items():
+            if k == "id":
+                # ROW id column, never data->>id: create() strips "id" from
+                # data, so data->>id matched NOTHING and every filters={"id"}
+                # caller silently got [] (blank strategy names + a dead
+                # per-strategy PAUSE gate - incident 2026-10-01).
+                base_params["id"] = f"eq.{v}"
+                continue
             if isinstance(v, tuple):
                 op, val = v
                 if op == "in":
@@ -197,6 +204,9 @@ class SupabaseStore:
         generation for the day."""
         params: Dict[str, str] = {"limit": "1"}
         for k, v in (filters or {}).items():
+            if k == "id":
+                params["id"] = f"eq.{v}"          # row id column (see list)
+                continue
             key = f"data->>{k}"
             params[key] = f"eq.{v[1]}" if isinstance(v, tuple) else f"eq.{v}"
         r = requests.get(self._url(coll, params),

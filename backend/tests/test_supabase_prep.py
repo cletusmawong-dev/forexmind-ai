@@ -68,7 +68,13 @@ class FakeHTTP:
             out = list(self.rows.get(coll, []))
             for k, v in params.items():
                 f = field_of(k)
-                if k == "order" or f is None:
+                if k == "order":
+                    continue
+                if k == "id" and v.startswith("eq."):
+                    # real PostgREST: bare "id" filters the ROW id column
+                    out = [r for r in out if str(r.get("id")) == v[3:]]
+                    continue
+                if f is None:
                     continue
                 if v.startswith("eq."):
                     out = [r for r in out if str(r["data"].get(f)) == v[3:]]
@@ -364,3 +370,55 @@ def test_vps_mode_is_owner_only():
             set_mode("plain_user", "vps")
     finally:
         settings.owner_user_id, settings.execution_mode = orig
+
+
+def test_store_list_filters_by_row_id(sb):
+    """filters={"id": x} must hit the ROW id column, not data->>id: create()
+    strips "id" from data, so the old data->>id filter matched nothing and
+    every id-filtered list() silently returned [] (blank strategy names +
+    a dead PAUSE gate - incident 2026-10-01)."""
+    store, http, _ = sb
+    store.create("strategies", {"short_name": "VP + Pivots", "status": "ACTIVE"},
+                 doc_id="strategy_1_vp_pivots")
+    store.create("strategies", {"short_name": "9/21 EMA Smart TP/SL", "status": "ACTIVE"},
+                 doc_id="strategy_2_ema_atr")
+    got = store.list("strategies", filters={"id": "strategy_1_vp_pivots"}, limit=1)
+    assert len(got) == 1, f"row-id filter returned {len(got)} docs"
+    assert got[0]["id"] == "strategy_1_vp_pivots"
+    assert got[0]["short_name"] == "VP + Pivots"
+    assert store.list("strategies", filters={"id": "nope"}) == []
+    assert store.count("strategies", filters={"id": "strategy_2_ema_atr"}) == 1
+
+
+def test_strategies_endpoint_surfaces_names():
+    """/api/strategies must always show friendly names: stored docs predate
+    short_name (user saw 'no strategy name' rows, 2026-10-01) - class
+    metadata fills the gaps."""
+    from fastapi.testclient import TestClient
+    from app.db.store import LocalStore
+    from app.db import store as store_mod
+    from app.state import State
+    from app.main import app
+    from app.api.deps import get_user_id
+    import tempfile
+
+    tmp = tempfile.mkdtemp()
+    st = LocalStore(path=f"{tmp}/db.json")
+    store_mod._store = st
+    prev = State.store
+    State.store = st
+    app.dependency_overrides[get_user_id] = lambda: "boss"
+    try:
+        # seed a nameless doc like the post-migration table (worst case)
+        st.create("strategies", {"status": "ACTIVE"}, doc_id="strategy_1_vp_pivots")
+        with TestClient(app) as c:
+            r = c.get("/api/strategies")
+            assert r.status_code == 200, r.text[:200]
+            rows = {s["id"]: s for s in r.json().get("strategies", [])}
+            assert rows["strategy_1_vp_pivots"]["short_name"] == "VP + Pivots"
+            for sid, s in rows.items():
+                assert s.get("short_name"), f"{sid} has no short_name"
+    finally:
+        State.store = prev
+        State.ready = False
+        app.dependency_overrides.pop(get_user_id, None)
