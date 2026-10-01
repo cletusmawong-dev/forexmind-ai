@@ -116,7 +116,7 @@ export function StrategiesScreen() {
             return (
               <div key={st.id} className="flex items-center justify-between gap-3 rounded-2xl border border-[rgba(var(--warm-rgb),0.07)] bg-[rgba(var(--warm-rgb),0.035)] px-4 py-3">
                 <div className="min-w-0">
-                  <div className="truncate text-[12.5px] font-semibold text-txt-hi">{st.short_name}</div>
+                  <div className="truncate text-[12.5px] font-semibold text-txt-hi">{st.short_name || st.id}</div>
                   <div className="text-[10px] text-txt-faint">
                     {retired ? "Retired - signal history kept" : st.status === "ACTIVE" ? "Generating signals" : "Paused - no new signals"}
                   </div>

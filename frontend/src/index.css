@@ -1584,3 +1584,16 @@ button, a, [role="button"] {
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
 }
+
+/* Phone breathing room (2026-10-01): the tablet layout reads loose, the
+   phone read cramped. Small screens only - tablet/desktop untouched.
+   Comma-form rgba only (old-browser rule). */
+@media (max-width: 640px) {
+  .glass.p-5,
+  .glass-2.p-5 {
+    padding: 24px 20px;
+  }
+  body {
+    line-height: 1.55;
+  }
+}

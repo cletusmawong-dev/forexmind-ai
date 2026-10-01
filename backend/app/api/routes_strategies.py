@@ -36,7 +36,8 @@ def strategy_detail(strategy_id: str, user_id: str = Depends(get_user_id)):
         raise HTTPException(404, "Unknown strategy")
     store = State.store
     doc = store.list("strategies", filters={"id": strategy_id}, limit=1)
-    return {"strategy": doc[0] if doc else {}, "metadata": strat.get_metadata(),
+    return {"strategy": {**get_strategy(strategy_id).get_metadata(), **(doc[0] if doc else {})},
+            "metadata": strat.get_metadata(),
             "active_params": vc.active_params(strategy_id),
             "active_version": vc.active_version(strategy_id)}
 

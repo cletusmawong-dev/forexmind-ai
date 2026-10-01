@@ -70,7 +70,7 @@ LOT_MODE_MULT = {"low": 0.5, "medium": 1.0, "high": 1.5}
 # reject anyway (stop too close -> retcode 10016 'Invalid stops', seen live
 # on SIG-20260921-007 with a 2.2-pip SL) never go out; and the risk-% lot
 # math on a tiny SL can explode (0.77 lots) - a hard cap keeps that sane.
-MIN_STOP_PIPS = float(os.getenv("EXECUTION_MIN_STOP_PIPS", "8"))
+MIN_STOP_PIPS = float(os.getenv("EXECUTION_MIN_STOP_PIPS", "6"))
 MAX_LOTS = float(os.getenv("EXECUTION_MAX_LOTS", "1.0"))
 
 
