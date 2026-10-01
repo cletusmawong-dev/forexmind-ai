@@ -304,3 +304,35 @@ def test_invite_gated_registration():
         State.store = prev
         State.ready = False
         app.dependency_overrides.pop(get_user_id, None)
+
+
+def test_agent_status_hides_retired_strategies():
+    """/api/agent/status must list live strategies only (2026-10-01: the
+    hardcoded zero-lag entry ghosted the Agent screen for a week)."""
+    from fastapi.testclient import TestClient
+    from app.db.store import LocalStore
+    from app.db import store as store_mod
+    from app.state import State
+    from app.config import settings
+    from app.main import app
+    from app.api.deps import get_user_id
+    import tempfile
+
+    tmp = tempfile.mkdtemp()
+    st = LocalStore(path=f"{tmp}/db.json")
+    store_mod._store = st
+    prev = State.store
+    State.store = st
+    settings.owner_user_id = "boss"
+    app.dependency_overrides[get_user_id] = lambda: "boss"
+    try:
+        with TestClient(app) as c:
+            r = c.get("/api/agent/status")
+            assert r.status_code == 200, r.text[:200]
+            sv = r.json().get("strategy_versions", {})
+            assert "strategy_1_zero_lag" not in sv
+            assert "strategy_1_vp_pivots" in sv
+    finally:
+        State.store = prev
+        State.ready = False
+        app.dependency_overrides.pop(get_user_id, None)

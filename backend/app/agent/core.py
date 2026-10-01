@@ -225,6 +225,12 @@ def compute_progress(user_id: str) -> Dict[str, Any]:
     }
 
 
+
+def _live_strategies() -> list:
+    """Registered strategies minus retired ones (zero lag stays gone)."""
+    from ..strategies import all_strategies
+    return [sid for sid in all_strategies() if sid not in RETIRED_STRATEGIES]
+
 def agent_status(user_id: str, current_task: str = "Monitoring markets",
                  strategies_active: int = 2) -> Dict[str, Any]:
     store = get_store()
@@ -253,7 +259,6 @@ def agent_status(user_id: str, current_task: str = "Monitoring markets",
         # live strategies only - retired ones (zero lag) never come back
         "strategy_versions": {
             sid: active_version(sid)
-            for sid in all_strategies()
-            if sid not in RETIRED_STRATEGIES
+            for sid in _live_strategies()
         },
     }
