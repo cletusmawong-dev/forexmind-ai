@@ -4,8 +4,11 @@ import { BUILD_STAMP } from "../lib/version";
 
 export function LoginScreen({ onAuthed }: { onAuthed: () => void }) {
   const invite = (() => {
-    try { return new URLSearchParams(window.location.search).get("invite") || ""; }
-    catch { return ""; }
+    try {
+      const u = new URLSearchParams(window.location.search).get("invite") || "";
+      if (u) sessionStorage.setItem("fm_invite", u);
+      return u || sessionStorage.getItem("fm_invite") || "";
+    } catch { return ""; }
   })();
   const [mode, setMode] = useState<"login" | "register">(invite ? "register" : "login");
   const [email, setEmail] = useState("");
@@ -23,6 +26,7 @@ export function LoginScreen({ onAuthed }: { onAuthed: () => void }) {
           ? await api.post(endpoints.login, { email, password })
           : await api.post(endpoints.register, { email, password, display_name: name || email.split("@")[0], invite });
       setToken(res.token);
+      try { sessionStorage.removeItem("fm_invite"); } catch {}
       onAuthed();
     } catch (e: any) {
       setError(

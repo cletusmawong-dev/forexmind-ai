@@ -55,7 +55,14 @@ function ConnBanner() {
 
 export default function App() {
   const [booted, setBooted] = useState(false);
-  const [authed, setAuthed] = useState(!!getToken());
+  // An invite link (?invite=...) must ALWAYS land on the signup form -
+  // never auto-enter a previously saved account (2026-10-01: a logged-in
+  // device opening an invite link jumped straight into the old account).
+  const HAS_INVITE = (() => {
+    try { return !!new URLSearchParams(window.location.search).get("invite"); }
+    catch { return false; }
+  })();
+  const [authed, setAuthed] = useState(!!getToken() && !HAS_INVITE);
   const location = useLocation();
 
   useEffect(() => {
