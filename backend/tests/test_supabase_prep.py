@@ -336,3 +336,31 @@ def test_agent_status_hides_retired_strategies():
         State.store = prev
         State.ready = False
         app.dependency_overrides.pop(get_user_id, None)
+
+
+def test_vps_mode_is_owner_only():
+    """Multi-user privacy (2026-10-01): the shared VPS bridge and the master
+    MT5 account view belong to the owner ALONE - other accounts are
+    signals-only, their dashboards never attach the broker."""
+    import pytest
+    from app.config import settings
+    from app.execution.mt5 import user_mode, set_mode
+    from app.db.store import get_store
+    store = get_store()
+    store.create("agent_goals", {"userId": "owner_boss", "execution_mode": "vps"},
+                 doc_id="g_owner")
+    store.create("agent_goals", {"userId": "plain_user", "execution_mode": "vps"},
+                 doc_id="g_user")
+    orig = (settings.owner_user_id, settings.execution_mode)
+    try:
+        settings.owner_user_id = "owner_boss"
+        settings.execution_mode = "mt5_bridge"
+        assert user_mode("owner_boss") == "vps"
+        # even an explicit vps goal is forced off for non-owners
+        assert user_mode("plain_user") == "off"
+        # and a fresh user with NO goals doc never inherits the env default
+        assert user_mode("newcomer") == "off"
+        with pytest.raises(PermissionError):
+            set_mode("plain_user", "vps")
+    finally:
+        settings.owner_user_id, settings.execution_mode = orig

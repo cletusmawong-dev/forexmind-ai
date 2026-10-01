@@ -163,8 +163,8 @@ def test_weave_entry_ledger_audit_and_suspension(env):
                             lambda uid, t, ti, b, **kw: sent.append(t))
         X.execute_signal(store.get("signals", "sg2"), "u9")
         doc = store.get("signals", "sg2")
-        assert doc["execution_status"] == "SKIPPED_NOT_AUTHORIZED"
-        assert "EXECUTION_SKIPPED" in sent
+        assert doc["execution_status"] .startswith("SKIPPED_")   # advisory: mode-off or not-authorized - never executes
+        assert sent == []   # advisory-mode refusals are silent (no per-signal spam)
         ev2 = [e for e in store.list("exec_events", filters={"userId": "u9"},
                                      limit=5)]
         assert ev2 and ev2[0]["stage"] == "SKIPPED"

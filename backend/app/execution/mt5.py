@@ -117,19 +117,30 @@ def set_execution_enabled(user_id: str, enabled: bool) -> None:
 
 
 def user_mode(user_id: str) -> str:
+    """Execution mode for a user. VPS-bridge execution and the master
+    account view are OWNER-ONLY (multi-user privacy, 2026-10-01): every
+    other account is signals-only - the env default must never silently
+    attach the shared bridge account to someone else's dashboard."""
     mode = (_goals_doc(user_id) or {}).get("execution_mode")
     if mode == "mt5_bridge":        # legacy env name
-        return "vps"
+        mode = "vps"
     if mode in MODES:
+        if mode == "vps" and user_id != settings.owner_user_id:
+            return "off"
         return mode
-    return "vps" if settings.execution_mode == "mt5_bridge" else "off"   # env default
+    if user_id != settings.owner_user_id:
+        return "off"                # env default is owner-only
+    return "vps" if settings.execution_mode == "mt5_bridge" else "off"
 
 
 def set_mode(user_id: str, mode: str) -> str:
     if mode not in MODES:
         raise ValueError(f"unknown mode {mode}")
-    if mode == "vps" and not (settings.execution_mode == "mt5_bridge" and settings.bridge_url):
-        raise PermissionError("VPS bridge not configured yet - finish the VPS setup first")
+    if mode == "vps":
+        if user_id != settings.owner_user_id:
+            raise PermissionError("VPS execution is reserved for the owner account")
+        if not (settings.execution_mode == "mt5_bridge" and settings.bridge_url):
+            raise PermissionError("VPS bridge not configured yet - finish the VPS setup first")
     _goals_update(user_id, {"execution_mode": mode})
     return mode
 

@@ -9,11 +9,15 @@ export default {
         /* text + accent tokens are THEME-DRIVEN (rgb triplets keep alpha
            modifiers working). Before 2026-09-30 these were static dark hex -
            every text-txt-* string was invisible on the dark themes. */
+        /* comma-form rgba: older mobile browsers cannot parse the modern
+           "rgb(1 2 3 / a)" syntax -> text silently vanished on them
+           (2026-10-01 tablet/sister reports). Triplets below are comma
+           separated for exactly this reason. */
         txt: {
-          hi: "rgb(var(--txt-hi-rgb) / <alpha-value>)",
-          mid: "rgb(var(--txt-mid-rgb) / <alpha-value>)",
-          low: "rgb(var(--txt-low-rgb) / <alpha-value>)",
-          faint: "rgb(var(--txt-faint-rgb) / <alpha-value>)",
+          hi: "rgba(var(--txt-hi-rgb), <alpha-value>)",
+          mid: "rgba(var(--txt-mid-rgb), <alpha-value>)",
+          low: "rgba(var(--txt-low-rgb), <alpha-value>)",
+          faint: "rgba(var(--txt-faint-rgb), <alpha-value>)",
         },
         acc: { DEFAULT: "var(--accent-green)", cyan: "var(--accent-cyan)",
                violet: "var(--accent-purple)", magenta: "var(--accent-magenta)" },

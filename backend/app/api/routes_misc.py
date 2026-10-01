@@ -128,7 +128,10 @@ def system_status(user_id: str = Depends(get_user_id)):
     stream_configured = bool(settings.market_data_stream_url)
     bridge_configured = bool(settings.bridge_url)
     from ..execution.mt5 import bridge_get, status as exec_status
-    acct = bridge_get("/account") if bridge_configured else None
+    # Broker account data is PRIVATE to the owner (multi-user, 2026-10-01):
+    # other accounts are signals-only and never see the master MT5 account.
+    owner = user_id == settings.owner_user_id
+    acct = bridge_get("/account") if (bridge_configured and owner) else None
     try:
         execution = exec_status(user_id)
     except Exception:
@@ -156,6 +159,9 @@ def system_status(user_id: str = Depends(get_user_id)):
             "reachable": bool(acct and isinstance(acct, dict) and "balance" in acct),
             "note": None if bridge_configured else
                     "MT5_BRIDGE_URL not set - VPS not configured yet.",
+            "broker_note": (None if acct is not None else
+                            ("Signals-only account - the broker connection is private to the owner"
+                             if bridge_configured else None)) if not owner else None,
         },
         "execution": {
             "mode": (execution or {}).get("mode", "off"),

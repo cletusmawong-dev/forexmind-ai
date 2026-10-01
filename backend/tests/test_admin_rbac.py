@@ -133,37 +133,43 @@ def test_enable_requires_full_setup(world):
 
 
 def test_executor_respects_db_permission(world):
+    """DB trading_permission gates execution. VPS is owner-only (2026-10-01),
+    so a non-owner exercises the MANUAL (own PC connector) transport here -
+    same permission gate, private transport."""
     c, store, _ = world
     from app.execution import mt5 as X
     X._CONFIRMED_POSITIONS.clear()
     _mk_user(store, "trader1")
     store.create("agent_goals", {"userId": "trader1", "account_balance": 1000,
                                  "risk_per_trade_pct": 1.0, "execution_enabled": True,
-                                 "execution_mode": "vps"})
+                                 "execution_mode": "manual"})
     SIG = {"id": "s1", "userId": "trader1", "signal_id": "SIG-X", "market": "EURUSD",
            "direction": "SELL", "entry": 1.10, "sl": 1.11, "tp1": 1.09,
            "tp2": 1.08, "tp3": 1.07}
     store.create("signals", dict(SIG))
     sent = []
-    X_bridge = {"balance": 1000}
     X_orig_get, X_orig_post = X.bridge_get, X.bridge_post
-    X.bridge_get = lambda p, timeout=8: X_bridge if p == "/account" else None
+    X.bridge_get = lambda p, timeout=8: None
     X.bridge_post = lambda p, payload, timeout=15: sent.append(payload) or {"ok": True, "ticket": 9}
+    X.connector_online = lambda uid: True
+    X._connector_seen = lambda uid: True
     try:
         # LOCKED (default) -> never trades
         X.execute_signal(store.get("signals", "s1"), "trader1")
         doc = store.get("signals", "s1")
-        assert doc["execution_status"] == "SKIPPED_NOT_AUTHORIZED" and sent == []
+        assert doc["execution_status"] .startswith("SKIPPED_")   # advisory: mode-off or not-authorized - never executes and sent == []
         # ENABLED in the DB -> trades
         store.update("users", _uid_id(store, "trader1"), {"trading_permission": "enabled"})
         X.execute_signal(store.get("signals", "s1"), "trader1")
         doc = store.get("signals", "s1")
-        assert doc["execution_status"] == "SUBMITTED" and len(sent) == 1
+        assert doc["execution_status"] == "QUEUED_PC" and sent == []
+        cmds = store.list("exec_commands", filters={"userId": _uid_id(store, "trader1")}, limit=5)
+        assert cmds and cmds[0]["status"] == "PENDING"
         # revoked afterwards -> the NEXT order is refused (db is the source)
         store.update("users", _uid_id(store, "trader1"), {"trading_permission": "locked"})
         store.create("signals", dict(SIG, id="s2", signal_id="SIG-X2"))
         X.execute_signal(store.get("signals", "s2"), "trader1")
-        assert store.get("signals", "s2")["execution_status"] == "SKIPPED_NOT_AUTHORIZED"
+        assert store.get("signals", "s2")["execution_status"] .startswith("SKIPPED_")   # advisory: mode-off or not-authorized - never executes
     finally:
         X.bridge_get, X.bridge_post = X_orig_get, X_orig_post
         X._CONFIRMED_POSITIONS.clear()
