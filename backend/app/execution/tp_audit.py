@@ -90,7 +90,12 @@ def scan_user(user_id: str, positions: Optional[List[dict]] = None,
         broker_tp = p.get("tp")
         if chosen and broker_tp:
             try:
-                if abs(float(broker_tp) - float(chosen)) > 1e-9:
+                # brokers round TP to the symbol's digits (XAUUSD 4199.47175099
+                # -> 4199.472 is the SAME level); compare at 3 significant
+                # decimals of the instrument's tick, not float-exact
+                digits = len(str(broker_tp).split(".")[-1]) if "." in str(broker_tp) else 0
+                tol = 10.0 ** (-max(0, min(digits, 6)) - 1)   # one ulp beyond broker precision
+                if abs(float(broker_tp) - float(chosen)) > tol:
                     findings.append(_finding(
                         "TP_MISMATCH", "info",
                         f"#{ticket} broker TP {broker_tp} != signal TP{level} "

@@ -74,7 +74,12 @@ def create_invite(user_id: str = Depends(get_user_id)):
 def list_invites(user_id: str = Depends(get_user_id)):
     if user_id != settings.owner_user_id:
         raise HTTPException(403, "Only the owner")
-    return {"invites": get_store().list("invites", limit=50)}
+    try:
+        return {"invites": get_store().list("invites", limit=50)}
+    except RuntimeError as e:
+        if "PGRST205" in str(e):
+            return {"invites": [], "note": "invites table not provisioned yet - run the invites SQL on Supabase"}
+        raise
 
 
 @router.post("/login")
