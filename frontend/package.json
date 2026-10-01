@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b --noCheck && vite build",
+    "build": "tsc -b --noCheck && vite build && node scripts/css-compat.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

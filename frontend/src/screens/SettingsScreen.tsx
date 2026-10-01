@@ -526,7 +526,7 @@ export function SettingsScreen() {
       </Glass>
 
       {/* ---- order execution (MT5 via VPS bridge) ---- */}
-      <ExecutionCard />
+      <ExecutionCard isOwner={me.data?.role === "admin"} />
 
       {/* ---- system ---- */}
       <Eyebrow className="mt-9">System</Eyebrow>
@@ -618,8 +618,10 @@ function StoredHistoryRow() {
   );
 }
 
-/** MT5 execution: mode chooser (off / manual PC / vps later) + kill switch. */
-function ExecutionCard() {
+/** MT5 execution: mode chooser (off / manual PC / vps later) + kill switch.
+ * VPS option is OWNER-ONLY (multi-user privacy, 2026-10-01): the backend
+ * rejects it for everyone else (409), so the UI never offers it. */
+function ExecutionCard({ isOwner }: { isOwner: boolean }) {
   const st = usePolling<any>(() => api.get("/api/execution/status"), 20000);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
@@ -678,8 +680,19 @@ function ExecutionCard() {
           <p className="mb-2 text-[11px] text-txt-mid">Loading execution status…</p>
         )}
         <div className={busy ? "pointer-events-none opacity-60" : ""}>
-          <Segmented options={[{key:"off",label:"Off"},{key:"manual",label:"Manual PC"},{key:"vps",label:"VPS"}]} value={mode ?? ""} onChange={setMode} />
+          <Segmented
+            options={isOwner
+              ? [{key:"off",label:"Off"},{key:"manual",label:"Manual PC"},{key:"vps",label:"VPS"}]
+              : [{key:"off",label:"Off"},{key:"manual",label:"Manual PC"}]}
+            value={mode === "vps" && !isOwner ? "off" : (mode ?? "")}
+            onChange={setMode}
+          />
         </div>
+        {!isOwner && (
+          <p className="mt-2 text-[11px] leading-relaxed text-txt-faint">
+            Your account is signals-only - VPS auto-execution is reserved for the owner.
+          </p>
+        )}
 
         {mode === "manual" && (
           <div className="mt-4">
@@ -756,7 +769,7 @@ function ExecutionCard() {
 
         {mode === "off" && (
           <p className="mt-4 text-[12px] leading-relaxed text-txt-mid">
-            Signals are advisory only - nothing is placed. Pick <span className="font-semibold text-txt-hi">Manual (this PC)</span> to let a running MT5 execute them for you, or <span className="font-semibold text-txt-hi">VPS bridge</span> after the VPS setup.
+            Signals are advisory only - nothing is placed. Pick <span className="font-semibold text-txt-hi">Manual (this PC)</span> to let a running MT5 execute them for you{isOwner ? <> or <span className="font-semibold text-txt-hi">VPS bridge</span> after the VPS setup</> : null}.
           </p>
         )}
 
