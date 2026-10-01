@@ -11,7 +11,7 @@ import pandas as pd
 
 from ..config import settings
 from ..db.store import get_store
-from ..learning.versions import active_version
+from ..learning.versions import RETIRED_STRATEGIES, active_version
 
 
 DEFAULT_GOALS = {
@@ -250,8 +250,10 @@ def agent_status(user_id: str, current_task: str = "Monitoring markets",
         "lessons": lessons,
         "experiments": experiments,
         "pending_approvals": pending,
+        # live strategies only - retired ones (zero lag) never come back
         "strategy_versions": {
-            "strategy_1_zero_lag": active_version("strategy_1_zero_lag"),
-            "strategy_2_ema_atr": active_version("strategy_2_ema_atr"),
+            sid: active_version(sid)
+            for sid in all_strategies()
+            if sid not in RETIRED_STRATEGIES
         },
     }

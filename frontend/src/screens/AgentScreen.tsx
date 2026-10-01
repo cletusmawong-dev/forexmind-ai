@@ -21,10 +21,17 @@ interface ChatMsg {
   text: string;
 }
 
+const SNAME: Record<string, string> = {
+  strategy_1_vp_pivots: "VP + Pivots",
+  strategy_2_ema_atr: "9/21 EMA Smart TP/SL",
+  strategy_2_mtf_sweep_bos_retest: "MTF Sweep BOS",
+  strategy_1_zero_lag: "Zero Lag Trend (retired)",
+};
+
 export function AgentScreen() {
   const [tab, setTab] = useState<"presence" | "timeline" | "chat">("presence");
-  const status = usePolling<AgentStatus>(() => api.get(endpoints.agentStatus), 4000);
-  const activity = usePolling<{ activity: ActivityItem[] }>(() => api.get(endpoints.agentActivity), 4000);
+  const status = usePolling<AgentStatus>(() => api.get(endpoints.agentStatus), 6000);
+  const activity = usePolling<{ activity: ActivityItem[] }>(() => api.get(endpoints.agentActivity), 6000);
   const ai = usePolling<any>(() => api.get(endpoints.aimanager), 8000);
 
   const [messages, setMessages] = useState<ChatMsg[]>([
@@ -224,7 +231,7 @@ export function AgentScreen() {
                 <a key={sid} href="/strategies" className="glass glass-hover tap flex items-center justify-between p-4">
                   <div>
                     <div className="text-[13px] font-semibold">
-                      Strategy {i + 1} - {sid === "strategy_1_vp_pivots" ? "VP + Pivots" : sid === "strategy_1_zero_lag" ? "Zero Lag Trend" : "9/21 EMA Smart TP/SL"}
+                      Strategy {i + 1} - {SNAME[sid] ?? sid}
                     </div>
                     <div className="mt-0.5 text-[10.5px] text-[var(--text-muted)]">version {v}</div>
                   </div>

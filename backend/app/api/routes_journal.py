@@ -219,8 +219,11 @@ def journal_stats(user_id: str = Depends(get_user_id)):
         weekly[f"{iso.year}-W{iso.week:02d}"] += s.get("r_multiple", 0.0) or 0.0
         monthly[day[:7]] += s.get("r_multiple", 0.0) or 0.0
 
+    from ..learning.versions import RETIRED_STRATEGIES
     by_strategy = {}
     for sid, strat in all_strategies().items():
+        if sid in RETIRED_STRATEGIES:
+            continue          # retired strategies leave the analytics view
         sub = [s for s in completed if s.get("strategy_id") == sid]
         by_strategy[strat.short_name] = {
             "signals": len(sub),

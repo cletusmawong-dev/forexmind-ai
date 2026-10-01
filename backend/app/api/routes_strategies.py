@@ -14,8 +14,11 @@ router = APIRouter(prefix="/strategies", tags=["strategies"])
 @router.get("")
 def list_strategies(user_id: str = Depends(get_user_id)):
     store = State.store
+    from ..learning.versions import RETIRED_STRATEGIES
     out = []
     for sid, strat in all_strategies().items():
+        if sid in RETIRED_STRATEGIES:
+            continue          # retired: signal history stays, UI never shows it
         doc = store.list("strategies", filters={"id": sid}, limit=1)
         doc = doc[0] if doc else {"id": sid, "status": "ACTIVE",
                                   "active_version": strat.version}

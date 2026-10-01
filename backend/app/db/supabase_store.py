@@ -19,6 +19,7 @@ Backfill: scripts/backfill_to_supabase.py (one-time, idempotent upserts).
 from __future__ import annotations
 
 import json
+import time
 import threading
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
@@ -40,6 +41,10 @@ class SupabaseStore:
                  timeout: int = 10):
         self.base = (url or settings.supabase_url or "").rstrip("/")
         self.key = service_key or settings.supabase_service_key or ""
+        # short-TTL read cache for the hot path (engine scans call get()
+        # many times per cycle); writes invalidate immediately
+        self._ttl = 2.0
+        self._rcache: Dict[str, tuple] = {}
         self.timeout = timeout
         if not self.base or not self.key:
             raise ValueError("SUPABASE_URL / SUPABASE_SERVICE_KEY not configured")
@@ -93,16 +98,27 @@ class SupabaseStore:
                           timeout=self.timeout)
         if r.status_code not in (200, 201):
             raise RuntimeError(f"supabase create {coll}: {r.status_code} {r.text[:200]}")
+        self._invalidate(coll, d["id"])
         rows = r.json() if r.text else []
         return self._row_to_doc(rows[0]) if rows else d
 
+    def _invalidate(self, coll: str, doc_id: str) -> None:
+        self._rcache.pop(f"G:{coll}/{doc_id}", None)
+
     def get(self, coll: str, doc_id: str) -> Optional[dict]:
+        key = f"G:{coll}/{doc_id}"
+        hit = self._rcache.get(key)
+        now = time.monotonic()
+        if hit and (now - hit[0]) < self._ttl:
+            return hit[1]
         r = requests.get(self._url(coll, {"id": f"eq.{doc_id}"}),
                          headers=self._headers(), timeout=self.timeout)
         if r.status_code != 200:
             return None
         rows = r.json()
-        return self._row_to_doc(rows[0]) if rows else None
+        doc = self._row_to_doc(rows[0]) if rows else None
+        self._rcache[key] = (now, doc)
+        return doc
 
     def update(self, coll: str, doc_id: str, patch: dict) -> Optional[dict]:
         # jsonb merge is read-modify-write (PATCH alone would replace the row)
@@ -123,12 +139,14 @@ class SupabaseStore:
         if r.status_code not in (200, 204):
             raise RuntimeError(f"supabase update {coll}/{doc_id}: "
                                f"{r.status_code} {r.text[:200]}")
+        self._invalidate(coll, doc_id)
         rows = r.json() if r.text else []
         return self._row_to_doc(rows[0]) if rows else self.get(coll, doc_id)
 
     def delete(self, coll: str, doc_id: str) -> bool:
         r = requests.delete(self._url(coll, {"id": f"eq.{doc_id}"}),
                             headers=self._headers(), timeout=self.timeout)
+        self._invalidate(coll, doc_id)
         return r.status_code in (200, 204)
 
     def list(self, coll: str, filters: Optional[Dict[str, Any]] = None,

@@ -1567,3 +1567,20 @@ body {
     "SF Pro Display", "Segoe UI", Roboto, sans-serif;
 }
 [data-theme="onyx"] body { letter-spacing: 0.012em; }
+
+
+/* ---------- smoothness micro-pass (2026-10-01) ---------- */
+html {
+  scroll-behavior: smooth;
+  -webkit-tap-highlight-color: transparent;
+}
+button, a, [role="button"] {
+  touch-action: manipulation;   /* kills tap delay on mobile */
+}
+.glass, .glass-2, .glass-float, .hero-card {
+  content-visibility: auto;             /* long screens stop over-rendering */
+  contain-intrinsic-size: auto 120px;
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
