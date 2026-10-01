@@ -18,6 +18,10 @@ for (const f of readdirSync(dir)) {
     /rgb\(\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*\/\s*([\d.%]+)\s*\)/g,
     (_, r, g, b, a) => { converted++; return `rgba(${r}, ${g}, ${b}, ${pct(a)})`; }
   );
+  css = css.replace(
+    /rgb\(\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*\/\s*(var\([^)]*\))\s*\)/g,
+    (_, r, g, b, a) => { converted++; return `rgba(${r}, ${g}, ${b}, ${a})`; }
+  );
   writeFileSync(p, css);
   files++;
 }
