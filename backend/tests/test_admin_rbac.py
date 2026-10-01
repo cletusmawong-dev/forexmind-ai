@@ -60,9 +60,12 @@ def _as(world, uid):
 
 # ---------------------------------------------------------------------------
 def test_register_defaults_signal_only_locked(world):
+    """Registration is invite-gated (2026-09-30): the owner mints a link,
+    the new account is still born signals-only + locked."""
     c, store, _ = world
+    inv = c.post("/api/auth/invite", json={}).json()["invite"]
     r = c.post("/api/auth/register", json={"email": "New@x.io", "password": "pw123456",
-                                           "display_name": "New"})
+                                           "display_name": "New", "invite": inv})
     assert r.status_code == 200
     u = r.json()["user"]
     assert u["role"] == "user" and u["trading_permission"] == "locked"

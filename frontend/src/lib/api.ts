@@ -46,6 +46,7 @@ export const api = {
 
 export const endpoints = {
   login: "/api/auth/login",
+  invite: "/api/auth/invite",
   register: "/api/auth/register",
   me: "/api/auth/me",
   markets: "/api/markets",

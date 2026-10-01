@@ -248,3 +248,59 @@ def test_update_preserves_body_id_invariant(sb):
     if isinstance(body, str):
         body = __import__("json").loads(body)
     assert body["data"]["id"] == "s1"
+
+
+def test_invite_gated_registration():
+    """Multi-user: only owner-minted invites can register; new users are
+    born signals-only (trading_permission locked)."""
+    from fastapi.testclient import TestClient
+    from app.db.store import LocalStore
+    from app.db import store as store_mod
+    from app.state import State
+    from app.config import settings
+    from app.main import app
+    from app.api.deps import get_user_id
+    import tempfile
+
+    tmp = tempfile.mkdtemp()
+    st = LocalStore(path=f"{tmp}/db.json")
+    store_mod._store = st
+    prev = State.store
+    State.store = st
+    settings.owner_user_id = "boss"
+    app.dependency_overrides[get_user_id] = lambda: "boss"
+    try:
+        with TestClient(app) as c:
+            # non-owner cannot mint
+            app.dependency_overrides[get_user_id] = lambda: "rando"
+            r = c.post("/api/auth/invite", json={})
+            assert r.status_code == 403
+            app.dependency_overrides[get_user_id] = lambda: "boss"
+            r = c.post("/api/auth/invite", json={})
+            assert r.status_code == 200, r.text
+            invite = r.json()["invite"]
+            # registration without invite is refused
+            r = c.post("/api/auth/register", json={
+                "email": "sis@example.com", "password": "secret7", "display_name": "Sis"})
+            assert r.status_code == 403
+            # registration with the invite works and is born locked
+            r = c.post("/api/auth/register", json={
+                "email": "sis@example.com", "password": "secret7",
+                "display_name": "Sis", "invite": invite})
+            assert r.status_code == 200, r.text
+            assert r.json()["user"]["trading_permission"] == "locked"
+            assert r.json()["user"]["role"] == "user"
+            # invite consumed
+            r = c.post("/api/auth/register", json={
+                "email": "other@example.com", "password": "secret7", "invite": invite})
+            assert r.status_code == 403
+            # duplicate email refused
+            r = c.post("/api/auth/invite", json={})
+            inv2 = r.json()["invite"]
+            r = c.post("/api/auth/register", json={
+                "email": "sis@example.com", "password": "secret7", "invite": inv2})
+            assert r.status_code == 409
+    finally:
+        State.store = prev
+        State.ready = False
+        app.dependency_overrides.pop(get_user_id, None)

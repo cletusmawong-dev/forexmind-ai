@@ -3,7 +3,11 @@ import { api, endpoints, setToken } from "../lib/api";
 import { BUILD_STAMP } from "../lib/version";
 
 export function LoginScreen({ onAuthed }: { onAuthed: () => void }) {
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const invite = (() => {
+    try { return new URLSearchParams(window.location.search).get("invite") || ""; }
+    catch { return ""; }
+  })();
+  const [mode, setMode] = useState<"login" | "register">(invite ? "register" : "login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -17,7 +21,7 @@ export function LoginScreen({ onAuthed }: { onAuthed: () => void }) {
       const res =
         mode === "login"
           ? await api.post(endpoints.login, { email, password })
-          : await api.post(endpoints.register, { email, password, display_name: name || email.split("@")[0] });
+          : await api.post(endpoints.register, { email, password, display_name: name || email.split("@")[0], invite });
       setToken(res.token);
       onAuthed();
     } catch (e: any) {
@@ -83,6 +87,13 @@ export function LoginScreen({ onAuthed }: { onAuthed: () => void }) {
             <input className="input" placeholder="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
           </div>
 
+          {mode === "register" && (
+            <div className={`mt-4 rounded-2xl border px-4 py-2.5 text-[11.5px] ${invite ? "border-pos/20 bg-pos/[0.06] text-pos" : "border-warn/20 bg-warn/[0.06] text-warn"}`}>
+              {invite
+                ? "You've been invited - create your account below (signals access; execution stays with the owner)."
+                : "Registration is by invite only - ask the owner for a link."}
+            </div>
+          )}
           {error && <div className="mt-4 rounded-2xl border border-neg/20 bg-neg/[0.06] px-4 py-2.5 text-[11.5px] text-neg">{error}</div>}
 
           <button className="btn-primary mt-5 w-full" disabled={busy} onClick={submit}>

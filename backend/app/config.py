@@ -78,6 +78,7 @@ class Settings:
     telegram_bot_token: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
     telegram_bot_username: str = os.getenv("TELEGRAM_BOT_USERNAME", "")
     telegram_webhook_secret: str = os.getenv("TELEGRAM_WEBHOOK_SECRET", "fxm-hook")
+    public_app_url: str = os.getenv("PUBLIC_APP_URL", "https://forexmind-ai-v3.netlify.app")
     # Single-owner failsafe: alerts use this chat when a user has no linked chat.
     telegram_default_chat_id: str = os.getenv("TELEGRAM_DEFAULT_CHAT_ID", "")
     # The one user whose journal receives engine-executed trades (the bridge

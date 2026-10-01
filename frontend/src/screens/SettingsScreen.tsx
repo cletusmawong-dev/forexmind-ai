@@ -17,6 +17,8 @@ export function SettingsScreen() {
   const [savingRisk, setSavingRisk] = useState(false);
   const [tgBusy, setTgBusy] = useState(false);
   const [popup, setPopup] = useState<{ kind: "ok" | "fail"; title: string; text: string } | null>(null);
+  const [inviteLink, setInviteLink] = useState("");
+  const [inviteBusy, setInviteBusy] = useState(false);
   const touch = () => { lastTouch.current = Date.now(); };
   const [theme, setThemeState] = useState<"ivory" | "navy" | "onyx" | "slate">(() => {
     const t = localStorage.getItem("fm_theme");
@@ -25,6 +27,18 @@ export function SettingsScreen() {
 
   const THEME_BAR: Record<string, string> = {
     ivory: "#f7f1e3", navy: "#cdd4e0", onyx: "#0a0a0c", slate: "#2e3c55",
+  };
+
+  const mintInvite = async () => {
+    setInviteBusy(true);
+    try {
+      const r = await api.post<{ url: string }>("/api/auth/invite", {});
+      setInviteLink(r.url);
+    } catch (e: any) {
+      setPopup({ kind: "fail", title: "Invite", text: e.message || "Could not mint invite" });
+    } finally {
+      setInviteBusy(false);
+    }
   };
 
   const setTheme = (t: "ivory" | "navy" | "onyx" | "slate") => {
@@ -532,9 +546,28 @@ export function SettingsScreen() {
         <Link to="/notifications" className="btn-ghost">Notifications</Link>
       </div>
 
+      <Glass className="mt-4">
+        <Eyebrow>Multi-user access</Eyebrow>
+        <p className="mt-1 text-[11.5px] leading-relaxed text-txt-low">
+          Mint a one-time invite link. Whoever opens it can create an account -
+          signals access only, execution always stays with you.
+        </p>
+        <button className="btn-ghost mt-3 w-full" disabled={inviteBusy} onClick={mintInvite}>
+          {inviteBusy ? "Minting..." : "Create invite link"}
+        </button>
+        {inviteLink && (
+          <div className="mt-3 rounded-2xl border border-[rgba(var(--warm-rgb),0.10)] bg-[rgba(var(--warm-rgb),0.04)] p-3">
+            <p className="break-all font-mono text-[11px] text-txt-hi">{inviteLink}</p>
+            <button className="btn-ghost mt-2 w-full" onClick={() => { navigator.clipboard?.writeText(inviteLink); }}>
+              Copy link
+            </button>
+          </div>
+        )}
+      </Glass>
+
       <p className="mt-8 pb-4 text-center text-[10px] leading-relaxed text-txt-faint">
         ForexMind AI is a research & signal agent. It analyzes markets, explains setups and tracks outcomes.<br />
-        You manually enter trades on MT5. It never places orders and never guarantees profits.<br />
+        Only the owner's master account may execute on MT5 - every other account is signals-only by design. No profit is ever guaranteed.<br />
         <span className="text-txt-faint/60">v0.1.0 - Trade - Learn - Grow</span>
       </p>
     </div>
