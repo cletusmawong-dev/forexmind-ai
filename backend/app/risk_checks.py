@@ -7,6 +7,9 @@ checks applied to every automatic ENTRY before the order is sent:
     SPREAD            live broker spread above the cap (vps mode only)
     VOL spike         current volatility rank at/above the extreme threshold
     CORRELATION       too many open engine positions sharing currency roots
+    CONSEC_LOSSES     user's max_consecutive_losses reached today (2026-10-02:
+                      the setting existed but was never wired - 4 straight SLs
+                      overnight and trade #6 still went out)
 
 Every refusal is LOUD: SKIPPED_* status on the signal, lifecycle-ledger
 event, agent log and a Telegram notice. Config comes from env (config.py)
@@ -166,6 +169,57 @@ def settings_value(name: str):
     return getattr(settings, name)
 
 
+# ---------------------------------------------------------------------------
+def _consecutive_losses_ok(user_id: str) -> Tuple[bool, str]:
+    """Hard rule (2026-10-02 incident): the Settings value 'stop after N
+    consecutive losses' must actually gate EXECUTION - until today it was
+    stored and displayed but never consulted, so the owner ate 4 straight
+    SLs overnight and the engine kept placing trade #6 ten minutes later.
+    Counts TODAY's trailing broker-confirmed losses (status CLOSED_MT5,
+    mt5_pl < 0, newest first) and blocks automatic NEW entries for the rest
+    of the trading day once the streak reaches max_consecutive_losses.
+    Advisory signals keep flowing (SS22: walls gate entries, not research).
+    Set the setting to 0 to disable. Fail-closed on store errors."""
+    try:
+        from .db.store import get_store
+        store = get_store()
+        sdoc = store.list("settings", filters={"userId": user_id}, limit=1)
+        raw_n = (sdoc[0] if sdoc else {}).get("max_consecutive_losses")
+        n = int(4 if raw_n is None else raw_n)
+        if n <= 0:
+            return True, ""
+        today = datetime_now_date()
+        sigs = store.list("signals", filters={"userId": user_id,
+                                              "status": "CLOSED_MT5"},
+                          order_by="createdAt", desc=True, limit=20)
+        streak = 0
+        for sig in sigs:
+            if (sig.get("day") or sig.get("createdAt", "")[:10]) != today:
+                break          # streak broken by the day boundary
+            if not sig.get("completed"):
+                continue       # closed-but-unconfirmed counts as pending
+            pl = sig.get("mt5_pl")
+            if pl is None:
+                break          # unknown outcome - stop counting (conservative)
+            if pl < 0:
+                streak += 1
+                if streak >= n:
+                    return False, (f"{streak} consecutive losing trades today "
+                                   f"(limit {n}) - automatic entries paused "
+                                   f"until tomorrow; signals stay advisory")
+            else:
+                break          # a win resets the streak
+        return True, ""
+    except Exception as exc:
+        return False, (f"loss-streak check unavailable ({type(exc).__name__}) "
+                       f"- entry blocked (fail-closed)")
+
+
+def datetime_now_date() -> str:
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+
 def check_entry(user_id: str, market: str,
                 strategy_id: Optional[str] = None,
                 direction: Optional[str] = None) -> Tuple[bool, str, str]:
@@ -184,7 +238,8 @@ def check_entry(user_id: str, market: str,
         pass
     if not settings_value("risk_guards_enabled"):
         return True, "", ""
-    for name, fn in (("NEWS", lambda uid, mkt: _news_ok(mkt)),
+    for name, fn in (("CONSEC_LOSSES", lambda uid, mkt: _consecutive_losses_ok(uid)),
+                     ("NEWS", lambda uid, mkt: _news_ok(mkt)),
                      ("SPREAD", lambda uid, mkt: _spread_ok(mkt)),
                      ("VOL", lambda uid, mkt: _vol_ok(mkt)),
                      ("CORRELATION", _correlation_ok),
