@@ -19,6 +19,27 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 
+def genuinely_better(exp_doc: dict) -> bool:
+    """Owner directive (2026-10-03): the system may research constantly, but it
+    may only surface a REVIEW recommendation (and Telegram) when it has found
+    a BETTER version proven on accurate data. Strict bar - ALL must hold:
+      - verdict is IMPROVED on the same-dataset A/B
+      - enough trades (min_trades_for_experiment) - i.e. not INSUFFICIENT_DATA
+      - no overfitting risk (train/validation split stayed consistent)
+      - no small-sample caveat
+      - walk-forward consistent across time folds (when measurable)
+    Everything else stays in the Learning Lab as recorded research - silent."""
+    d = exp_doc or {}
+    if d.get("result") != "IMPROVED":
+        return False
+    if d.get("overfitting_risk") or d.get("small_sample_warning"):
+        return False
+    wf = d.get("walk_forward") or {}
+    if wf.get("consistent") is False:
+        return False
+    return True
+
+
 def run_research_cycle(user_id: str, max_discoveries: int = 3,
                        max_experiments: int = 1) -> Dict[str, Any]:
     from ..db.store import get_store
@@ -84,7 +105,14 @@ def run_research_cycle(user_id: str, max_discoveries: int = 3,
             return out
 
         # 4) RECOMMEND (REVIEW - human decides) ---------------------------
+        # ONLY when the experiment is genuinely better (see genuinely_better):
+        # failed / inconclusive / risky experiments are recorded for the
+        # Learning Lab but NEVER ping the owner.
         try:
+            full_exp = store.get("experiments", out["experiment"]["id"]) or {}
+            if not genuinely_better(full_exp):
+                out["experiment"]["surfaced"] = False
+                return out
             fresh = store.list("recommendations",
                                filters={"userId": user_id,
                                         "dedupe_key": f"EXPERIMENT|{hyp['id']}"},
@@ -109,6 +137,7 @@ def run_research_cycle(user_id: str, max_discoveries: int = 3,
                     "createdAt": datetime.now(timezone.utc).isoformat(),
                 })
                 out["recommended"] = 1
+                out["experiment"]["surfaced"] = True
                 try:
                     from ..notifications.service import notify
                     notify(user_id, "RESEARCH_REVIEW",
