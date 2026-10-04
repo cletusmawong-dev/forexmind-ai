@@ -20,13 +20,18 @@ def env(monkeypatch, tmp_path):
     yield st
 
 
-def _sig(store, i, pl, day="2026-10-02", created=None, status="CLOSED_MT5",
+from datetime import datetime, timezone as _tz, timedelta as _td
+_TODAY = datetime.now(_tz.utc).strftime("%Y-%m-%d")
+_YESTERDAY = (datetime.now(_tz.utc) - _td(days=1)).strftime("%Y-%m-%d")
+
+
+def _sig(store, i, pl, day=None, created=None, status="CLOSED_MT5",
          completed=True):
     store.create("signals", {
         "userId": "boss", "market": "EURUSD", "direction": "BUY",
         "status": status, "completed": completed, "mt5_pl": pl,
-        "day": day,
-        "createdAt": created or f"2026-10-{day[-2:]}T0{i}:00:00Z",
+        "day": day or _TODAY,
+        "createdAt": created or f"{day or _TODAY}T0{i % 10}:00:00Z",
     }, doc_id=f"sig{i}")
 
 
@@ -53,7 +58,7 @@ def test_win_resets_streak(env):
                doc_id="s1")
     # oldest -> newest: 3 losses then a WIN -> trailing streak is 0
     for i, pl in enumerate([-50.0, -60.0, -70.0, 40.0]):
-        _sig(env, i, pl, created=f"2026-10-02T0{i+1}:00:00Z")
+        _sig(env, i, pl, created=f"{_TODAY}T0{i+1}:00:00Z")
     ok, why = _consecutive_losses_ok("boss")
     assert ok, why
 
@@ -62,8 +67,8 @@ def test_yesterday_losses_do_not_count(env):
     env.create("settings", {"userId": "boss", "max_consecutive_losses": 4},
                doc_id="s1")
     for i in range(4):
-        _sig(env, i, -50.0, day="2026-10-01",
-             created=f"2026-10-01T0{i}:00:00Z")
+        _sig(env, i, -50.0, day=_YESTERDAY,
+             created=f"{_YESTERDAY}T0{i}:00:00Z")
     ok, why = _consecutive_losses_ok("boss")
     assert ok, why
 
@@ -83,8 +88,8 @@ def test_unconfirmed_loss_stops_counting_conservatively(env):
     favor for the wall, never fabricates)."""
     env.create("settings", {"userId": "boss", "max_consecutive_losses": 2},
                doc_id="s1")
-    _sig(env, 1, -50.0, created="2026-10-02T02:00:00Z")
-    _sig(env, 2, None, created="2026-10-02T01:00:00Z")   # unconfirmed
+    _sig(env, 1, -50.0, created=f"{_TODAY}T02:00:00Z")
+    _sig(env, 2, None, created=f"{_TODAY}T01:00:00Z")   # unconfirmed
     ok, why = _consecutive_losses_ok("boss")
     assert ok, why
 

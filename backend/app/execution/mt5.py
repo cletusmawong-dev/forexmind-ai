@@ -324,6 +324,22 @@ def execute_signal(signal: dict, user_id: str) -> None:
               detail="kill switch ON")
         return
 
+    # Master spec sections 3/30: strategy lifecycle is a SERVER-side gate.
+    # SLEEPING/RETIRED/CANDIDATE strategies may inform and research, but
+    # NEVER touch MT5 - not via auto-execution, not via a manual take.
+    from ..learning.versions import lifecycle_of
+    _life = lifecycle_of(signal.get("strategy_id"))
+    if _life != "LIVE":
+        if signal.get("id"):
+            store.update("signals", signal["id"], {
+                "execution_status": "SKIPPED_LIFECYCLE",
+                "mt5_note": f"Strategy lifecycle is {_life} - research only, execution blocked"})
+        _log(f"Execution blocked - strategy lifecycle is {_life} (not LIVE). "
+             "Signal is advisory/research only.", market)
+        _emit(user_id, "ENTRY", "SKIPPED", market=market, signal=signal,
+              detail=f"strategy lifecycle {_life}")
+        return
+
     # SS22/SS26: daily walls block automatic NEW entries only - the signal was
     # already generated, recorded and notified (EXTRA SIGNAL). Never the reverse.
     try:

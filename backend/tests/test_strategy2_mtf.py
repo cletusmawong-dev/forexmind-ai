@@ -26,13 +26,27 @@ def flat(rows_n, o=103.2, h=103.3, l=103.1, c=103.2, start=T0, freq="15min"):
 
 
 def bull_sweep_frame():
-    return df_of([(100, 101, 98, 99), (99, 102, 97.5, 101.5)],
-                 start=pd.Timestamp("2026-09-19 00:00"), freq="4h")
+    """v2.0.0: confirmed swing low 98.0 (idx4), final candle WICKS below it
+    and CLOSES back above -> sell-side liquidity swept (master spec 6-7)."""
+    rows = [(100, 100.5, 99.5, 100.0), (100.0, 100.4, 99.4, 99.8),
+            (99.8, 100.2, 99.2, 99.6), (99.6, 99.9, 99.0, 99.3),
+            (99.3, 99.5, 98.0, 98.8),                       # idx4 pivot low 98.0
+            (98.8, 99.6, 98.5, 99.2), (99.2, 99.8, 98.9, 99.5),
+            (99.5, 100.0, 99.3, 99.8),                      # idx7 confirms pivot
+            (99.8, 99.9, 97.5, 99.9)]                       # sweep candle (last)
+    return df_of(rows, start=pd.Timestamp("2026-09-19 00:00"), freq="4h")
 
 
 def bear_sweep_frame():
-    return df_of([(98, 99.5, 97.5, 99), (99, 101.5, 98.4, 98.6)],
-                 start=pd.Timestamp("2026-09-19 00:00"), freq="4h")
+    """v2.0.0: confirmed swing high 102.0 (idx4); last candle wicks above and
+    closes back below -> buy-side liquidity swept (master spec 8)."""
+    rows = [(100, 100.5, 99.5, 100.2), (100.2, 100.6, 99.8, 100.4),
+            (100.4, 100.8, 100.0, 100.6), (100.6, 101.0, 100.2, 100.8),
+            (100.8, 102.0, 100.6, 101.6),                   # idx4 pivot high 102.0
+            (101.6, 101.8, 100.9, 101.2), (101.2, 101.4, 100.8, 101.0),
+            (101.0, 101.2, 100.6, 100.9),                   # idx7 confirms pivot
+            (100.9, 102.5, 100.8, 100.7)]                   # sweep candle (last)
+    return df_of(rows, start=pd.Timestamp("2026-09-19 00:00"), freq="4h")
 
 
 def bos_bull_frame():
@@ -84,11 +98,47 @@ def state_load(doc_id):
 
 # ============================== sweep (spec 8) =============================
 def test_sweep_bullish():
-    assert machine.detect_sweep(bull_sweep_frame()) == "bull"
+    res = machine.detect_sweep(bull_sweep_frame(), 3)
+    assert res and res[0] == "bull"
+    assert res[1] == pytest.approx(98.0)      # the swept swing-low level
+    assert res[2] == pytest.approx(97.5)      # the wick that swept it
 
 
 def test_sweep_bearish():
-    assert machine.detect_sweep(bear_sweep_frame()) == "bear"
+    res = machine.detect_sweep(bear_sweep_frame(), 3)
+    assert res and res[0] == "bear"
+    assert res[1] == pytest.approx(102.0)
+    assert res[2] == pytest.approx(102.5)
+
+
+def test_false_sweep_close_below_level_is_no_signal():
+    """Master spec 7: wick below the level but CLOSE below it too = breakdown,
+    NOT a sweep -> None."""
+    f = bull_sweep_frame()
+    f.iloc[-1, f.columns.get_loc("close")] = 97.8    # closed below the level
+    assert machine.detect_sweep(f, 3) is None
+
+
+def test_sweep_level_must_be_confirmed_before_sweep_candle():
+    """No lookahead: with NO confirmed swing level (strictly descending lows),
+    a wick-down-and-close-above is NOT a sweep - there is no liquidity level
+    to sweep. Levels must be confirmed pivots from EARLIER candles."""
+    rows = [(100.8, 101.0, 100.5 - 0.3 * i, 100.4 - 0.3 * i) for i in range(8)]
+    rows.append((rows[-1][3], rows[-1][3] + 0.4, 97.0, rows[-1][3] + 0.3))
+    f = df_of(rows, start=pd.Timestamp("2026-09-19 00:00"), freq="4h")
+    assert machine.detect_sweep(f, 3) is None
+
+
+def test_sweep_unconfirmed_recent_pivot_is_not_liquidity():
+    """A swing low centered on one of the last swing_len candles is not yet
+    confirmed and must never be used as liquidity (no repaint)."""
+    rows = [(100, 100.5, 99.5, 100.0)] * 6 + [
+        (100.0, 100.2, 97.9, 99.8),   # idx6: deep low, pivot center too recent
+        (99.8, 100.0, 99.4, 99.9),
+        (99.9, 100.1, 97.5, 100.05)]  # sweep-shaped candle
+    f = df_of(rows, start=pd.Timestamp("2026-09-19 00:00"), freq="4h")
+    res = machine.detect_sweep(f, 3)
+    assert res is None or res[1] != 97.9   # 97.9 can never be the swept level
 
 
 def test_sweep_none_when_both_bullish():
@@ -204,19 +254,27 @@ def test_atr_is_wilder_rma_like_pine_ta_atr():
     assert list(a) == [pytest.approx(v, abs=1e-9) for v in manual]
 
 
-def test_tp_mapping_buy_uses_entry_atr(world):
+def test_tp_ladder_is_r_based(world):
+    """Master spec 13: TP1/TP2/TP3 = 1R/2R/3R from the entry-to-SL risk."""
+    e, sw, bo = _frames()
+    c = S.detect_signal(e, "XAUUSD", "15M", higher_frames={"4H": sw, "1H": bo})
+    assert c is not None
+    R = abs(c.entry - c.sl)
+    assert c.tps == [pytest.approx(c.entry + R * m) for m in (1.0, 2.0, 3.0)]
+
+
+def test_sl_anchors_beyond_swept_level(world):
+    """Master spec 12: SL sits BELOW the swept swing low (bull) with the
+    configured ATR buffer - not at the BOS candle."""
     from app.core.indicators import atr as core_atr
     e, sw, bo = _frames()
     a = float(core_atr(e, 14).iloc[-1])
     c = S.detect_signal(e, "XAUUSD", "15M", higher_frames={"4H": sw, "1H": bo})
     assert c is not None
-    assert c.tps == [pytest.approx(c.entry + a * m) for m in (1.0, 2.0, 3.0)]
-
-
-def test_tp_math_sell():
-    entry, a = 100.8, 0.25
-    tps = [entry - a * m for m in (1.0, 2.0, 3.0)]
-    assert tps == [pytest.approx(100.55), pytest.approx(100.3), pytest.approx(100.05)]
+    assert c.sl == pytest.approx(98.0 - 0.25 * a)
+    assert c.extra["liquidity_level"] == pytest.approx(98.0)
+    assert c.extra["liquidity_type"] == "sell_side"
+    assert c.extra["signal_state"] == "RETEST_CONFIRMED"
 
 
 # ============================== timeframe mapping (spec 6) =================
@@ -232,7 +290,8 @@ def test_full_machine_bull_end_to_end(world):
     c = S.detect_signal(e, "XAUUSD", "15M", higher_frames={"4H": sw, "1H": bo})
     assert c is not None and c.direction == "BUY"
     assert c.strategy_id == "strategy_2_mtf_sweep_bos_retest"
-    assert c.entry == pytest.approx(103.1) and c.sl == pytest.approx(102.8)
+    assert c.entry == pytest.approx(103.1)
+    assert c.sl < 98.0        # beyond the swept swing low
     assert c.extra["setup_state"] == "SWEEP_BOS_RETEST"
     assert c.extra["sweep_timeframe"] == "4H" and c.extra["bos_timeframe"] == "1H"
     assert c.extra["entry_timeframe"] == "15M"
@@ -246,7 +305,7 @@ def test_full_machine_bear_direction(world):
     c = S.detect_signal(e2, "XAUUSD", "15M",
                         higher_frames={"4H": bear_sweep_frame(), "1H": bos_bear_frame()})
     assert c is not None and c.direction == "SELL"
-    assert c.sl == pytest.approx(102.0)
+    assert c.sl > 102.0       # beyond the swept swing high
     assert c.tps[0] < c.entry < c.sl
 
 
@@ -368,7 +427,11 @@ def test_engine_integration_creates_s2_signal(world, monkeypatch):
     doc = s2[0]
     assert doc["sweep_timeframe"] == "4H" and doc["bos_timeframe"] == "1H"
     assert doc["setup_state"] == "SWEEP_BOS_RETEST"
+    R = doc["entry"] - doc["sl"]
+    assert doc["tp1"] == pytest.approx(doc["entry"] + R)       # 1R
+    assert doc["tp2"] == pytest.approx(doc["entry"] + 2 * R)   # 2R
+    assert doc["tp3"] == pytest.approx(doc["entry"] + 3 * R)   # 3R
     from app.core.indicators import atr as core_atr
     a = float(core_atr(entry_retest_frame(), 14).iloc[-1])
-    assert doc["tp1"] == pytest.approx(103.1 + a)
+    assert doc["sl"] == pytest.approx(98.0 - 0.25 * a)  # beyond swept level + buffer
     assert any("Sweep TF" in b for b in captured)

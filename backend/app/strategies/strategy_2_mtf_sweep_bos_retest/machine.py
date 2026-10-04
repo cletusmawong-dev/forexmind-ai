@@ -52,6 +52,8 @@ def default_state() -> Dict[str, Any]:
     return {
         "bullish_setup": False,
         "bearish_setup": False,
+        "swept_level": None,
+        "sweep_price": None,
         "structure_high": None,
         "structure_low": None,
         "broken_high": None,
@@ -114,19 +116,34 @@ def latest_structure(df, length: int) -> Tuple[Optional[float], Optional[float]]
 # ---------------------------------------------------------------------------
 # sweep (spec section 8)
 # ---------------------------------------------------------------------------
-def detect_sweep(sweep_df) -> Optional[str]:
-    """'bull' | 'bear' on the last two CLOSED sweep candles; None otherwise."""
-    if sweep_df is None or len(sweep_df) < 2:
-        return None
-    prev_o = float(sweep_df["open"].iloc[-2]); prev_c = float(sweep_df["close"].iloc[-2])
-    cur_o = float(sweep_df["open"].iloc[-1]); cur_c = float(sweep_df["close"].iloc[-1])
-    cur_l = float(sweep_df["low"].iloc[-1]); cur_h = float(sweep_df["high"].iloc[-1])
-    prev_l = float(sweep_df["low"].iloc[-2]); prev_h = float(sweep_df["high"].iloc[-2])
+def detect_sweep(sweep_df, swing_len: int = 3):
+    """Master spec v2.0.0 (sections 6-8): LIQUIDITY-LEVEL sweep.
 
-    if prev_c < prev_o and cur_c > cur_o and cur_l < prev_l:   # bullish sweep
-        return "bull"
-    if prev_c > prev_o and cur_c < cur_o and cur_h > prev_h:   # bearish sweep
-        return "bear"
+    The most recent CONFIRMED swing low is sell-side liquidity; the most
+    recent CONFIRMED swing high is buy-side liquidity. On the last CLOSED
+    sweep-TF candle:
+      bull: candle trades BELOW the swing low, then CLOSES back above it
+      bear: candle trades ABOVE the swing high, then CLOSES back below it
+    Returns (direction, swept_level, sweep_price) or None. Pivots are
+    confirmed strictly BEFORE the sweep candle (center + length <= last-1)
+    so the level can never come from the future (no lookahead)."""
+    if sweep_df is None or len(sweep_df) < 2 * swing_len + 2:
+        return None
+    highs, lows = confirmed_pivots(sweep_df, swing_len)
+    n = len(sweep_df)
+    lows = [(i, v) for i, v in lows if i + swing_len <= n - 2]
+    highs = [(i, v) for i, v in highs if i + swing_len <= n - 2]
+    cur_l = float(sweep_df["low"].iloc[-1])
+    cur_h = float(sweep_df["high"].iloc[-1])
+    cur_c = float(sweep_df["close"].iloc[-1])
+    if lows:
+        L = lows[-1][1]
+        if cur_l < L and cur_c > L:
+            return ("bull", float(L), cur_l)
+    if highs:
+        H = highs[-1][1]
+        if cur_h > H and cur_c < H:
+            return ("bear", float(H), cur_h)
     return None
 
 

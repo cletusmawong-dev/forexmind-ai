@@ -118,7 +118,7 @@ export function StrategiesScreen() {
                 <div className="min-w-0">
                   <div className="truncate text-[12.5px] font-semibold text-txt-hi">{st.short_name || st.id}</div>
                   <div className="text-[10px] text-txt-faint">
-                    {retired ? "Retired - signal history kept" : st.status === "ACTIVE" ? "Generating signals" : "Paused - no new signals"}
+                    {retired ? "Retired - signal history kept" : (st as any).lifecycle === "SLEEPING" ? "Sleeping - signals advisory only (research)" : st.status === "ACTIVE" ? "Live - generating signals" : "Paused - no new signals"}
                   </div>
                 </div>
                 {retired ? (

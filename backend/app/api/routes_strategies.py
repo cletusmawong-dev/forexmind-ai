@@ -27,6 +27,7 @@ def list_strategies(user_id: str = Depends(get_user_id)):
         # them and rendered blank rows on the Strategies screen (2026-10-01).
         # doc wins over md (stored truth), md fills any gaps.
         out.append({**md, **doc, "id": sid, "metadata": md,
+                    "lifecycle": vc.lifecycle_of(sid),
                     "active_params": vc.active_params(sid),
                     "experiment_variables": strat.experiment_variables})
     return {"strategies": out}

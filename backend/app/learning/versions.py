@@ -17,7 +17,32 @@ from ..strategies import get_strategy
 # signal history, replay and the executor still resolve old signals - but any
 # FRESH registry doc is created DISABLED so the engine never scans it. The
 # live doc is flipped once (audited PATCH) at deploy time.
-RETIRED_STRATEGIES = {"strategy_1_zero_lag": "DISABLED"}
+# Master-spec section 3: explicit strategy lifecycle registry.
+# LIVE       = may execute real MT5 orders (owner account only, all gates apply)
+# SLEEPING   = signals stay advisory + research/shadow only - execution is
+#              HARD-BLOCKED server-side (mt5.py), never just hidden in the UI
+# RETIRED    = frozen: history kept, no signals, no execution
+# CANDIDATE / READY_FOR_REVIEW / APPROVED are research-side states owned by
+# the Research Lab; a candidate can ONLY reach LIVE via explicit human
+# approval recorded in versions (never autonomous).
+LIFECYCLE = {
+    "strategy_2_ema_atr": "LIVE",
+    "strategy_2_mtf_sweep_bos_retest": "LIVE",   # alias strategy_2_liquidity_structure
+    "strategy_1_vp_pivots": "SLEEPING",
+    "strategy_1_zero_lag": "RETIRED",
+}
+
+
+def lifecycle_of(strategy_id: str) -> str:
+    return LIFECYCLE.get(strategy_id or "", "LIVE")
+
+
+def is_live(strategy_id: str) -> bool:
+    return lifecycle_of(strategy_id) == "LIVE"
+
+
+RETIRED_STRATEGIES = {sid: "DISABLED" for sid, st in LIFECYCLE.items()
+                      if st == "RETIRED"}
 
 
 def _bump(version: str) -> str:

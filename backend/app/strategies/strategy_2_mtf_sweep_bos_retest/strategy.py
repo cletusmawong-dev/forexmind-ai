@@ -39,33 +39,44 @@ def _log_event(kind: str, msg: str, market: str = "") -> None:
 
 class MtfSweepBosRetestStrategy(BaseStrategy):
     id = "strategy_2_mtf_sweep_bos_retest"
-    name = "Strategy 2 - MTF Sweep -> BOS -> Retest"
-    short_name = "MTF Sweep -> BOS -> Retest"
-    description = ("Higher-timeframe liquidity sweep, break of structure on the "
-                   "mapped BOS timeframe, entry on the retest. Pure state "
-                   "machine, closed candles only, ATR take-profit ladder.")
-    version = "1.0"
+    alias_id = "strategy_2_liquidity_structure"   # master-spec stable ID (history kept under the original id)
+    name = "Strategy 2 - Liquidity Sweep + Structure Retest"
+    short_name = "Liquidity Sweep + Structure Retest"
+    description = ("Liquidity sweep of a confirmed swing level, break of "
+                   "structure with displacement, entry on the retest. Pure "
+                   "deterministic state machine, closed candles only, "
+                   "SL beyond the swept level, TP ladder 1R/2R/3R.")
+    version = "2.0.0"
     base_params = {
-        "swing_length": 3,          # spec section 5 (swingLen)
-        "atr_length": 14,           # spec section 5/14
-        "tp1_atr": 1.0,
+        "swing_length": 3,          # master spec section 6
+        "atr_length": 14,           # master spec section 10
+        "sl_buffer_atr": 0.25,      # SL safety buffer beyond the swept level (section 12)
+        "tp1_r": 1.0,               # TP ladder in R (section 13)
+        "tp2_r": 2.0,
+        "tp3_r": 3.0,
+        "max_setup_bars": 20,       # setup expiration, entry-TF bars (section 9)
+        "tp1_atr": 1.0,             # legacy v1 knobs kept for param-version compat
         "tp2_atr": 2.0,
         "tp3_atr": 3.0,
-        "show_levels": True,        # display-only in Pine; never affects logic
-        "show_labels": True,        # display-only in Pine; never affects logic
+        "show_levels": True,        # display-only; never affects logic
+        "show_labels": True,        # display-only; never affects logic
         "expire_bars": 200,         # backtest bookkeeping only (base model)
     }
     experiment_variables = {
         "swing_length": {"type": "int", "min": 2, "max": 10, "step": 1,
-                         "description": "Pivot swing length (both sides)"},
+                         "description": "Swing length for liquidity levels (both sides)"},
         "atr_length": {"type": "int", "min": 5, "max": 50, "step": 1,
                        "description": "ATR period (entry timeframe)"},
-        "tp1_atr": {"type": "float", "min": 0.5, "max": 5.0, "step": 0.25,
-                    "description": "TP1 ATR multiple"},
-        "tp2_atr": {"type": "float", "min": 0.5, "max": 6.0, "step": 0.25,
-                    "description": "TP2 ATR multiple"},
-        "tp3_atr": {"type": "float", "min": 0.5, "max": 8.0, "step": 0.25,
-                    "description": "TP3 ATR multiple"},
+        "sl_buffer_atr": {"type": "float", "min": 0.0, "max": 2.0, "step": 0.05,
+                          "description": "SL buffer beyond the swept level, in ATR"},
+        "tp1_r": {"type": "float", "min": 0.5, "max": 5.0, "step": 0.25,
+                  "description": "TP1 in R (risk = entry to SL)"},
+        "tp2_r": {"type": "float", "min": 0.5, "max": 6.0, "step": 0.25,
+                  "description": "TP2 in R"},
+        "tp3_r": {"type": "float", "min": 0.5, "max": 8.0, "step": 0.25,
+                  "description": "TP3 in R"},
+        "max_setup_bars": {"type": "int", "min": 5, "max": 100, "step": 5,
+                           "description": "Setup expiration (entry-TF bars without retest)"},
     }
     markets = ["XAUUSD", "NAS100", "EURUSD", "GBPUSD", "USDJPY"]
     timeframes = ["5M", "15M", "30M", "1H", "4H"]   # all mapped entry TFs
@@ -131,15 +142,16 @@ class MtfSweepBosRetestStrategy(BaseStrategy):
         # 1) sweep event - once per closed sweep candle
         sweep_ts = int(sweep_df.index[-1].timestamp())
         if st.get("last_sweep_ts") != sweep_ts:
-            sw = machine.detect_sweep(sweep_df)
-            if sw == "bull":
-                st["bullish_setup"] = True; st["bearish_setup"] = False
+            sw = machine.detect_sweep(sweep_df, int(params["swing_length"]))
+            if sw:
+                direction_key, swept_level, sweep_price = sw
+                st["bullish_setup"] = direction_key == "bull"
+                st["bearish_setup"] = direction_key == "bear"
                 st["last_sweep_ts"] = sweep_ts
-                events.append("SWEEP_DETECTED: bullish sweep on " + sweep_tf)
-            elif sw == "bear":
-                st["bearish_setup"] = True; st["bullish_setup"] = False
-                st["last_sweep_ts"] = sweep_ts
-                events.append("SWEEP_DETECTED: bearish sweep on " + sweep_tf)
+                st["swept_level"] = swept_level
+                st["sweep_price"] = sweep_price
+                events.append(f"SWEEP_DETECTED: {'bullish' if direction_key == 'bull' else 'bearish'} "
+                              f"sweep of {swept_level:,.5g} on " + sweep_tf)
             else:
                 st["last_sweep_ts"] = sweep_ts   # candle processed, no sweep
 
@@ -156,6 +168,22 @@ class MtfSweepBosRetestStrategy(BaseStrategy):
 
         # 3) retest event - once per closed entry candle (one evaluation per bar)
         retest_ts = int(entry_df.index[-1].timestamp())
+        if (st.get("waiting_bull_retest") or st.get("waiting_bear_retest")) \
+                and st.get("last_bos_ts"):
+            try:
+                setup_age = entry_df.index[-1] - pd.Timestamp(
+                    float(st["last_bos_ts"]), unit="s", tz="UTC")
+                if setup_age > pd.Timedelta(
+                        minutes=15 * int(params.get("max_setup_bars", 20))):
+                    st["waiting_bull_retest"] = False
+                    st["waiting_bear_retest"] = False
+                    st["bullish_setup"] = False
+                    st["bearish_setup"] = False
+                    st["swept_level"] = None
+                    st["sweep_price"] = None
+                    events.append("SETUP_EXPIRED: no retest in time - back to NO_SETUP")
+            except Exception:
+                pass
         if st.get("last_retest_ts") != retest_ts:
             hit = machine.check_retest(entry_df, st)
             st["last_retest_ts"] = retest_ts
@@ -187,8 +215,19 @@ class MtfSweepBosRetestStrategy(BaseStrategy):
                         st["structure_low"] = None
                         st["bos_candle_low"] = None
                         st["bos_candle_high"] = None
-                        tps = [hit["entry"] + sign * a * float(params[k])
-                               for k in ("tp1_atr", "tp2_atr", "tp3_atr")]
+                        # Master spec section 12: SL beyond the SWEPT level
+                        # (+ configurable ATR buffer). ATR fallback when the
+                        # swept level is unusable (missing / inverted risk).
+                        swept = st.get("swept_level")
+                        buf = float(params.get("sl_buffer_atr", 0.25))
+                        sl = (swept - sign * buf * a) if swept is not None else None
+                        if sl is None or (sign > 0 and sl >= hit["entry"]) \
+                                or (sign < 0 and sl <= hit["entry"]):
+                            sl = hit["entry"] - sign * 1.5 * a     # ATR fallback
+                        tps = [hit["entry"] + sign * abs(hit["entry"] - sl)
+                               * float(params.get(f"tp{i}_r", float(i)))
+                               for i in (1, 2, 3)]
+                        hit["sl"] = float(sl)
                         risk = abs(hit["entry"] - hit["sl"])
                         if risk <= 0:
                             _log_event("SIGNAL_REJECTED",
@@ -215,20 +254,41 @@ class MtfSweepBosRetestStrategy(BaseStrategy):
                                     {"label": "BOS on " + bos_tf, "ok": True, "detail": "structure break confirmed (closed candle)"},
                                     {"label": "Retest on " + timeframe, "ok": True, "detail": "level retested and rejected (closed candle)"},
                                 ],
-                                analysis=(f"{hit['direction']}: {sweep_tf} sweep -> {bos_tf} BOS -> "
-                                          f"{timeframe} retest. Entry {hit['entry']:,.5g}, "
-                                          f"SL {hit['sl']:,.5g} (BOS candle), "
+                                analysis=(f"{hit['direction']}: {sweep_tf} liquidity sweep -> {bos_tf} "
+                                          f"structure break -> {timeframe} retest. "
+                                          f"Entry {hit['entry']:,.5g}, SL {hit['sl']:,.5g} "
+                                          f"(beyond swept level), "
                                           f"TP1 {tps[0]:,.5g} / TP2 {tps[1]:,.5g} / TP3 {tps[2]:,.5g} "
-                                          f"(ATR x {params['tp1_atr']}/{params['tp2_atr']}/{params['tp3_atr']})."),
+                                          f"(1R/2R/3R)."),
                                 mtf=None,
                                 params=dict(params),
                                 extra={
                                     "setup_state": "SWEEP_BOS_RETEST",
                                     "setup_stage": "SIGNAL",
+                                    "signal_state": "RETEST_CONFIRMED",
+                                    "strategy_version": self.version,
                                     "entry_timeframe": timeframe,
                                     "sweep_timeframe": sweep_tf,
                                     "bos_timeframe": bos_tf,
                                     "setup_key": setup_key,
+                                    "liquidity_level": st.get("swept_level"),
+                                    "liquidity_type": ("sell_side" if hit["direction"] == "BUY"
+                                                       else "buy_side"),
+                                    "sweep_price": st.get("sweep_price"),
+                                    "sweep_timestamp": st.get("last_sweep_ts"),
+                                    "structure_level": (st.get("broken_high")
+                                                        if hit["direction"] == "BUY"
+                                                        else st.get("broken_low")),
+                                    "structure_direction": ("bullish" if hit["direction"] == "BUY"
+                                                            else "bearish"),
+                                    "structure_break_timestamp": st.get("last_bos_ts"),
+                                    "retest_level": (st.get("broken_high")
+                                                     if hit["direction"] == "BUY"
+                                                     else st.get("broken_low")),
+                                    "retest_timestamp": retest_ts,
+                                    "session": (score_context or {}).get("session"),
+                                    "atr": a,
+                                    "market_context": {"tf": timeframe, "market": market},
                                 },
                             )
                             events.append(f"SIGNAL_CREATED: {hit['direction']} retest confirmed")
@@ -243,7 +303,7 @@ class MtfSweepBosRetestStrategy(BaseStrategy):
         return candidate
 
     # ------------------------------------------------------------------
-    # risk & targets (spec sections 12-14): SL = BOS candle, TPs = ATR x mult
+    # risk & targets (master spec sections 12-14): SL beyond swept level, TP in R
     # ------------------------------------------------------------------
     def calculate_risk(self, df, state, i, direction, params) -> Dict[str, float]:
         close = float(df["close"].iloc[i])
