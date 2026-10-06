@@ -33,7 +33,7 @@ jobs:
           echo "sdk.dir=/usr/local/lib/android/sdk" > local.properties
           # ephemeral release key for installable distribution builds;
           # Play Store release will use Play App Signing instead.
-          keytool -genkeypair -v -keystore fxm-release.keystore -alias fxm \
+          keytool -genkeypair -v -keystore app/fxm-release.keystore -alias fxm \
             -keyalg RSA -keysize 2048 -validity 10000 \
             -storepass forexmind-release -keypass forexmind-release \
             -dname "CN=FOREXMIND AI, O=ForexMind, C=GH"
