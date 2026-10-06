@@ -71,9 +71,18 @@ def active_account(user_id: str) -> Optional[dict]:
 @router.get("/accounts")
 def list_accounts(user_id: str = Depends(get_user_id)):
     """Only the caller's accounts - never anyone else's (section 17)."""
-    rows = get_store().list("trading_accounts", filters={"userId": user_id},
-                            limit=50)
+    try:
+        rows = get_store().list("trading_accounts", filters={"userId": user_id},
+                                limit=50)
+    except Exception:
+        # table not provisioned yet (Supabase DDL needs the owner's SQL editor)
+        return {"accounts": [], "note": _PROVISION_NOTE}
     return {"accounts": [_public(d) for d in rows]}
+
+
+_PROVISION_NOTE = ("accounts table not provisioned yet - run the "
+                   "trading_accounts SQL on Supabase (Settings > System shows "
+                   "the same note)")
 
 
 @router.post("/accounts")
@@ -88,7 +97,10 @@ def add_account(body: dict, user_id: str = Depends(get_user_id)):
         # multi-user privacy rule: the shared VPS bridge is the owner's
         raise HTTPException(403, "VPS bridge execution is reserved for the owner")
     store = get_store()
-    existing = store.list("trading_accounts", filters={"userId": user_id}, limit=50)
+    try:
+        existing = store.list("trading_accounts", filters={"userId": user_id}, limit=50)
+    except Exception:
+        raise HTTPException(503, _PROVISION_NOTE)
     doc = store.create("trading_accounts", {
         "userId": user_id,
         "label": label,
@@ -103,6 +115,8 @@ def add_account(body: dict, user_id: str = Depends(get_user_id)):
         "currency": str(body.get("currency") or "USD"),
         "createdAt": _now(),
     })
+    if doc is None:
+        raise HTTPException(503, _PROVISION_NOTE)
     return {"account": _public(doc)}
 
 
