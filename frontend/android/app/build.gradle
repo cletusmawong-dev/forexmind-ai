@@ -1,5 +1,13 @@
 apply plugin: 'com.android.application'
 
+// One Kotlin stdlib across all transitive deps (CI fix: duplicate classes
+// between kotlin-stdlib 1.8.22 pulled by an older transitive and Capacitor 7).
+configurations.all {
+    resolutionStrategy.force "org.jetbrains.kotlin:kotlin-stdlib:2.0.21"
+    resolutionStrategy.force "org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.0.21"
+    resolutionStrategy.force "org.jetbrains.kotlin:kotlin-stdlib-jdk7:2.0.21"
+}
+
 android {
     namespace "ai.forexmind.app"
     compileSdk rootProject.ext.compileSdkVersion
