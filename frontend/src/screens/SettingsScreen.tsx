@@ -546,6 +546,8 @@ export function SettingsScreen() {
         <Link to="/notifications" className="btn-ghost">Notifications</Link>
       </div>
 
+      <TelegramCard />
+
       {me.data?.role === "admin" && (
         <Glass className="mt-4">
           <Eyebrow>Multi-user access</Eyebrow>
@@ -1021,4 +1023,51 @@ function TelegramLinkedState({ onChanged }: { onChanged: () => void }) {
     );
   }
   return null;
+}
+
+
+/** Final build sections 21-26: ONE official bot - users never create or
+ *  paste tokens. Connect via one-time code (Notifications screen), status +
+ *  disconnect live here. Reconnect always mints a FRESH code. */
+function TelegramCard() {
+  const st = usePolling<any>(() => api.get("/api/telegram/status"), 30000);
+  const d = st.data;
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  const disconnect = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await api.post("/api/telegram/disconnect");
+      setMsg("Telegram disconnected - reconnect anytime with a new code.");
+      st.refresh?.();
+    } catch (e: any) {
+      setMsg(e?.message || "Could not disconnect - try again.");
+    }
+    setBusy(false);
+  };
+  return (
+    <Glass className="mt-4">
+      <Eyebrow>Telegram</Eyebrow>
+      <div className="mt-1 flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-[12.5px] font-semibold text-txt-hi">
+            {d ? (d.linked ? `Connected ${d.chat_hint}` : "Not connected") : "Checking..."}
+          </div>
+          <div className="text-[10.5px] text-txt-faint">
+            {d?.bot_username ? `Official bot: @${d.bot_username}` : "One official FOREXMIND bot - no setup needed"}
+          </div>
+        </div>
+        {d?.linked && (
+          <button className="btn-ghost shrink-0 !py-1.5 text-[11px]" disabled={busy} onClick={disconnect}>
+            {busy ? "..." : "Disconnect"}
+          </button>
+        )}
+      </div>
+      {msg && <p className="mt-2 text-[11px] text-txt-mid">{msg}</p>}
+      <p className="mt-2 text-[10px] leading-relaxed text-txt-faint">
+        Alerts go ONLY to your own chat - nobody else ever receives your signals or trades.
+      </p>
+    </Glass>
+  );
 }

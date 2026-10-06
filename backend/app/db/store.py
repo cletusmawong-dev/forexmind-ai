@@ -29,7 +29,7 @@ from ..config import settings
 
 DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data", "db.json")
 
-COLLECTIONS = [
+COLLECTIONS = ["trading_accounts", 
     "users", "markets", "signals", "trades", "strategies", "strategy_versions",
     "agent_goals", "agent_activity", "lessons", "hypotheses", "experiments",
     "notifications", "performance", "settings", "backtests", "candles",

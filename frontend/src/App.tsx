@@ -12,6 +12,7 @@ import { JournalScreen } from "./screens/JournalScreen";
 import { AnalyticsScreen } from "./screens/AnalyticsScreen";
 import { NotificationsScreen } from "./screens/NotificationsScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
+import { MoreScreen } from "./screens/MoreScreen";
 import { AdminScreen } from "./screens/AdminScreen";
 import { PositionsScreen } from "./screens/PositionsScreen";
 import { ExecutionScreen } from "./screens/ExecutionScreen";
@@ -146,6 +147,7 @@ export default function App() {
                 <Route path="/analytics" element={<AnalyticsScreen />} />
                 <Route path="/notifications" element={<NotificationsScreen />} />
                 <Route path="/settings" element={<SettingsScreen />} />
+                <Route path="/more" element={<MoreScreen />} />
                 <Route path="/admin" element={<AdminScreen />} />
                 <Route path="*" element={<HomeScreen />} />
               </Routes>

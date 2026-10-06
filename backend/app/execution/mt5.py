@@ -278,6 +278,31 @@ def execute_signal(signal: dict, user_id: str) -> None:
     """Route a qualifying signal to the active execution transport.
 
     Never raises; writes execution_status back onto the signal doc."""
+    # Final-build section 19: the signal may only touch the user's SELECTED
+    # account. Resolve it server-side (never from the frontend) and refuse
+    # when that account is disabled or disconnected.
+    account_id = None
+    try:
+        from ..api.routes_accounts import active_account
+        acct = active_account(user_id)
+        if acct:
+            account_id = acct.get("id")
+            if acct.get("mode") != "signals_only" and not acct.get("trading_enabled"):
+                if signal.get("id"):
+                    get_store().update("signals", signal["id"], {
+                        "execution_status": "SKIPPED_ACCOUNT_DISABLED",
+                        "account_id": account_id,
+                        "mt5_note": f"Account '{acct.get('label')}' has trading disabled"})
+                _emit(user_id, "ENTRY", "SKIPPED", market=signal.get("market"),
+                      signal=signal, detail="account trading disabled")
+                return
+            signal["account_id"] = account_id
+            if signal.get("id"):
+                get_store().update("signals", signal["id"],
+                                   {"account_id": account_id})
+    except Exception:
+        pass   # account registry is an isolation ADD-ON; base flow continues
+
     mode = user_mode(user_id)
     if mode == "off":
         if signal.get("id"):

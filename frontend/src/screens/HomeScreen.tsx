@@ -5,6 +5,7 @@ import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
 import type { ActivityItem, AgentStatus, MarketCard, Signal } from "../lib/types";
 import { AnimatedNumber, DemoTag, Divider, Glass, Logo, ProgressBar, SectionHeader, Spinner, StatusDot, WaveGraphic, HeroArt, ConnectionState } from "../components/ui";
+import { AccountSwitcher } from "../components/AccountSwitcher";
 import bullIvory from "../assets/hero-bull.webp";
 import bullNavy from "../assets/bull-navy.png";
 import bullOnyx from "../assets/bull-onyx.png";
@@ -131,7 +132,10 @@ export function HomeScreen() {
             </div>
           </div>
         </header>
-        <div className="page-head-divider mb-6" aria-hidden="true" />
+        <div className="page-head-divider mb-3" aria-hidden="true" />
+
+        {/* final build section 43: active trading account always visible */}
+        <div className="mb-4 flex justify-end"><AccountSwitcher /></div>
 
         {/* ---- hero ---- */}
         <Glass className="hero-card relative overflow-hidden" pad={false} data-reveal>

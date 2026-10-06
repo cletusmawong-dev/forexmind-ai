@@ -4,6 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Request
 
 from ..config import settings
+from ..db.store import get_store
 from ..notifications.service import notify
 from ..notifications.telegram import handle_webhook, send_telegram
 from .deps import get_user_id
@@ -53,6 +54,44 @@ def link_token(user_id: str = Depends(get_user_id)):
         raise HTTPException(503, "could not create link token - try again")
     return {**out, "bot_configured": bool(_s.telegram_bot_token),
             "bot_username": _s.telegram_bot_username or None}
+
+
+@router.post("/telegram/disconnect")
+def disconnect(user_id: str = Depends(get_user_id)):
+    """Unlink this user's Telegram (final build section 25): clears the chat
+    mapping so nothing can ever be delivered, records when it happened.
+    Reconnecting later requires a FRESH one-time token - old tokens and old
+    chat mappings are never reused."""
+    from ..config import settings as _s
+    store = get_store()
+    u = store.get("users", user_id) or {}
+    if not u.get("telegram_chat_id"):
+        return {"ok": True, "linked": False, "note": "Telegram was not connected"}
+    from datetime import datetime, timezone
+    prev = str(u.get("telegram_chat_id"))
+    store.update("users", user_id, {"telegram_chat_id": None,
+                                    "telegram_disconnected_at":
+                                        datetime.now(timezone.utc).isoformat()})
+    store.create("agent_activity", {
+        "userId": user_id, "kind": "TELEGRAM",
+        "message": f"Telegram disconnected (chat ••••{prev[-4:]}) - no further delivery"})
+    return {"ok": True, "linked": False,
+            "note": "Telegram disconnected - reconnect anytime with a new code"}
+
+
+@router.get("/telegram/status")
+def status(user_id: str = Depends(get_user_id)):
+    """Connection state for the app UI: linked, masked identity, when."""
+    from ..config import settings as _s
+    store = get_store()
+    u = store.get("users", user_id) or {}
+    chat = u.get("telegram_chat_id")
+    return {"linked": bool(chat),
+            "chat_hint": (f"••••{str(chat)[-4:]}" if chat else None),
+            "linked_at": u.get("telegram_linked_at"),
+            "disconnected_at": u.get("telegram_disconnected_at"),
+            "bot_username": _s.telegram_bot_username or None,
+            "bot_configured": bool(_s.telegram_bot_token)}
 
 
 @router.post("/notifications/test")

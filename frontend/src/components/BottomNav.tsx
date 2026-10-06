@@ -1,13 +1,14 @@
 import { NavLink } from "react-router-dom";
-import { Home, Radio, Bot, Activity, NotebookPen, Settings } from "lucide-react";
+import { Home, Radio, Bot, Activity, LayoutGrid } from "lucide-react";
 
+// Final build section 42: HOME / SIGNALS / POSITIONS / AI / MORE.
+// Everything else stays reachable from the More screen.
 const tabs = [
   { to: "/", label: "Home", icon: Home },
   { to: "/signals", label: "Signals", icon: Radio },
   { to: "/positions", label: "Positions", icon: Activity },
   { to: "/agent", label: "AI", icon: Bot },
-  { to: "/journal", label: "Journal", icon: NotebookPen },
-  { to: "/settings", label: "Settings", icon: Settings },
+  { to: "/more", label: "More", icon: LayoutGrid },
 ];
 
 /** Floating liquid-glass dock (matches the reference mockup). */
