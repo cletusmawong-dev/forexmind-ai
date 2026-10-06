@@ -37,12 +37,7 @@ jobs:
             -keyalg RSA -keysize 2048 -validity 10000 \
             -storepass forexmind-release -keypass forexmind-release \
             -dname "CN=FOREXMIND AI, O=ForexMind, C=GH"
-          cat > keystore.properties << 'PROPS'
-          storeFile=fxm-release.keystore
-          storePassword=forexmind-release
-          keyAlias=fxm
-          keyPassword=forexmind-release
-          PROPS
+          printf 'storeFile=fxm-release.keystore\nstorePassword=forexmind-release\nkeyAlias=fxm\nkeyPassword=forexmind-release\n' > app/keystore.properties
           chmod +x gradlew
           ./gradlew --no-daemon assembleDebug assembleRelease bundleRelease
 
