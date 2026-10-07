@@ -86,11 +86,12 @@ def status(user_id: str = Depends(get_user_id)):
     store = get_store()
     u = store.get("users", user_id) or {}
     chat = u.get("telegram_chat_id")
+    from ..notifications.telegram import bot_username as _bot_uname
     return {"linked": bool(chat),
             "chat_hint": (f"••••{str(chat)[-4:]}" if chat else None),
             "linked_at": u.get("telegram_linked_at"),
             "disconnected_at": u.get("telegram_disconnected_at"),
-            "bot_username": _s.telegram_bot_username or None,
+            "bot_username": _bot_uname(),
             "bot_configured": bool(_s.telegram_bot_token)}
 
 

@@ -63,6 +63,33 @@ def linked(user_id: str) -> bool:
 # ---------------------------------------------------------------------------
 LINK_TOKEN_TTL_S = 15 * 60
 
+_bot_username_cache: Optional[str] = None
+
+
+def bot_username() -> Optional[str]:
+    """The ONE official bot's @username.
+
+    Env override (TELEGRAM_BOT_USERNAME) wins; otherwise ask Telegram itself
+    once (getMe) and cache - the app must never depend on a hand-set env var
+    to build the deep link (that silent gap once left users with no button).
+    """
+    global _bot_username_cache
+    if settings.telegram_bot_username:
+        return settings.telegram_bot_username
+    if _bot_username_cache is not None:
+        return _bot_username_cache
+    if not settings.telegram_bot_token:
+        return None
+    try:
+        r = requests.get(
+            f"https://api.telegram.org/bot{settings.telegram_bot_token}/getMe",
+            timeout=10)
+        _bot_username_cache = (
+            (r.json().get("result") or {}).get("username") or None)
+    except Exception:
+        _bot_username_cache = None
+    return _bot_username_cache
+
 
 def create_link_token(user_id: str, ttl_s: int = LINK_TOKEN_TTL_S) -> Optional[dict]:
     """Mint a single-use link token; previous unused tokens are invalidated."""
@@ -87,8 +114,9 @@ def create_link_token(user_id: str, ttl_s: int = LINK_TOKEN_TTL_S) -> Optional[d
                                                 timezone.utc).isoformat(),
             "createdAt": now.isoformat(),
         })
-        deep_link = (f"https://t.me/{settings.telegram_bot_username}"
-                     f"?start={token}") if settings.telegram_bot_username else None
+        uname = bot_username()
+        deep_link = (f"https://t.me/{uname}"
+                     f"?start={token}") if uname else None
         return {"token": token, "expires_at": doc["expiresAt"],
                 "deep_link": deep_link,
                 "instructions": (f"Open the bot and send: /start {token}"
