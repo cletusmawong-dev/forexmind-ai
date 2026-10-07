@@ -13,6 +13,7 @@
     "@capacitor/app": "^8.1.2",
     "@capacitor/core": "^8.5.2",
     "@capacitor/status-bar": "^8.0.4",
+    "lightweight-charts": "^4.2.3",
     "lucide-react": "^0.441.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

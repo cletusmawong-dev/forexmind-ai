@@ -1,13 +1,15 @@
 import { NavLink } from "react-router-dom";
-import { Home, Radio, Bot, Activity, LayoutGrid } from "lucide-react";
+import { Activity, Bot, Briefcase, CandlestickChart, Home, LayoutGrid, Radar, Radio, Users } from "lucide-react";
 
 // Final build section 42: HOME / SIGNALS / POSITIONS / AI / MORE.
 // Everything else stays reachable from the More screen.
 const tabs = [
   { to: "/", label: "Home", icon: Home },
-  { to: "/signals", label: "Signals", icon: Radio },
-  { to: "/positions", label: "Positions", icon: Activity },
+  { to: "/charts", label: "Charts", icon: CandlestickChart },
+  { to: "/signals", label: "Signals", icon: Radar },
+  { to: "/positions", label: "Positions", icon: Briefcase },
   { to: "/agent", label: "AI", icon: Bot },
+  { to: "/community", label: "Community", icon: Users },
   { to: "/more", label: "More", icon: LayoutGrid },
 ];
 

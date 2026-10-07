@@ -42,6 +42,7 @@ export const api = {
     request<T>(p, { method: "POST", body: JSON.stringify(body ?? {}) }),
   patch: <T = any>(p: string, body?: any) =>
     request<T>(p, { method: "PATCH", body: JSON.stringify(body ?? {}) }),
+  del: <T = any>(p: string) => request<T>(p, { method: "DELETE" }),
 };
 
 export const endpoints = {

@@ -36,6 +36,21 @@ MARKET_CURRENCIES: Dict[str, Tuple[str, ...]] = {
     "NAS100": ("USD",),
 }
 
+
+def currencies_for(market: str) -> Tuple[str, ...]:
+    """Currencies relevant to a market. Known map first; any 6-letter FX
+    pair (catalog crosses/majors) is split automatically; metals/crypto
+    and anything else ride the USD calendar."""
+    if market in MARKET_CURRENCIES:
+        return MARKET_CURRENCIES[market]
+    m = market.upper()
+    if len(m) == 6 and m.isalpha():
+        base, quote = m[:3], m[3:]
+        known = {"USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD", "NZD"}
+        if base in known and quote in known:
+            return (base, quote)
+    return ("USD",)
+
 BLACKOUT_MIN = 30       # skip signals +/- this many minutes around the event
 PRE_ALERT_MIN = 15      # telegram pre-alert this many minutes before
 

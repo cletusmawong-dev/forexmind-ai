@@ -1,9 +1,10 @@
 import { Link } from "react-router-dom";
-import { BookOpen, Layers, FlaskConical, BarChart3, Zap, Bell, ShieldCheck, Settings as SettingsIcon, ChevronRight, LayoutGrid } from "lucide-react";
+import { BarChart3, Bell, BookOpen, ChevronRight, FlaskConical, Layers, LayoutGrid, Newspaper, Settings as SettingsIcon, ShieldCheck, Zap } from "lucide-react";
 import { Eyebrow, Glass } from "../components/ui";
 import { Logo } from "../components/Logo";
 
 const ITEMS = [
+  { to: "/news", label: "News & Events", desc: "Economic calendar + AI explain", icon: Newspaper },
   { to: "/journal", label: "Journal", desc: "Trade log & lessons", icon: BookOpen },
   { to: "/strategies", label: "Strategies", desc: "Live, sleeping & research", icon: Layers },
   { to: "/learning", label: "AI Research Lab", desc: "Experiments & evidence", icon: FlaskConical },

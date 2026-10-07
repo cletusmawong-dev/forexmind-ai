@@ -3,12 +3,14 @@ import { Link } from "react-router-dom";
 import { Area, AreaChart, Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
-import { ConnectionState, DemoTag, Divider, Eyebrow, Glass, Pill, ChevronSection } from "../components/ui";
+import { ChevronSection, ConnectionState, DemoTag, Divider, Eyebrow, Glass, Pill, SectionHeader } from "../components/ui";
 import { fmtR } from "../lib/format";
 
 export function AnalyticsScreen() {
   const [open, setOpen] = useState<string | null>("distribution");
   const { data, loading } = usePolling<any>(() => api.get(endpoints.analytics), 10000);
+  const score = usePolling<{ strategies: any[] }>(() => api.get("/api/scorecard"), 15000);
+  const sessions = usePolling<{ sessions: any[] }>(() => api.get("/api/analytics/sessions"), 15000);
   if (!data) return loading ? <div className="py-20" /> : <ConnectionState label="Can't load analytics" />;
   const a = data;
   const m = a?.metrics ?? {};
@@ -127,6 +129,46 @@ export function AnalyticsScreen() {
         )}
       </Section>
 
+      <Divider className="my-6" />
+      <SectionHeader>Strategy scorecard</SectionHeader>
+      <Glass className="mt-3 space-y-2.5">
+        {(score.data?.strategies || []).map((st: any) => (
+          <div key={st.strategy_id} className="flex items-center justify-between gap-3 rounded-2xl bg-[rgba(var(--p-rgb),0.05)] px-3.5 py-3">
+            <div className="min-w-0">
+              <p className="truncate text-[12px] font-bold">{st.name}</p>
+              <p className="text-[10px] text-txt-faint">
+                {st.lifecycle}{st.win_rate != null ? ` · WR ${st.win_rate}%` : ""} · {st.trades} trades · net {st.net_r}R
+              </p>
+            </div>
+            <span className={`shrink-0 rounded-lg px-2 py-1 text-[9.5px] font-bold ${st.health_state === "HEALTHY" ? "text-pos" : st.health_state === "DEGRADING" || st.health_state === "PAUSED" ? "text-neg" : "text-warn"}`}
+              style={{ background: "rgba(var(--warm-rgb),0.08)" }}>
+              {st.health_state}
+            </span>
+          </div>
+        ))}
+        <p className="text-[9.5px] text-txt-faint">Win rate shown only with ≥ 10 completed trades — no tiny-sample claims.</p>
+      </Glass>
+
+      <SectionHeader>Session dashboard</SectionHeader>
+      <Glass className="mt-3">
+        {(sessions.data?.sessions || []).length === 0 ? (
+          <p className="py-4 text-center text-[11.5px] text-txt-mid">No completed signals yet.</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-2.5">
+            {(sessions.data?.sessions || []).map((sn: any) => (
+              <div key={sn.session} className="rounded-2xl bg-[rgba(var(--p-rgb),0.05)] px-3.5 py-3">
+                <p className="text-[11px] font-bold">{sn.session}</p>
+                <p className="mt-0.5 text-[10px] text-txt-mid">
+                  {sn.trades} trades · {sn.sample === "OK" ? `${sn.win_rate}% WR` : "sample too small"}
+                </p>
+                <p className={`text-[11px] font-bold ${sn.net_r >= 0 ? "text-pos" : "text-neg"}`}>{sn.net_r > 0 ? "+" : ""}{sn.net_r}R</p>
+              </div>
+            ))}
+          </div>
+        )}
+        <p className="mt-2 text-[9.5px] text-txt-faint">Sessions need ≥ 5 completed trades before any judgement is shown.</p>
+      </Glass>
+
       <Link to="/learning" className="btn-ghost mt-6 w-full">Open the Learning Lab</Link>
     </div>
   );
@@ -167,7 +209,8 @@ function Section({ open, onToggle, title, children }: { open: boolean; onToggle:
         <div className="overflow-hidden">
           <div className="px-5 pb-5">{children}</div>
         </div>
-      </div>
+      
+</div>
     </Glass>
   );
 }

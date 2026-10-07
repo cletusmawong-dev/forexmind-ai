@@ -1,3 +1,4 @@
+import { useSearchParams } from "react-router-dom";
 import { useState } from "react";
 import {LineChart, Send, Bot} from "lucide-react";
 import { api, endpoints } from "../lib/api";
@@ -29,7 +30,11 @@ const SNAME: Record<string, string> = {
 };
 
 export function AgentScreen() {
-  const [tab, setTab] = useState<"presence" | "timeline" | "chat">("presence");
+  const [params] = useSearchParams();
+  const chartSymbol = params.get("symbol");
+  const chartTf = params.get("tf") || "15M";
+  const chartCtx = chartSymbol ? `Chart context: ${chartSymbol} ${chartTf}` : null;
+  const [tab, setTab] = useState<"presence" | "timeline" | "chat" | "brain">("presence");
   const status = usePolling<AgentStatus>(() => api.get(endpoints.agentStatus), 6000);
   const activity = usePolling<{ activity: ActivityItem[] }>(() => api.get(endpoints.agentActivity), 6000);
   const ai = usePolling<any>(() => api.get(endpoints.aimanager), 8000);
@@ -50,7 +55,11 @@ export function AgentScreen() {
     setMessages((m) => [...m, { role: "user", text: msg }]);
     setThinking(true);
     try {
-      const res = await api.post<{ reply: string }>(endpoints.chat, { message: msg });
+      const res = await api.post<{ reply: string }>(endpoints.chat, {
+        message: msg,
+        chart_symbol: chartSymbol || undefined,
+        chart_tf: chartSymbol ? chartTf : undefined,
+      });
       setMessages((m) => [...m, { role: "agent", text: res.reply }]);
     } catch (e: any) {
       setMessages((m) => [...m, { role: "agent", text: `Sorry - ${e.message || "I could not process that."}` }]);
@@ -331,6 +340,11 @@ export function AgentScreen() {
 
       {tab === "chat" && (
         <div className="lg:mx-auto lg:max-w-2xl">
+          {chartCtx && (
+            <p className="mb-2 rounded-xl bg-[rgba(var(--p-rgb),0.08)] px-3 py-2 text-[10.5px] font-bold text-txt-mid">
+              📈 {chartCtx} — the AI can see this setup's live state
+            </p>
+          )}
           <Glass className="flex min-h-[480px] flex-col !p-4" pad={false}>
             <div className="flex-1 space-y-4 overflow-y-auto p-2 pb-3">
               {messages.map((m, i) => (

@@ -36,7 +36,7 @@ export function PositionsScreen() {
             <RefreshCw size={13} className={pos.loading ? "animate-spin" : ""} /> Refresh
           </button>
         } />
-      <ErrorNote message={pos.error} onDismiss={pos.setData} />
+      <ErrorNote message={pos.error} onDismiss={() => pos.setData(null)} />
 
       {pos.loading && !pos.data ? <Spinner label="Reading broker positions..." /> :
         rows.length === 0 ? (

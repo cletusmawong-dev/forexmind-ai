@@ -56,13 +56,13 @@ SYMBOL_MAP = {
     "ETHUSD": ("ETH/USD", "ETH-USD", None, "ETH_USD"),
 }
 
-OANDA_GRAN = {"5M": "M5", "15M": "M15", "30M": "M30", "1H": "H1", "4H": "H4", "1D": "D"}
+OANDA_GRAN = {"1M": "M1", "5M": "M5", "15M": "M15", "30M": "M30", "1H": "H1", "4H": "H4", "1D": "D"}
 
-TF_MINUTES = {"5M": 5, "15M": 15, "30M": 30, "1H": 60, "4H": 240, "1D": 1440}
+TF_MINUTES = {"1M": 1, "5M": 5, "15M": 15, "30M": 30, "1H": 60, "4H": 240, "1D": 1440}
 
 # refresh cadence per timeframe (seconds) - tuned so a full 5-market scan
 # cycle stays comfortably inside Twelve Data's free tier (8 req/min, 800/day)
-TTL = {"5M": 120, "15M": 600, "30M": 600, "1H": 1200, "4H": 3600, "1D": 7200}
+TTL = {"1M": 60, "5M": 120, "15M": 600, "30M": 600, "1H": 1200, "4H": 3600, "1D": 7200}  # 1M: chart-only, fetched on demand
 MIN_CACHE_BARS = 300   # scans require >= 300 bars; small-limit callers must never shrink the cache
 
 # minimum spacing between Twelve Data HTTP calls (free tier: 8/min)
@@ -162,7 +162,7 @@ class LiveProvider(MarketDataProvider):
         sym = self._td_symbol(market)
         if not sym or not self.td_key:
             return None
-        interval = {"5M": "5min", "15M": "15min", "30M": "30min", "1H": "1h", "4H": "4h", "1D": "1day"}.get(tf)
+        interval = {"1M": "1min", "5M": "5min", "15M": "15min", "30M": "30min", "1H": "1h", "4H": "4h", "1D": "1day"}.get(tf)  # 1M is chart-only (never scanned)
         if not interval:
             return None
         try:
@@ -340,7 +340,7 @@ class LiveProvider(MarketDataProvider):
         backfill never invents candles."""
         if not self.td_key or not self._td_symbol(market):
             return None
-        interval = {"5M": "5min", "15M": "15min", "30M": "30min",
+        interval = {"1M": "1min", "5M": "5min", "15M": "15min", "30M": "30min",
                     "1H": "1h", "4H": "4h", "1D": "1day"}.get(timeframe)
         if not interval:
             return None

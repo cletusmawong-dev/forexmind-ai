@@ -302,3 +302,5 @@ class ExperimentIn(BaseModel):
 
 class ChatIn(BaseModel):
     message: str
+    chart_symbol: Optional[str] = None   # master upgrade §4: what the user
+    chart_tf: Optional[str] = None       # is currently viewing on the chart

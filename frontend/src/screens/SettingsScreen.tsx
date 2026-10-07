@@ -970,7 +970,6 @@ function TelegramLinkCard({ onChanged, onFlash }: { onChanged: () => void; onFla
   };
 
   const tg = info.data?.notifications?.telegram;
-  const linked = !!(api.get && token === null) ? undefined : undefined; // placeholder no-op
   return (
     <>
       <TelegramLinkedState onChanged={onChanged} />
