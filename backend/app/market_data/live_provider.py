@@ -35,6 +35,25 @@ SYMBOL_MAP = {
     "XAUUSD": ("XAU/USD", "XAUUSD=X", "GC=F", "XAU_USD"),
     # NAS100: free tier has no index feed; QQQ (Nasdaq-100 ETF) is the proxy.
     "NAS100": ("QQQ", "^NDX", "NQ=F", "NAS100_USD"),
+    # --- market catalog (Settings picker); every catalog symbol MUST map ---
+    "USDCHF": ("USD/CHF", "USDCHF=X", None, "USD_CHF"),
+    "USDCAD": ("USD/CAD", "USDCAD=X", None, "USD_CAD"),
+    "AUDUSD": ("AUD/USD", "AUDUSD=X", None, "AUD_USD"),
+    "NZDUSD": ("NZD/USD", "NZDUSD=X", None, "NZD_USD"),
+    "EURGBP": ("EUR/GBP", "EURGBP=X", None, "EUR_GBP"),
+    "EURJPY": ("EUR/JPY", "EURJPY=X", None, "EUR_JPY"),
+    "EURCHF": ("EUR/CHF", "EURCHF=X", None, "EUR_CHF"),
+    "EURAUD": ("EUR/AUD", "EURAUD=X", None, "EUR_AUD"),
+    "GBPJPY": ("GBP/JPY", "GBPJPY=X", None, "GBP_JPY"),
+    "GBPCHF": ("GBP/CHF", "GBPCHF=X", None, "GBP_CHF"),
+    "AUDJPY": ("AUD/JPY", "AUDJPY=X", None, "AUD_JPY"),
+    "CHFJPY": ("CHF/JPY", "CHFJPY=X", None, "CHF_JPY"),
+    "CADJPY": ("CAD/JPY", "CADJPY=X", None, "CAD_JPY"),
+    "AUDCAD": ("AUD/CAD", "AUDCAD=X", None, "AUD_CAD"),
+    "NZDJPY": ("NZD/JPY", "NZDJPY=X", None, "NZD_JPY"),
+    "XAGUSD": ("XAG/USD", "XAGUSD=X", "SI=F", "XAG_USD"),
+    "BTCUSD": ("BTC/USD", "BTC-USD", None, "BTC_USD"),
+    "ETHUSD": ("ETH/USD", "ETH-USD", None, "ETH_USD"),
 }
 
 OANDA_GRAN = {"5M": "M5", "15M": "M15", "30M": "M30", "1H": "H1", "4H": "H4", "1D": "D"}

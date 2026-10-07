@@ -49,7 +49,11 @@ def get_settings(user_id: str = Depends(get_user_id)):
     risk = agent_core.get_risk(user_id)
     # the honest toggle universe for the UI: only markets the server actually
     # scans (NAS100 listed too - it is accepted but inert unless MARKETS_EXTRA)
-    risk["available_markets"] = sorted(set(INITIAL_MARKETS) | {"NAS100"})
+    from ..config import MARKET_CATALOG, MARKET_CATALOG_ALL
+    risk["available_markets"] = sorted(
+        set(INITIAL_MARKETS) | {"NAS100"} | set(MARKET_CATALOG_ALL))
+    risk["market_catalog"] = [{"group": g, "markets": ms}
+                              for g, ms in MARKET_CATALOG.items()]
     return risk
 
 

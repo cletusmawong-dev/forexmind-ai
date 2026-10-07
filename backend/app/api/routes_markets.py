@@ -55,7 +55,8 @@ def _market_card(symbol: str) -> dict:
 
 @router.get("")
 def list_markets():
-    return {"markets": [_market_card(m) for m in INITIAL_MARKETS],
+    from ..agent.core import scan_universe
+    return {"markets": [_market_card(m) for m in scan_universe()],
             "demo": State.provider.is_demo}
 
 

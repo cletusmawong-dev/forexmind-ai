@@ -85,7 +85,7 @@ async def replay_loop():
             # 2) observe + analyze every time a new 15M candle closes
             if step % 3 == 0:
                 user_ids = [u["id"] for u in State.store.list("users", limit=50)]
-                for market in INITIAL_MARKETS:
+                for market in agent_core.scan_universe():
                     _current_task = f"Scanning {market}"
                     for uid in user_ids:
                         for tf in ("15M", "1H"):
@@ -128,7 +128,7 @@ def _users_cached():
 async def warm_cache():
     """Pre-fetch the working set (respects provider rate limits) so the first
     UI request is served from cache."""
-    for market in INITIAL_MARKETS:
+    for market in agent_core.scan_universe():
         for tf in ("5M", "15M", "1H", "4H"):
             try:
                 await asyncio.to_thread(State.provider.get_candles, market, tf, 400)
@@ -162,7 +162,7 @@ async def live_loop():
             now = time.time()
             _last_loop_tick = now
             _current_task = "Tracking active signals"
-            for market in INITIAL_MARKETS:
+            for market in agent_core.scan_universe():
                 await asyncio.to_thread(State.tracker.update_market, market)
 
             # AI trade manager (post-entry only; self-gated by ai_manage_enabled)
@@ -224,7 +224,7 @@ async def live_loop():
                 last_scan_15m = cur_15m
                 user_ids = _users_cached()
                 from .market_data.calendar import is_blackout
-                for market in INITIAL_MARKETS:
+                for market in agent_core.scan_universe():
                     _current_task = f"Scanning {market}"
                     try:  # candle storage - runs even in blackout, warms provider cache for scans
                         from .market_data import candle_store

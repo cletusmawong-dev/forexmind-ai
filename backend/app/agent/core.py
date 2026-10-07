@@ -171,6 +171,26 @@ def patch_risk(user_id: str, patch: Dict[str, Any]) -> Dict[str, Any]:
     return store.update("settings", doc["id"], clean)
 
 
+def scan_universe() -> list:
+    """Markets worth scanning right now: the defaults plus every catalog
+    market any user selected, capped by MAX_SCAN_MARKETS so the market-data
+    budget (TwelveData credits) is never blown. Order matters: defaults
+    first, then user picks in first-seen order - the cap keeps the earliest
+    (default + longest-selected) markets alive."""
+    from ..config import INITIAL_MARKETS
+    universe = list(INITIAL_MARKETS)
+    try:
+        for u in get_store().list("users", limit=50):
+            risk = get_risk(u["id"]) or {}
+            for m in risk.get("allowed_markets") or []:
+                if m not in universe:
+                    universe.append(m)
+    except Exception:
+        pass
+    cap = max(len(INITIAL_MARKETS), settings.max_scan_markets)
+    return universe[:cap]
+
+
 def user_signal_timeframes(user_id: str) -> List[str]:
     """Entry timeframes the scanner scans for THIS user (user directive
     2026-09-16: default 15M only). Existing signals always finish tracking

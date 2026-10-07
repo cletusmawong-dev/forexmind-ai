@@ -78,6 +78,8 @@ class Settings:
     telegram_bot_token: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
     telegram_bot_username: str = os.getenv("TELEGRAM_BOT_USERNAME", "")
     telegram_webhook_secret: str = os.getenv("TELEGRAM_WEBHOOK_SECRET", "fxm-hook")
+    # scan universe cap (INITIAL_MARKETS + user-selected catalog markets)
+    max_scan_markets: int = int(os.getenv("MAX_SCAN_MARKETS", "10"))
     public_app_url: str = os.getenv("PUBLIC_APP_URL", "https://forexmind-ai-v3.netlify.app")
     # Single-owner failsafe: alerts use this chat when a user has no linked chat.
     telegram_default_chat_id: str = os.getenv("TELEGRAM_DEFAULT_CHAT_ID", "")
@@ -125,6 +127,22 @@ settings = Settings()
 # Set MARKETS_EXTRA=+NAS100 to re-enable when a real index feed is available.
 _markets = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY"]
 INITIAL_MARKETS = _markets + ([m.lstrip("+") for m in os.getenv("MARKETS_EXTRA", "").split(",") if m] if os.getenv("MARKETS_EXTRA") else [])
+
+# The full market catalog a user can pick from (Settings -> Allowed markets).
+# Every symbol maps in market_data/live_provider.SYMBOL_MAP and resolves on
+# Exness-style brokers (the bridge resolves the broker suffix itself).
+# The scan universe = INITIAL_MARKETS plus every catalog market any enabled
+# user selected, capped by MAX_SCAN_MARKETS so the market-data budget
+# (TwelveData credits) is never blown - the cap is surfaced in Admin,
+# never silently exceeded.
+MARKET_CATALOG = {
+    "Majors": ["EURUSD", "GBPUSD", "USDJPY", "USDCHF", "USDCAD", "AUDUSD", "NZDUSD"],
+    "Crosses": ["EURGBP", "EURJPY", "EURCHF", "EURAUD", "GBPJPY", "GBPCHF",
+                 "AUDJPY", "CHFJPY", "CADJPY", "AUDCAD", "NZDJPY"],
+    "Metals": ["XAUUSD", "XAGUSD"],
+    "Crypto": ["BTCUSD", "ETHUSD"],
+}
+MARKET_CATALOG_ALL = [m for _group in MARKET_CATALOG.values() for m in _group]
 TIMEFRAMES = ["5M", "15M", "1H", "4H", "1D"]
 SESSIONS = {"Asian": (0, 8), "London": (8, 13), "NewYork": (13, 21), "Late": (21, 24)}
 

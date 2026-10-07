@@ -105,7 +105,8 @@ class RiskSettings(BaseModel):
         """Per-market session matrix (SS31): {market: [sessions]}. An entry
         REPLACES the global session list for that market; an empty list pauses
         that market; a missing key follows the global list."""
-        known = set(INITIAL_MARKETS) | {"NAS100"}
+        from ..config import MARKET_CATALOG_ALL
+        known = set(INITIAL_MARKETS) | {"NAS100"} | set(MARKET_CATALOG_ALL)
         canon = {n.lower(): n for n in SESSION_NAMES}
         out = {}
         for mk, sess in (v or {}).items():
@@ -189,7 +190,8 @@ class RiskSettings(BaseModel):
         # bridge layer, not here - a suffix name would never be scanned.
         # NAS100 is accepted: it is a real app market (server-side off unless
         # MARKETS_EXTRA is set).
-        known = set(INITIAL_MARKETS) | {"NAS100"}
+        from ..config import MARKET_CATALOG_ALL
+        known = set(INITIAL_MARKETS) | {"NAS100"} | set(MARKET_CATALOG_ALL)
         out = []
         for m in v or []:
             mu = str(m).strip().upper()

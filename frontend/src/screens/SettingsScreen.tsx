@@ -71,6 +71,7 @@ export function SettingsScreen() {
   }, [goals.data]);
   const [timeframes, setTimeframes] = useState<string[]>(["15M"]);
   const [markets, setMarkets] = useState<string[]>([]);
+  const [mktFilter, setMktFilter] = useState<string>("");
   const [aiManage, setAiManage] = useState(false);
   const [tp1Policy, setTp1Policy] = useState<"ai_decide" | "protect" | "partial">("ai_decide");
   const [tp3Policy, setTp3Policy] = useState<"close" | "hold_ai">("close");
@@ -430,19 +431,37 @@ export function SettingsScreen() {
           <Field label="Sessions timezone (IANA, e.g. Africa/Accra)" value={sessionTz} onChange={setSessionTz} />
         </div>
         <div className="eyebrow !text-[9px] mb-2.5 mt-4">Allowed markets</div>
-        <div className="flex flex-wrap gap-2">
-          {(risk.data.available_markets ?? risk.data.allowed_markets ?? []).map((mk: string) => (
-            <button
-              key={mk}
-              onClick={() => toggleMk(mk)}
-              aria-pressed={markets.includes(mk)}
-              className={`tap min-h-[44px] rounded-2xl border px-3 py-2 text-[12px] font-bold tracking-wide ${
-                markets.includes(mk) ? "chip-on" : "chip-off"
-              }`}
-            >
-              {mk}
-            </button>
-          ))}
+        <input
+          value={mktFilter}
+          onChange={(e) => setMktFilter(e.target.value)}
+          placeholder="Search markets (e.g. JPY, gold, BTC...)"
+          className="mb-3 w-full rounded-2xl border border-[rgba(var(--p-rgb),0.25)] bg-[rgba(var(--p-rgb),0.06)] px-3.5 py-2.5 text-[12px] text-txt-hi placeholder:text-txt-faint focus:outline-none"
+        />
+        <div className="space-y-3">
+          {(risk.data.market_catalog ?? [{ group: "Markets", markets: risk.data.available_markets ?? risk.data.allowed_markets ?? [] }]).map((grp: { group: string; markets: string[] }) => {
+            const f = mktFilter.trim().toUpperCase();
+            const visible = (grp.markets ?? []).filter((mk: string) => !f || mk.includes(f) || (f === "GOLD" && mk === "XAUUSD") || (f === "SILVER" && mk === "XAGUSD"));
+            if (visible.length === 0) return null;
+            return (
+              <div key={grp.group}>
+                <div className="mb-1.5 text-[9px] font-bold uppercase tracking-wider text-txt-faint">{grp.group}</div>
+                <div className="flex flex-wrap gap-2">
+                  {visible.map((mk: string) => (
+                    <button
+                      key={mk}
+                      onClick={() => toggleMk(mk)}
+                      aria-pressed={markets.includes(mk)}
+                      className={`tap min-h-[44px] rounded-2xl border px-3 py-2 text-[12px] font-bold tracking-wide ${
+                        markets.includes(mk) ? "chip-on" : "chip-off"
+                      }`}
+                    >
+                      {mk}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
         {markets.length === 0 && (
           <p className="mt-2 text-[10px] leading-relaxed text-neg">
