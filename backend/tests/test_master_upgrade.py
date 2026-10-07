@@ -221,7 +221,9 @@ def test_chat_freeform_llm_fallback_with_chart_context(env, monkeypatch):
     # the safety contract lives in the provider system prompt - verify it
     from app.agent.ai_provider import SYSTEM_PROMPT
     assert "do not execute trades" in SYSTEM_PROMPT.lower()
-    assert seen["prompt"] == "Why is this XAUUSD setup valid?"
+    # tutor framing + the user's actual question both reach the model
+    assert "USER QUESTION: Why is this XAUUSD setup valid?" in seen["prompt"]
+    assert "tutor" in seen["prompt"].lower()
 
 
 def test_chat_without_llm_stays_honest(env):
