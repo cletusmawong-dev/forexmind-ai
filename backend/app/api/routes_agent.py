@@ -155,7 +155,16 @@ def _llm_chat(body: ChatIn, user_id: str):
         p = get_ai_provider()
         if getattr(p, "name", "") != "xkiro":
             return None, None  # no external AI configured - keep honest fallback
-        out = p.complete(body.message, ctx, timeout=45, max_tokens=520)
+        prompt = (
+            "You are FOREXMIND's friendly expert trading tutor. "
+            "For GENERAL trading-education questions (concepts, sessions, "
+            "risk, indicators, news events, strategy logic) answer freely "
+            "from your knowledge. For questions about THIS user's charts, "
+            "signals or trades use ONLY the verified context below - never "
+            "invent personal data. If a user-specific answer is missing from "
+            "the context, say what you'd need. Keep it concise and practical.\n\n"
+            "USER QUESTION: " + body.message.strip())
+        out = p.complete(prompt, ctx, timeout=45, max_tokens=520)
         return out, p.name
     except Exception:
         return None, None
