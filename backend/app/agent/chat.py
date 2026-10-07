@@ -45,8 +45,8 @@ def answer(message: str, user_id: str) -> Dict[str, Any]:
             return {"reply": "There are no signals stored yet, so I have nothing to explain."}
         s = sigs[0]
         checks = "\n".join(f"✓ {c['label']} - {c.get('detail', '')}" for c in s.get("checks", []))
-        return {"reply": f"{s['signal_id']} ({s['market']} {s['direction']}, "
-                         f"{s['strategy_name']}):\n\n{s.get('reason', '')}\n\n{checks}",
+        return {"reply": f"{s.get('signal_id', '?')} ({s.get('market', '?')} {s.get('direction', '?')}, "
+                         f"{s.get('strategy_name', '?')}):\n\n{s.get('reason', '')}\n\n{checks}",
                 "signal_id": s["id"]}
 
     # ---- why did trade lose ---------------------------------------------

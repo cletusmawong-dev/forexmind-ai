@@ -85,8 +85,8 @@
   --accent-amber: #d4af37;
   --text-primary: #f2eee2;
   --text-secondary: #c9c3b4;
-  --text-muted: #8a857a;
-  --text-faint: #6b675e;
+  --text-muted: #99937f;
+  --text-faint: #7e7969;
   --glow-blue: 0 0 26px rgba(212, 175, 55, 0.18);
   --shadow-card: 0 14px 36px rgba(0, 0, 0, 0.55);
 
@@ -1597,3 +1597,44 @@ button, a, [role="button"] {
     line-height: 1.55;
   }
 }
+
+
+/* ============================================================
+   UI REFINEMENT PASS (2026-10-07) - professional consistency:
+   focus rings, touch behavior, scrollbars, reduced motion.
+   ============================================================ */
+
+/* keyboard/AT focus ring - visible, on-brand, never on tap */
+:focus-visible {
+  outline: 2px solid rgba(var(--gold-rgb, 212, 175, 55), 0.6);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* touchscreens: no ghost tap flash, no card hover jitter */
+* { -webkit-tap-highlight-color: transparent; }
+@media (hover: none) {
+  .glass:hover, .glass-2:hover { transform: none; box-shadow: var(--shadow-card); }
+}
+
+/* slim themed scrollbars (desktop) */
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: rgba(var(--warm-rgb, 122, 92, 34), 0.25);
+  border-radius: 8px;
+}
+*::-webkit-scrollbar-thumb:hover { background: rgba(var(--warm-rgb, 122, 92, 34), 0.4); }
+
+/* accessibility: honor reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* numerals align in tables/stats (professional data feel) */
+.tabular, .font-mono { font-variant-numeric: tabular-nums; }

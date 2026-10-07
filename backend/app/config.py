@@ -26,7 +26,10 @@ class Settings:
     # XKiro activates when XKIRO_API_KEY is provided. Until then the grounded
     # LocalAnalyst is used. The key NEVER leaves the server (SPEC §2, §45).
     xiro_api_key: str = os.getenv("XKIRO_API_KEY", "")
-    xiro_base_url: str = os.getenv("XKIRO_BASE_URL", "https://api.xkiro.ai/v1")
+    # api.xkiro.ai is DEAD DNS (verified 2026-10-07: NameResolution failed);
+    # the working gateway is api.xkiro.com - this one line un-breaks the AI
+    # chat, news explain and every escalation path.
+    xiro_base_url: str = os.getenv("XKIRO_BASE_URL", "https://api.xkiro.com/v1")
     xiro_model: str = os.getenv("XKIRO_MODEL", "xkiro-1")
     # Two-layer AI (master prompt SS6-SS8). IDs verified live on the Xkiro
     # /models list 2026-09-17; ALWAYS overridable via env - never hard-coded

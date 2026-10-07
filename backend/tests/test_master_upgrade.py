@@ -300,7 +300,10 @@ def test_community_image_validation(env):
     bad = "data:image/png;base64," + base64.b64encode(b"GIF89a-not-allowed").decode()
     assert ca.post("/api/community/posts",
                    json={"text": "x", "image": bad}).status_code == 415
-    big = "data:image/png;base64," + base64.b64encode(b"\x89PNG\r\n\x1a\n" + b"0" * 400_000).decode()
+    ok_size = "data:image/png;base64," + base64.b64encode(b"\x89PNG\r\n\x1a\n" + b"0" * 400_000).decode()
+    assert ca.post("/api/community/posts",
+                   json={"text": "x", "image": ok_size}).status_code == 200  # 400KB now accepted
+    big = "data:image/png;base64," + base64.b64encode(b"\x89PNG\r\n\x1a\n" + b"0" * 700_000).decode()
     assert ca.post("/api/community/posts",
                    json={"text": "x", "image": big}).status_code == 413
     ok = "data:image/png;base64," + PNG_1PX
@@ -405,3 +408,35 @@ def test_whynot_cap_open_with_room(env):
     assert cap["ok"] is True and "0/6" in cap["detail"]
     sess = next(c for c in out["checks"] if c["gate"] == "session")
     assert sess["ok"] is True  # default risk has all four sessions on
+
+
+def test_chat_greeting_is_instant_and_friendly(env):
+    app, store, mp = env
+    _mk_user(store, "a_u", "A")
+    c = client_as(app, "a_u")
+    r = c.post("/api/chat", json={"message": "hello"}).json()
+    assert "FOREXMIND AI" in r["reply"] and "Ask me anything" in r["reply"]
+    r2 = c.post("/api/chat", json={"message": "thanks!"}).json()
+    assert "Any time" in r2["reply"]
+
+
+def test_chat_llm_failure_falls_back_deterministic(env, monkeypatch):
+    """XKiro down -> the deterministic engine still answers stored-data Qs."""
+    app, store, mp = env
+    _mk_user(store, "a_u", "A")
+    store.create("signals", {"userId": "a_u", "signal_id": "SIG-Z",
+                             "market": "EURUSD", "direction": "BUY", "status": "TP2_HIT",
+                             "strategy_name": "9/21 EMA", "createdAt": "2026-10-06T00:00:00Z",
+                             "reason": "EMA cross confirmed", "checks": []})
+
+    class _Dead:
+        name = "xkiro"
+
+        def complete(self, *a, **k):
+            raise RuntimeError("provider down")
+
+    import app.agent.ai_provider as prov
+    mp.setattr(prov, "get_ai_provider", lambda: _Dead())
+    c = client_as(app, "a_u")
+    r = c.post("/api/chat", json={"message": "why did the last signal qualify?"}).json()
+    assert "SIG-Z" in r.get("reply", "") or "qualif" in r.get("reply", "").lower()

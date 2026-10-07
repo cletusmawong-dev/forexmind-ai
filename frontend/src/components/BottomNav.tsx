@@ -17,14 +17,14 @@ const tabs = [
 export function BottomNav() {
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[80] flex justify-center px-4 lg:hidden" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 14px)" }}>
-      <nav className="glass-float pointer-events-auto flex items-center gap-0.5 rounded-[26px] px-2 py-2" aria-label="Primary">
+      <nav className="glass-float pointer-events-auto flex w-full max-w-[420px] items-center gap-0 rounded-[26px] px-1.5 py-2" aria-label="Primary">
         {tabs.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}
             end={to === "/"}
             className={({ isActive }) =>
-              `tap relative flex h-[52px] w-[52px] flex-col items-center justify-center gap-[3px] rounded-[18px] transition-all duration-300 ${
+              `tap relative flex h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-[3px] rounded-[18px] transition-all duration-300 ${
                 isActive
                   ? "bg-gradient-to-b from-[rgba(var(--p2-rgb),0.5)] to-[rgba(var(--p-rgb),0.14)] text-[var(--text-primary)] shadow-[0_0_22px_rgba(var(--p-rgb),0.4),inset_0_1px_0_rgba(255,255,255,0.3)]"
                   : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
@@ -39,7 +39,7 @@ export function BottomNav() {
                   strokeWidth={isActive ? 2.2 : 1.7}
                   style={isActive ? { filter: "drop-shadow(0 0 8px rgba(var(--p-rgb),0.9))" } : undefined}
                 />
-                <span className={`text-[8px] font-semibold tracking-wide ${isActive ? "text-[var(--text-primary)]" : ""}`}>{label}</span>
+                <span className={`max-w-full truncate px-0.5 text-[8px] font-semibold tracking-wide ${isActive ? "text-[var(--text-primary)]" : ""}`}>{label}</span>
                 {isActive && (
                   <span
                     className="absolute bottom-[3px] h-[3px] w-5 rounded-full bg-gradient-to-r from-[#3e7bfa] to-[#33d6f6]"

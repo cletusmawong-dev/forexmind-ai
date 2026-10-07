@@ -7,7 +7,7 @@ import { useState } from "react";
 import { Newspaper, Sparkles, RefreshCw } from "lucide-react";
 import { api } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
-import { Eyebrow, Glass } from "../components/ui";
+import { Eyebrow, Glass, PageHeader } from "../components/ui";
 
 type Ev = {
   title: string; country: string; date: string; impact: string;
@@ -33,24 +33,13 @@ export function NewsScreen() {
         impact: ev.impact, forecast: ev.forecast, previous: ev.previous,
       });
       setExpl((p) => ({ ...p, [key]: r.explanation }));
-    } catch { setExpl((p) => ({ ...p, [key]: "explanation unavailable right now" })); }
+    } catch { setExpl((p) => ({ ...p, [key]: "The explainer is warming up - tap Explain again in a moment." })); }
     setBusy(null);
   };
 
   return (
     <div className="animate-fadeUp">
-      <header className="mb-5 flex items-start justify-between">
-        <div className="flex items-center gap-3.5">
-          <span className="icon-chip" aria-hidden="true"><Newspaper size={20} /></span>
-          <div>
-            <h1 className="text-[22px] font-semibold tracking-tight">News & Events</h1>
-            <p className="mt-1 text-[12.5px] text-txt-low">Real calendar · AI explains the risk</p>
-          </div>
-        </div>
-        <button onClick={() => news.refresh()} className="btn-ghost flex items-center gap-1.5 !px-3 !py-2 text-[11px]">
-          <RefreshCw size={13} className={news.loading ? "animate-spin" : ""} /> Refresh
-        </button>
-      </header>
+      <PageHeader title="News & Events" sub="Real calendar · AI explains the risk" icon={<Newspaper size={20} />} right={<button onClick={() => news.refresh()} className="btn-ghost flex items-center gap-1.5 !px-3 !py-2 text-[11px]">     <RefreshCw size={13} className={news.loading ? "animate-spin" : ""} /> Refresh   </button>} />
 
       <div className="space-y-3">
         {(news.data?.events || []).map((ev, i) => {

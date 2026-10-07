@@ -16,7 +16,7 @@ import {
 } from "lightweight-charts";
 import { CandlestickChart, Sparkles, ShieldQuestion, RefreshCw } from "lucide-react";
 import { api, endpoints } from "../lib/api";
-import { Eyebrow, Glass } from "../components/ui";
+import { Eyebrow, Glass, PageHeader } from "../components/ui";
 
 const TFS = ["1M", "5M", "15M", "30M", "1H", "4H", "1D"] as const;
 type Tf = (typeof TFS)[number];
@@ -171,21 +171,10 @@ export function ChartsScreen() {
 
   return (
     <div className="animate-fadeUp">
-      <header className="mb-5 flex items-start justify-between">
-        <div className="flex items-center gap-3.5">
-          <span className="icon-chip" aria-hidden="true"><CandlestickChart size={20} /></span>
-          <div>
-            <h1 className="text-[22px] font-semibold tracking-tight">Charts</h1>
-            <p className="mt-1 text-[12.5px] text-txt-low">Real market data · EMA9/21 · your signals</p>
-          </div>
-        </div>
-        <button onClick={loadData} className="btn-ghost flex items-center gap-1.5 !px-3 !py-2 text-[11px]">
-          <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> Refresh
-        </button>
-      </header>
+      <PageHeader title="Charts" sub="Real market data · EMA9/21 · your signals" icon={<CandlestickChart size={20} />} right={<button onClick={loadData} className="btn-ghost flex items-center gap-1.5 !px-3 !py-2 text-[11px]">     <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> Refresh   </button>} />
 
       <Glass pad={false} className="overflow-hidden">
-        <div className="flex gap-2 overflow-x-auto px-3 pt-3">
+        <div className="flex gap-1.5 overflow-x-auto px-3 pt-2.5">
           {SYMBOLS.map((s) => (
             <button key={s} onClick={() => setSymbol(s)} aria-pressed={symbol === s}
               className={`tap shrink-0 rounded-xl border px-3 py-1.5 text-[11px] font-bold ${symbol === s ? "chip-on" : "chip-off"}`}>
@@ -236,7 +225,7 @@ export function ChartsScreen() {
         <Glass className="mt-4">
           <Eyebrow>Your recent signals · {symbol}</Eyebrow>
           <div className="mt-2 space-y-2">
-            {annots.slice(0, 5).map((a) => (
+            {annots.slice(0, 3).map((a) => (
               <Link key={a.signal_id} to={`/signals/${a.signal_id}`}
                 className="flex items-center justify-between rounded-xl bg-[rgba(var(--p-rgb),0.05)] px-3 py-2.5">
                 <span className="text-[11.5px] font-semibold">

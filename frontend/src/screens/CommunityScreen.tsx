@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { Users, Image as ImageIcon, Heart, MessageCircle, Flag, Send, Trash2, BadgeCheck, UserPlus } from "lucide-react";
 import { api } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
-import { Eyebrow, Glass } from "../components/ui";
+import { Eyebrow, Glass, PageHeader } from "../components/ui";
 
 type Post = {
   id: string; author: { user_id: string; display_name: string };
@@ -45,12 +45,37 @@ export function CommunityScreen() {
     setBusy(false);
   };
 
+  /** Any phone screenshot works: downscale to 1280px + JPEG compress in-browser
+   *  before upload - "image too large" should never block a real user again. */
   const pickImage = (f: File | null) => {
     if (!f) return;
-    if (f.size > 220_000) { setFlash("image too large (max ~200 KB) - screenshot smaller or compress"); return; }
-    const rd = new FileReader();
-    rd.onload = () => setImage(String(rd.result));
-    rd.readAsDataURL(f);
+    if (!/^image\/(png|jpeg|webp)$/.test(f.type)) {
+      setFlash("Please pick a PNG, JPEG or WEBP image (phone screenshots are fine)");
+      return;
+    }
+    const url = URL.createObjectURL(f);
+    const img = new Image();
+    img.onload = () => {
+      const MAX = 1280;
+      const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
+      const cv = document.createElement("canvas");
+      cv.width = w; cv.height = h;
+      const ctx = cv.getContext("2d");
+      if (!ctx) { URL.revokeObjectURL(url); setFlash("Could not process that image"); return; }
+      ctx.drawImage(img, 0, 0, w, h);
+      let out = cv.toDataURL("image/jpeg", 0.82);
+      if (out.length > 700_000) out = cv.toDataURL("image/jpeg", 0.68);
+      URL.revokeObjectURL(url);
+      setImage(out);
+      setFlash(null);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      setFlash("Could not read that image - try a PNG or JPEG screenshot");
+    };
+    img.src = url;
   };
 
   const like = async (p: Post) => {
@@ -86,15 +111,7 @@ export function CommunityScreen() {
 
   return (
     <div className="animate-fadeUp">
-      <header className="mb-5 flex items-start justify-between">
-        <div className="flex items-center gap-3.5">
-          <span className="icon-chip" aria-hidden="true"><Users size={20} /></span>
-          <div>
-            <h1 className="text-[22px] font-semibold tracking-tight">Community</h1>
-            <p className="mt-1 text-[12.5px] text-txt-low">Ideas, setups & verified results</p>
-          </div>
-        </div>
-      </header>
+      <PageHeader title="Community" sub="Ideas, setups & verified results" icon={<Users size={20} />} />
 
       <Glass>
         <Eyebrow>Share with the traders</Eyebrow>
@@ -184,11 +201,11 @@ export function CommunityScreen() {
             </div>
             {open?.id === p.id && (
               <div className="mt-2.5 space-y-2 border-t border-[rgba(var(--warm-rgb),0.07)] pt-2.5">
-                {p.comments.map((cm) => (
+                {p.comments.map((cm: any) => (
                   <div key={cm.id} className="flex items-start justify-between gap-2">
                     <p className="text-[11.5px] text-txt-mid"><span className="font-bold text-txt-hi">{cm.author.display_name}:</span> {cm.text}</p>
-                    {me.data && me.data && (
-                      <button onClick={() => delComment(p, cm.id)} className="text-txt-faint"><Trash2 size={11} /></button>
+                    {me.data && (cm.userId === me.data.id || p.author.user_id === me.data.id) && (
+                      <button onClick={() => delComment(p, cm.id)} aria-label="delete reply" className="text-txt-faint"><Trash2 size={11} /></button>
                     )}
                   </div>
                 ))}

@@ -27,7 +27,7 @@ router = APIRouter(prefix="/community", tags=["community"])
 
 MAX_TEXT = 2000
 MAX_COMMENT = 500
-MAX_IMAGE_BYTES = 300_000
+MAX_IMAGE_BYTES = 600_000   # client compresses to ~1280px JPEG first
 MAX_TAGS = 8
 HOURLY_POST_LIMIT = 12
 HIDE_THRESHOLD = 3
@@ -81,7 +81,7 @@ def _validate_image(image: str) -> str:
     except Exception:
         raise HTTPException(400, "image is not valid base64")
     if len(raw) > MAX_IMAGE_BYTES:
-        raise HTTPException(413, f"image too large (max {MAX_IMAGE_BYTES // 1000} KB)")
+        raise HTTPException(413, f"image still too large after compression (max {MAX_IMAGE_BYTES // 1000} KB) - try a smaller screenshot")
     ok = any(raw.startswith(m) or (m == b"RIFF" and raw[8:12] == b"WEBP")
              for m in _MAGIC)
     if not ok:
