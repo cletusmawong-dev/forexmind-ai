@@ -152,11 +152,11 @@ def test_gate_stale_decision_rejected():
 
 def test_gate_duplicate_suppressed(world):
     from app.aimanager import risk_gate
-    ok1, _, _ = risk_gate.validate_action("u1", POS, _decision(sl=2401),
-                                          snapshot_ts=NOW, current_sl=2390,
-                                          last_action={"action": "PROTECT", "sl": 2401,
-                                                       "ts": NOW - 10})
-    assert ok1 is False
+    ok1, verdict1, _ = risk_gate.validate_action("u1", POS, _decision(sl=2401),
+                                                 snapshot_ts=NOW, current_sl=2390,
+                                                 last_action={"action": "PROTECT", "sl": 2401,
+                                                              "ts": time.time() - 5})
+    assert ok1 is False and verdict1 == "DUPLICATE_SUPPRESSED"
 
 
 def test_gate_protect_wrong_side_and_loosening():
