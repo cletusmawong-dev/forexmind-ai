@@ -309,6 +309,22 @@ _QE = getattr(type(get_store()), "_QuotaExhausted", None)
 if _QE is not None:
     from fastapi.responses import JSONResponse
 
+    # Unhandled route exceptions: log to agent activity (readable via
+    # /api/agent/activity) so prod failures are diagnosable - 2026-10-08.
+    from fastapi import Request as _Req
+    from fastapi.responses import JSONResponse as _JSONR
+    import traceback as _tb
+
+    @app.exception_handler(Exception)
+    async def _unhandled(_request: _Req, exc: Exception):
+        try:
+            agent_core.log(f"Unhandled error on {_request.url.path}: "
+                           f"{type(exc).__name__}: {exc} | "
+                           f"{_tb.format_exc()[-600:]}", kind="ERROR")
+        except Exception:
+            pass
+        return _JSONR(status_code=500, content={"detail": "Internal Server Error"})
+
     @app.exception_handler(_QE)
     async def quota_exhausted_handler(request, exc):
         return JSONResponse(
