@@ -323,10 +323,15 @@ class SignalEngine:
                 "price": cand.entry,
             },
             "candle_time": cand.candle_time,
-            # Strategy 2 machine fields (harmless for other strategies):
+            # Strategy machine fields (harmless for other strategies):
             **{k: v for k, v in (getattr(cand, "extra", None) or {}).items()
                if k in ("setup_state", "setup_stage", "entry_timeframe",
-                        "sweep_timeframe", "bos_timeframe", "setup_key")},
+                        "sweep_timeframe", "bos_timeframe", "setup_key",
+                        # S2 Supply & Demand + FVG (v2) - the WHY payload
+                        "zone_type", "zone_high", "zone_low", "displacement_time",
+                        "fvg_type", "fvg_high", "fvg_low", "fvg_mid",
+                        "fvg_created_time", "retest_time", "entry_method",
+                        "session", "atr", "setup_sequence")},
             "dna": None,                # Signal DNA snapshot (filled right below)
             "forensics": None,          # filled automatically on completion
             "adaptive": None,           # Adaptive Quality (filled right below)
@@ -342,6 +347,13 @@ class SignalEngine:
         _s2 = getattr(cand, "extra", None) or {}
         _tf_line = (f"\nSweep TF: {_s2['sweep_timeframe']} - BOS TF: {_s2['bos_timeframe']}"
                     f" - Entry TF: {_s2['entry_timeframe']}") if _s2.get("sweep_timeframe") else ""
+        if not _tf_line and _s2.get("zone_type"):
+            try:  # S2 Supply & Demand + FVG: explain the setup in one line
+                _tf_line = (f"\n{_s2['zone_type'].title()} zone "
+                            f"{float(_s2['zone_low']):,.5g}-{float(_s2['zone_high']):,.5g}"
+                            f" | FVG {float(_s2['fvg_low']):,.5g}-{float(_s2['fvg_high']):,.5g} retested")
+            except Exception:
+                _tf_line = ""
         notify(user_id, "NEW_SIGNAL",
                f"{'🟢' if cand.direction == 'BUY' else '🔴'} {cand.market} {cand.direction}",
                f"{strategy.short_name}\n{score_word} - Signal score {cand.score}/100.\n"

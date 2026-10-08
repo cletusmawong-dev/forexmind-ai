@@ -18,7 +18,8 @@ from ..learning.health import strategy_health
 from ..learning.versions import LIFECYCLE
 from ..market_data.calendar import currencies_for, is_blackout
 from ..state import State
-from ..strategies.strategy_2_mtf_sweep_bos_retest import state as s2_state
+from ..strategies.strategy_2_supply_demand_fvg import state as s2_state
+from ..strategies.strategy_2_supply_demand_fvg import machine as s2_machine
 from .deps import get_user_id
 
 router = APIRouter(tags=["insight"])
@@ -184,29 +185,24 @@ def _lifecycle_state(strategy_id: str) -> dict:
 
 
 @router.get("/whynot")
-def whynot(symbol: str, strategy_id: str = Query("strategy_2_mtf_sweep_bos_retest"),
+def whynot(symbol: str, strategy_id: str = Query("strategy_2_supply_demand_fvg"),
            user_id: str = Depends(get_user_id)):
     """Why is there no trade right now on this symbol? Composed ONLY from the
     real machine state and the caller's real permission gates."""
     sym = symbol.upper()
     checks: list = []
 
-    # 1) the setup itself (persisted S2 machine)
+    # 1) the setup itself (persisted S/D + FVG machine)
     st = s2_state.load(sym, "15M")
-    waiting = bool(st.get("waiting_bull_retest") or st.get("waiting_bear_retest"))
-    swept = st.get("swept_level") is not None
-    if waiting:
-        checks.append({"gate": "setup", "ok": False,
-                       "detail": "retest confirmed - signal conditions evaluated on close"})
-    elif swept and (st.get("broken_high") or st.get("broken_low")):
-        checks.append({"gate": "setup", "ok": False,
-                       "detail": "structure break confirmed, but retest has not occurred"})
-    elif swept:
-        checks.append({"gate": "setup", "ok": False,
-                       "detail": "liquidity sweep detected, but structure confirmation is missing"})
-    else:
-        checks.append({"gate": "setup", "ok": False,
-                       "detail": "no valid liquidity sweep yet - engine keeps watching"})
+    rendered = s2_machine.render_state(st)
+    word = {
+        "NO_SETUP": "no demand/supply + FVG setup yet - engine keeps watching",
+        "DISPLACEMENT_CONFIRMED": "displacement confirmed - waiting for the FVG to complete",
+        "WAITING_RETEST": "zone + FVG armed - waiting for price to return into the gap",
+        "FVG_RETEST": "price is in the FVG - signal conditions evaluated on close",
+        "RESET": "previous setup completed - a fresh setup is required",
+    }.get(rendered["state"], "no demand/supply + FVG setup yet - engine keeps watching")
+    checks.append({"gate": "setup", "ok": False, "detail": word})
 
     # 2-5) the caller's real gates
     checks.append(_daily_cap_state(user_id))
