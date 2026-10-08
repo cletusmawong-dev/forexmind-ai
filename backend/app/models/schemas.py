@@ -69,6 +69,7 @@ class RiskSettings(BaseModel):
     max_daily_loss_pct: float = 3.0
     max_consecutive_losses: int = 4
     max_signals_per_day: int = 6
+    max_trades_per_day: int = 15                  # execution daily cap (owner set 15, 2026-10-08)
     min_rr: float = 1.5
     sessions: List[str] = Field(default_factory=lambda: ["London", "NewYork", "Asian", "Late"])
     daily_profit_target_usd: float = Field(default=0.0)   # 0 = off (SS21)

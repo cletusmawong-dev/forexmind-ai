@@ -25,6 +25,7 @@ DEFAULT_RISK = {
     "max_daily_loss_pct": 3.0,
     "max_consecutive_losses": 4,
     "max_signals_per_day": 6,
+    "max_trades_per_day": 15,                     # execution daily cap
     "min_rr": 1.5,
     "sessions": ["London", "NewYork", "Asian", "Late"],
     "market_sessions": {},
@@ -110,7 +111,8 @@ def patch_risk(user_id: str, patch: Dict[str, Any]) -> Dict[str, Any]:
         ensure_user_docs(user_id)
     doc = store.list("settings", filters={"userId": user_id, "kind": "risk"}, limit=1)[0]
     allowed = {"risk_per_trade_pct", "max_daily_loss_pct", "max_consecutive_losses",
-               "max_signals_per_day", "min_rr", "sessions", "allowed_markets",
+               "max_signals_per_day", "max_trades_per_day",
+               "min_rr", "sessions", "allowed_markets",
                "market_sessions", "session_hours", "session_tz",
                "daily_profit_target_usd", "daily_loss_limit_usd", "on_loss_limit",
                "ai_manage_enabled", "tp1_policy", "tp3_policy",
@@ -160,7 +162,7 @@ def patch_risk(user_id: str, patch: Dict[str, Any]) -> Dict[str, Any]:
             clean_keys["prop_rules"] = clean or None
     clean = {}
     numeric = {"risk_per_trade_pct", "max_daily_loss_pct", "min_rr"}
-    ints = {"max_consecutive_losses", "max_signals_per_day"}
+    ints = {"max_consecutive_losses", "max_signals_per_day", "max_trades_per_day"}
     for k, v in clean_keys.items():
         if k in ints:
             clean[k] = int(v)

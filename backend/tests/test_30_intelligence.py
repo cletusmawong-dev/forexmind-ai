@@ -434,11 +434,18 @@ def test_journal_entries_surfaces_user_journaling(env):
     store.create("signals", {**base, "signal_id": "J-3"})     # never journaled
     r = c.get("/api/journal/entries")
     body = r.json()
-    assert r.status_code == 200 and body["count"] == 2
+    # owner request 2026-10-08: NOT-executed signals are tracked to TP/SL and
+    # must surface in the journal too (J-3 has no user action at all)
+    assert r.status_code == 200 and body["count"] == 3
     assert body["taken"] == 1 and body["skipped"] == 1
+    assert body["not_executed"] == 1 and body["tracked_results"] == 1
     assert body["notes_written"] == 1
-    top = body["entries"][0]                                   # newest first
-    assert top["signal_id"] == "J-2"
+    # newest first: J-3 was created "now" (store stamp), so it leads
+    top = body["entries"][0]
+    assert top["signal_id"] == "J-3"
+    assert top["action"] == "not_executed" and top["not_executed"] is True
+    assert top["tracked"] is True and top["outcome"] == "WIN"   # candle-tracked
+    assert body["entries"][1]["signal_id"] == "J-2"             # journaled newest
     took = next(e for e in body["entries"] if e["action"] == "entered")
     assert took["notes"] == "clean retest, my size"
     assert took["user_entry_price"] == 1.1005

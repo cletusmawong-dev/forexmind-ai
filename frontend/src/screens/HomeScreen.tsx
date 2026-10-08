@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, useEffect, useMemo } from "react";
+import { useCallback, useRef, useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Bell, CandlestickChart, ChevronRight, Cpu, Eye, Shield, ShieldAlert,
@@ -125,12 +125,6 @@ export function HomeScreen() {
     : Number(acct.goal_balance ?? 0) * (1 + Number(acct.daily_pl_pct ?? 0) / 100);
   const upToday = Number(acct.today_pl_usd ?? acct.daily_pl_pct ?? 0) >= 0;
   const marketList = markets.data?.markets ?? [];
-  const priceOf = useMemo(() => {
-    const m = new Map<string, MarketCard>();
-    marketList.forEach((x) => m.set(x.symbol.toUpperCase(), x));
-    return (sym: string) => m.get(sym.toUpperCase());
-  }, [marketList]);
-
   /* per-symbol findings rows: markets the agent tracks, joined with the
      persisted machine states (never manufactured - missing = NO DATA) */
   const s1map = ov.findings?.s1 ?? {};

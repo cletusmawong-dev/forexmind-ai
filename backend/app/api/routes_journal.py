@@ -150,27 +150,32 @@ def mt5_trades(user_id: str = Depends(get_user_id)):
 
 @router.get("/journal/entries")
 def journal_entries(user_id: str = Depends(get_user_id)):
-    """The USER'S OWN journal: every signal they recorded as taken/skipped,
-    with their notes, their entry price and the tracked personal result.
-    This is the journaling record - distinct from the engine/broker log."""
+    """The USER'S OWN journal: every signal on the account - recorded
+    (taken/skipped) AND not executed. Every entry carries the candle-tracked
+    result (which TP / SL level price reached) whether or not a broker trade
+    was ever placed - skipped setups are the research half of the journal."""
     store = State.store
-    rows = [s for s in store.list("signals", filters={"userId": user_id}, limit=3000)
-            if s.get("user_action") in ("entered", "skipped")]
+    rows = store.list("signals", filters={"userId": user_id}, limit=3000)
     rows.sort(key=lambda s: str(s.get("user_action_at") or s.get("createdAt") or ""),
               reverse=True)
     entries = []
     for s in rows:
         utr = s.get("user_trade_result") or {}
+        executed = bool(s.get("mt5_ticket")) or s.get("execution_status") in (
+            "EXECUTED", "FILLED", "CONFIRMED")
         entries.append({
             "id": s.get("id"), "signal_id": s.get("signal_id"),
             "market": s.get("market"), "direction": s.get("direction"),
             "strategy_name": s.get("strategy_name"), "timeframe": s.get("timeframe"),
-            "action": s.get("user_action"),
+            "action": s.get("user_action") or ("entered" if executed else "not_executed"),
+            "not_executed": not executed and not s.get("user_action"),
+            "execution_status": s.get("execution_status"),
             "notes": s.get("user_notes"),
             "user_entry_price": s.get("user_entry_price"),
             "signal_entry": s.get("entry"), "sl": s.get("sl"),
             "tp1": s.get("tp1"), "tp2": s.get("tp2"), "tp3": s.get("tp3"),
             "tp_hits": s.get("tp_hits"),
+            "tracked": bool(s.get("completed")),
             "outcome": utr.get("outcome") or s.get("outcome"),
             "r_multiple": utr.get("r_multiple") if utr.get("r_multiple") is not None
             else s.get("r_multiple"),
@@ -179,9 +184,12 @@ def journal_entries(user_id: str = Depends(get_user_id)):
             "journaled_at": s.get("user_action_at"),
         })
     taken = sum(1 for e in entries if e["action"] == "entered")
-    skipped = len(entries) - taken
+    skipped = sum(1 for e in entries if e["action"] == "skipped")
+    not_exec = sum(1 for e in entries if e["action"] == "not_executed")
+    tracked = sum(1 for e in entries if e["not_executed"] and e["tracked"])
     return {"entries": entries, "count": len(entries),
-            "taken": taken, "skipped": skipped,
+            "taken": taken, "skipped": skipped, "not_executed": not_exec,
+            "tracked_results": tracked,
             "notes_written": sum(1 for e in entries if e.get("notes"))}
 
 

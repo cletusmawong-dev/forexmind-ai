@@ -385,16 +385,17 @@ def execute_signal(signal: dict, user_id: str) -> None:
         _enforce_on_loss_limit(user_id, st)
         return
 
-    if _executed_today(user_id) >= settings.execution_max_trades_per_day:
+    cap = _max_trades_per_day(user_id)
+    if _executed_today(user_id) >= cap:
         if signal.get("id"):
             store.update("signals", signal["id"], {
                 "execution_status": "SKIPPED_EXEC_DAILY_CAP",
-                "mt5_note": f"Execution daily cap reached ({settings.execution_max_trades_per_day}/day)"})
-        _log(f"Execution skipped - daily cap reached ({settings.execution_max_trades_per_day}/day).", market)
+                "mt5_note": f"Execution daily cap reached ({cap}/day)"})
+        _log(f"Execution skipped - daily cap reached ({cap}/day).", market)
         _emit(user_id, "ENTRY", "SKIPPED", market=market, signal=signal,
               detail="daily cap reached")
         notify(user_id, "EXECUTION_SKIPPED", f"NOT EXECUTED - {signal.get('market')} {signal.get('direction')}",
-               f"Daily execution cap reached ({settings.execution_max_trades_per_day}/day). "
+               f"Daily execution cap reached ({cap}/day). "
                "The signal is tracked as research only - no trade was placed.",
                signal_id=signal.get("id"))
         return
@@ -960,6 +961,21 @@ def connector_push_deals(user_id: str, deals: List[dict]) -> int:
 # ---------------------------------------------------------------------------
 # honest status for Settings
 # ---------------------------------------------------------------------------
+def _max_trades_per_day(user_id: str) -> int:
+    """Effective execution daily cap: the user's settings doc first (kind=risk,
+    key max_trades_per_day), env fallback. Read through THIS module's store
+    binding so tests/instrumented stores stay consistent."""
+    try:
+        docs = get_store().list("settings", filters={"userId": user_id, "kind": "risk"},
+                                limit=1)
+        v = int(docs[0].get("max_trades_per_day") or 0) if docs else 0
+        if v > 0:
+            return v
+    except Exception:
+        pass
+    return settings.execution_max_trades_per_day
+
+
 def status(user_id: str) -> dict:
     goals = _goals_doc(user_id) or {}
     mode = user_mode(user_id)
@@ -984,7 +1000,7 @@ def status(user_id: str) -> dict:
         "connector_machine": goals.get("mt5_connector_machine"),
         "account": acct,
         "trades_today": _executed_today(user_id) if mode != "off" else 0,
-        "max_per_day": settings.execution_max_trades_per_day,
+        "max_per_day": _max_trades_per_day(user_id),
         "risk_cap_pct": settings.execution_risk_pct_cap,
         "tp_level": tp_level,
         "last_deal_sync": goals.get("mt5_deal_sync_ts"),

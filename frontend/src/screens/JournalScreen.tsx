@@ -511,7 +511,8 @@ function HistoryTab({ raw, mt5Data, navigate }: { raw: LogSignal[]; mt5Data: any
 /* ---- my journal: the user's OWN journaling record (notes + personal result) ---- */
 function MyJournalTab({ onOpenHistory }: { onOpenHistory: () => void }) {
   const q = usePolling<{ entries: any[]; count: number; taken: number; skipped: number;
-    notes_written: number }>(() => api.get(endpoints.journalEntries), 10000);
+    not_executed: number; tracked_results: number; notes_written: number }>(
+    () => api.get(endpoints.journalEntries), 10000);
   if (!q.data) {
     if (q.loading) return <Spinner label="Opening your journal..." />;
     return <ConnectionState onRetry={q.refresh} label="Can't load your journal" />;
@@ -522,9 +523,11 @@ function MyJournalTab({ onOpenHistory }: { onOpenHistory: () => void }) {
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <Pill tone="cyan">{q.data.taken} taken</Pill>
         <Pill tone="warn">{q.data.skipped} skipped</Pill>
+        <Pill tone="neutral">{q.data.not_executed ?? 0} not executed</Pill>
+        <Pill tone="pos">{q.data.tracked_results ?? 0} tracked to TP/SL</Pill>
         <Pill tone="pos">{q.data.notes_written} with notes</Pill>
         <span className="text-[10.5px] text-txt-faint">
-          Written from a signal - open one and tap "I took this trade".
+          Every setup is followed to TP or SL - executed or not.
         </span>
       </div>
       {entries.length === 0 && (
@@ -546,7 +549,9 @@ function MyJournalTab({ onOpenHistory }: { onOpenHistory: () => void }) {
             <Glass key={e.id} className="px-5 py-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <Pill tone={took ? "pos" : "warn"}>{took ? "TOOK" : "SKIPPED"}</Pill>
+                  <Pill tone={took ? "pos" : e.action === "skipped" ? "warn" : "neutral"}>
+                    {took ? "TOOK" : e.action === "skipped" ? "SKIPPED" : "NOT EXECUTED"}
+                  </Pill>
                   <span className="text-[13px] font-semibold text-txt-hi">
                     {e.market} {e.direction}
                   </span>
@@ -567,7 +572,10 @@ function MyJournalTab({ onOpenHistory }: { onOpenHistory: () => void }) {
                 {took && e.signal_entry != null && (
                   <span className="num">signal {e.signal_entry}</span>
                 )}
-                {e.tp_hits != null && e.action === "entered" && <span>TP hits {e.tp_hits}</span>}
+                {e.tp_hits != null && e.tp_hits > 0 && <span>TP hits {e.tp_hits}</span>}
+                {e.not_executed && e.tracked && e.outcome && (
+                  <span>simulated result (no trade placed)</span>
+                )}
                 {e.broker_confirmed && <span className="text-pos">broker confirmed</span>}
                 {e.journaled_at && <span>{new Date(e.journaled_at).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</span>}
               </div>

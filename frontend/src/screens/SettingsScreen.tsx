@@ -60,6 +60,7 @@ export function SettingsScreen() {
   const [lotMode, setLotMode] = useState<"low" | "medium" | "high">("medium");
   const [maxLoss, setMaxLoss] = useState("");
   const [maxSignals, setMaxSignals] = useState("");
+  const [maxTrades, setMaxTrades] = useState("");
   const [minRR, setMinRR] = useState("");
 
   useEffect(() => {
@@ -95,6 +96,7 @@ export function SettingsScreen() {
       setRiskPct(String(risk.data.risk_per_trade_pct));
       setMaxLoss(String(risk.data.max_daily_loss_pct));
       setMaxSignals(String(risk.data.max_signals_per_day));
+      setMaxTrades(String(risk.data.max_trades_per_day ?? 15));
       setMinRR(String(risk.data.min_rr));
       setTimeframes(risk.data.signal_timeframes ?? ["15M"]);
       setMarkets(risk.data.allowed_markets ?? []);
@@ -189,6 +191,7 @@ export function SettingsScreen() {
         risk_per_trade_pct: parseFloat(riskPct),
         max_daily_loss_pct: parseFloat(maxLoss),
         max_signals_per_day: parseInt(maxSignals),
+        max_trades_per_day: parseInt(maxTrades),
         min_rr: parseFloat(minRR),
         signal_timeframes: timeframes,
         allowed_markets: markets,
@@ -351,6 +354,7 @@ export function SettingsScreen() {
           <Field label="Risk / trade %" value={riskPct} onChange={setRiskPct} />
           <Field label="Max daily loss %" value={maxLoss} onChange={setMaxLoss} />
           <Field label="Max signals / day" value={maxSignals} onChange={setMaxSignals} />
+          <Field label="Max trades / day (execution cap)" value={maxTrades} onChange={setMaxTrades} />
           <Field label="Min R:R (S1)" value={minRR} onChange={setMinRR} />
         </div>
         <Divider className="my-5" />
