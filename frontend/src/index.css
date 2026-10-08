@@ -29,8 +29,8 @@
   --accent-amber: #d98324;
   --text-primary: #232a3b;
   --text-secondary: #55607a;
-  --text-muted: #83899d;
-  --text-faint: #a8adbb;
+  --text-muted: #6d7590;  /* 2026-10-08 contrast pass (was #83899d) */
+  --text-faint: #98a1b3;  /* was #a8adbb */
   --radius: 22px;
   --glow-blue: 0 10px 26px rgba(120, 90, 30, 0.12);
   --shadow-card: 0 12px 32px rgba(122, 92, 34, 0.10);
@@ -85,8 +85,8 @@
   --accent-amber: #d4af37;
   --text-primary: #f2eee2;
   --text-secondary: #c9c3b4;
-  --text-muted: #99937f;
-  --text-faint: #7e7969;
+  --text-muted: #a8a290;  /* 2026-10-08 contrast pass (was #99937f) */
+  --text-faint: #948e7f;   /* was #7e7969 - under 4.5:1 on near-black */
   --glow-blue: 0 0 26px rgba(212, 175, 55, 0.18);
   --shadow-card: 0 14px 36px rgba(0, 0, 0, 0.55);
 
@@ -848,7 +848,7 @@ body {
 
   /* ---------- inputs (sky-tinted per reference) ---------- */
   .input {
-    @apply w-full rounded-2xl border border-[rgba(46,127,214,0.28)] bg-[#eaf4fb] px-4 py-3 text-[14px] font-medium text-[var(--text-primary)] outline-none transition-all duration-300 placeholder:text-[var(--text-muted)];
+    @apply w-full rounded-2xl border border-[rgba(46,127,214,0.28)] bg-[#eaf4fb] px-4 py-3 text-[14px] font-medium text-[var(--text-primary)] outline-none transition-all duration-300 placeholder:text-[rgb(var(--txt-low-rgb))];
     box-shadow: inset 0 1px 2px rgba(46, 90, 140, 0.08);
   }
   .input:focus {
@@ -1538,34 +1538,48 @@ button:not(:disabled):active,
   --font-ui: "Space Grotesk";
   --txt-hi-rgb: 35, 42, 59;
   --txt-mid-rgb: 76, 86, 112;
-  --txt-low-rgb: 106, 113, 134;
-  --txt-faint-rgb: 152, 160, 176;
+  --txt-low-rgb: 96, 104, 125;   /* 2026-10-08 contrast pass: was 106,113,134 (4.3:1) */
+  --txt-faint-rgb: 98, 107, 128;  /* was 152,160,176 (2.3:1 - unreadable) */
 }
 [data-theme="navy"] {
   --font-ui: "Sora";
   --txt-hi-rgb: 233, 238, 248;
   --txt-mid-rgb: 184, 195, 217;
-  --txt-low-rgb: 143, 157, 185;
-  --txt-faint-rgb: 104, 117, 145;
+  --txt-low-rgb: 152, 166, 193;  /* 2026-10-08 contrast pass */
+  --txt-faint-rgb: 134, 147, 174;
 }
 [data-theme="onyx"] {
   --font-ui: "Rajdhani";
   --txt-hi-rgb: 242, 238, 226;
   --txt-mid-rgb: 201, 195, 180;
-  --txt-low-rgb: 160, 154, 140;
-  --txt-faint-rgb: 122, 117, 106;
+  --txt-low-rgb: 168, 162, 148;  /* 2026-10-08 contrast pass */
+  --txt-faint-rgb: 148, 142, 129;
 }
 [data-theme="slate"] {
   --font-ui: "Manrope";
   --txt-hi-rgb: 236, 239, 245;
   --txt-mid-rgb: 192, 199, 212;
-  --txt-low-rgb: 152, 162, 179;
-  --txt-faint-rgb: 111, 122, 141;
+  --txt-low-rgb: 160, 170, 187;  /* 2026-10-08 contrast pass */
+  --txt-faint-rgb: 143, 154, 172;
 }
 body {
   font-family: var(--font-ui), "Space Grotesk", -apple-system, BlinkMacSystemFont,
     "SF Pro Display", "Segoe UI", Roboto, sans-serif;
 }
+
+/* ---------- placeholder + disabled legibility (2026-10-08 audit) ----------
+   Placeholders are content too: pinned to the low text token at FULL opacity
+   (browsers silently dim ::placeholder, and Firefox adds opacity .54).
+   Disabled controls stay >= 3:1 - dimmed but readable. */
+input::placeholder, textarea::placeholder, .input::placeholder, .input-mini::placeholder {
+  color: rgb(var(--txt-low-rgb));
+  opacity: 1;
+  -webkit-text-fill-color: rgb(var(--txt-low-rgb));
+}
+button:disabled, [role="button"][disabled] {
+  cursor: not-allowed;
+}
+button:disabled .txt-dim { color: rgb(var(--txt-low-rgb)); }
 [data-theme="onyx"] body { letter-spacing: 0.012em; }
 
 

@@ -19,6 +19,7 @@ export default {
           low: "rgba(var(--txt-low-rgb), <alpha-value>)",
           faint: "rgba(var(--txt-faint-rgb), <alpha-value>)",
         },
+        info: "rgb(var(--info-rgb), <alpha-value>)",
         acc: { DEFAULT: "var(--accent-green)", cyan: "var(--accent-cyan)",
                violet: "var(--accent-purple)", magenta: "var(--accent-magenta)" },
         /* themed via CSS vars - each theme defines these in index.css */

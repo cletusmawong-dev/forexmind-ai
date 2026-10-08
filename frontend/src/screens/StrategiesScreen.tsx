@@ -453,7 +453,7 @@ export function StrategySessionsCard({ sid }: { sid: string }) {
             } catch { /* surfaced via list absence + toast upstream */ }
             setAnalyzing(false);
           }}
-          className="tap rounded-lg border border-[rgba(var(--p-rgb),0.25)] px-2.5 py-1.5 text-[11px] font-medium text-txt-mid hover:bg-[rgba(var(--p-rgb),0.08)] disabled:opacity-50">
+          className="tap rounded-lg border border-[rgba(var(--p-rgb),0.25)] px-2.5 py-1.5 text-[11px] font-medium text-txt-mid hover:bg-[rgba(var(--p-rgb),0.08)] disabled:opacity-60">
           {analyzing ? "Analyzing previous signals…" : "AI: analyze best sessions"}
         </button>
         {myRecs.length === 0 && <span className="text-[10.5px] text-txt-faint">No suggestions yet - needs ~20 signals.</span>}

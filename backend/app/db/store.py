@@ -38,6 +38,8 @@ COLLECTIONS = ["trading_accounts",
     "exec_events", "regime_events", "recommendations", "tg_link_tokens",
     "evidence", "debates", "incidents", "shadow_trades",
     "invites", "community_posts", "strategy2_sd_fvg_state",
+    "research_sources", "research_candidates",
+    "research_memory",
 ]
 
 

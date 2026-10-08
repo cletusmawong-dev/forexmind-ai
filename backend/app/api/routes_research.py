@@ -25,6 +25,10 @@ class AskBody(BaseModel):
     question: str
 
 
+class DecisionBody(BaseModel):
+    note: str = ""
+
+
 class DebateBody(BaseModel):
     subject_type: str
     subject_id: str
@@ -282,3 +286,145 @@ def incident_resolve(incident_id: str, body: IncidentAction,
     audit(user_id, "incident.resolve", incident_id,
           {"status": doc.get("status")}, {"status": "RESOLVED"}, body.note or "")
     return {"id": incident_id, "status": "RESOLVED"}
+
+
+# ------------------------------------------------- Research Intelligence (2026-10-08)
+@router.get("/research/engine/sources")
+def research_sources(user_id: str = Depends(get_user_id)):
+    """The controlled Research Source Registry (tiers + allowed purposes)."""
+    from ..research.sources import list_sources, tier_name
+    return {"sources": list_sources(get_store()),
+            "tiers": {1: tier_name(1), 2: tier_name(2), 3: tier_name(3)},
+            "policy": "external claims are recorded as claims - never "
+                      "presented as FOREXMIND VERIFIED RESULTS"}
+
+
+_REC_RANK = {"READY_FOR_REVIEW": 0, "SHADOW": 1, "CONTINUE_RESEARCH": 2,
+             "REJECT": 3}
+_EVID_RANK = {"STRONG": 0, "MIXED": 1, "WEAK": 2, "INSUFFICIENT": 3}
+
+
+@router.get("/research/engine/candidates")
+def research_candidates(stage: Optional[str] = Query(None),
+                        sort: str = Query("recent"),
+                        limit: int = Query(100, le=200),
+                        user_id: str = Depends(get_user_id)):
+    """Candidate strategies through the pipeline (dashboard list view).
+
+    sort=evidence compares candidates: serious recommendations first, then
+    evidence level, then expectancy - the stable ones rank above the lucky.
+    """
+    store = get_store()
+    from ..research.engine import COLLECTION
+    rows = store.list(COLLECTION, limit=limit)
+    if stage:
+        rows = [r for r in rows if r.get("stage") == stage]
+    if sort == "evidence":
+        rows.sort(key=lambda c: (
+            _REC_RANK.get((c.get("report") or {}).get("recommendation"), 4),
+            _EVID_RANK.get(c.get("evidence_level")
+                           or (c.get("report") or {}).get("evidence_level"), 4),
+            -(((((c.get("backtest") or {}).get("metrics") or {}).get("avg_r"))
+               or 0.0)),
+            c.get("updatedAt") or "", ), reverse=False)
+    else:
+        rows.sort(key=lambda c: c.get("updatedAt") or c.get("createdAt") or "",
+                  reverse=True)
+    return {"count": len(rows), "candidates": [{
+        "id": c.get("id"), "name": c.get("name"), "stage": c.get("stage"),
+        "market": c.get("market"), "timeframe": c.get("timeframe"),
+        "source_id": c.get("source_id"), "source_url": c.get("source_url"),
+        "evidence_tier": c.get("evidence_tier"),
+        "evidence_level": c.get("evidence_level"),
+        "recommendation": (c.get("report") or {}).get("recommendation"),
+        "recommendation_reason": (c.get("report") or {}).get("recommendation_reason"),
+        "verified_trades": ((c.get("backtest") or {}).get("metrics") or {}).get("trade_count"),
+        "shadow_trades": (c.get("shadow") or {}).get("n", 0),
+        "updatedAt": c.get("updatedAt"),
+    } for c in rows]}
+
+
+@router.get("/research/engine/candidates/{candidate_id}")
+def research_candidate_detail(candidate_id: str,
+                              user_id: str = Depends(get_user_id)):
+    """Full candidate: trace, rules, backtest, validation, report."""
+    store = get_store()
+    from ..research.engine import COLLECTION
+    rows = store.list(COLLECTION, filters={"id": candidate_id}, limit=1)
+    if not rows:
+        raise HTTPException(404, "candidate not found")
+    c = rows[0]
+    return {"candidate": c}
+
+
+@router.get("/research/engine/candidates/{candidate_id}/report")
+def research_candidate_report(candidate_id: str,
+                              user_id: str = Depends(get_user_id)):
+    """The evidence report (the thing a human reviews)."""
+    store = get_store()
+    from ..research.engine import COLLECTION
+    rows = store.list(COLLECTION, filters={"id": candidate_id}, limit=1)
+    if not rows:
+        raise HTTPException(404, "candidate not found")
+    rep = rows[0].get("report")
+    if not rep:
+        raise HTTPException(409, "no evidence report yet - engine still working")
+    return {"report": rep}
+
+
+@router.get("/research/engine/memory")
+def research_memory(limit: int = Query(50, le=200),
+                    user_id: str = Depends(get_user_id)):
+    """Research Memory: what was already tested, verdicts + reasons."""
+    from ..research import memory
+    return memory.summary(get_store(), limit=limit)
+
+
+@router.post("/research/engine/tick")
+def research_engine_tick(user_id: str = Depends(get_user_id)):
+    """Manual bounded tick (the background loop runs this automatically)."""
+    from ..research.engine import tick
+    return tick()
+
+@router.post("/research/engine/candidates/{candidate_id}/submit-approval")
+def research_submit_approval(candidate_id: str,
+                             user_id: str = Depends(get_user_id)):
+    """Queue a READY_FOR_REVIEW candidate for the owner's decision."""
+    from ..research import approval
+    try:
+        return approval.submit_for_approval(candidate_id)
+    except ValueError as e:
+        raise HTTPException(404 if "not found" in str(e) else 409, str(e))
+
+
+@router.post("/research/engine/candidates/{candidate_id}/approve")
+def research_approve(candidate_id: str, body: DecisionBody,
+                     user_id: str = Depends(get_user_id)):
+    """HUMAN APPROVAL ONLY -> immutable v1.0 snapshot. The strategy is NOT
+    made live by this call (controlled deployment is a separate step)."""
+    from ..research import approval
+    from ..api.routes_admin import audit
+    try:
+        res = approval.approve_candidate(user_id, candidate_id, body.note or "")
+    except ValueError as e:
+        raise HTTPException(404 if "not found" in str(e) else 409, str(e))
+    audit(user_id, "research.approve", candidate_id,
+          {"stage": "READY_FOR_REVIEW"}, res, body.note or "")
+    return res
+
+
+@router.post("/research/engine/candidates/{candidate_id}/reject")
+def research_reject(candidate_id: str, body: DecisionBody,
+                    user_id: str = Depends(get_user_id)):
+    """HUMAN REJECTION - recorded with the reason in research memory."""
+    from ..research import approval
+    from ..api.routes_admin import audit
+    if not (body.note or "").strip():
+        raise HTTPException(422, "a rejection reason is required")
+    try:
+        res = approval.reject_candidate(user_id, candidate_id, body.note)
+    except ValueError as e:
+        raise HTTPException(404 if "not found" in str(e) else 409, str(e))
+    audit(user_id, "research.reject", candidate_id,
+          {"stage": "READY_FOR_REVIEW"}, res, body.note)
+    return res

@@ -157,6 +157,7 @@ async def live_loop():
     last_scan_15m = 0
     last_scan_1h = 0
     last_learning = 0.0
+    last_research_engine = 0.0   # Research Intelligence upgrade (2026-10-08)
     last_deal_sync = 0.0
     while True:
         try:
@@ -250,6 +251,24 @@ async def live_loop():
                             await asyncio.to_thread(State.engine.scan, uid, market, tf, log_activity=False)
                     agent_core.log_scanning([market], "15M")
                 _current_task = "Monitoring markets"
+
+            # Background Research Engine: discover -> extract -> reconstruct
+            # -> test -> validate -> shadow -> evidence report. Bounded tick,
+            # autonomous (no user interruption), never touches live trading.
+            if now - last_research_engine > 900:
+                last_research_engine = now
+                try:
+                    from .research.engine import tick as research_tick
+                    res_tick = await asyncio.to_thread(research_tick)
+                    if res_tick.get("advanced") or res_tick.get("discovered"):
+                        agent_core.log(
+                            f"Research engine: {res_tick.get('discovered')} discovered, "
+                            f"{res_tick.get('advanced')} advanced"
+                            + (f" -> {res_tick.get('stages')}" if res_tick.get("stages") else ""),
+                            kind="INFO")
+                except Exception as _re:
+                    agent_core.log(f"Research engine tick failed: "
+                                   f"{type(_re).__name__}: {_re}", kind="WARN")
 
             cur_1h = int(now // 3600)
             if cur_1h != last_scan_1h:

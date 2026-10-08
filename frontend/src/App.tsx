@@ -7,6 +7,7 @@ import { SignalsScreen } from "./screens/SignalsScreen";
 import { SignalDetailScreen } from "./screens/SignalDetailScreen";
 import { AgentScreen } from "./screens/AgentScreen";
 import { LearningLabScreen } from "./screens/LearningLabScreen";
+import { ResearchPipelineScreen } from "./screens/ResearchPipelineScreen";
 import { StrategiesScreen } from "./screens/StrategiesScreen";
 import { JournalScreen } from "./screens/JournalScreen";
 import { AnalyticsScreen } from "./screens/AnalyticsScreen";
@@ -144,6 +145,7 @@ export default function App() {
                 <Route path="/positions" element={<PositionsScreen />} />
                 <Route path="/execution" element={<ExecutionScreen />} />
                 <Route path="/learning" element={<LearningLabScreen />} />
+                <Route path="/pipeline" element={<ResearchPipelineScreen />} />
                 <Route path="/strategies" element={<StrategiesScreen />} />
                 <Route path="/strategies/:id" element={<StrategiesScreen />} />
                 <Route path="/journal" element={<JournalScreen />} />

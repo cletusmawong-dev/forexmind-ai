@@ -3,6 +3,28 @@ import { Brain, ChevronDown, Crown } from "lucide-react";
 import { GraduationCap } from "lucide-react";
 
 /* ================= brand ================= */
+/* ================= TEXT TOKENS (single source, 2026-10-08 audit) =================
+   Every screen reads text color from these tokens - never raw hex or
+   opacity hacks. Values resolve to --txt-*-rgb in index.css, where each
+   theme guarantees WCAG >= 4.5:1 for hi/mid/low/faint against its own
+   background (audit 2026-10-08: ivory faint was 2.3:1, onyx 4.3:1,
+   navy 4.0:1, slate 4.2:1 - all raised).
+   ROLE      -> token            typical use
+   headline  -> TEXT.headline    page titles, key numbers
+   body      -> TEXT.body        primary content
+   label     -> TEXT.label       field labels, captions, tab bars
+   hint      -> TEXT.hint        secondary meta, timestamps
+   faint     -> TEXT.faint       least-emphasis meta only (never paragraphs)
+   placeholder / disabled pin to the low token at full opacity (index.css). */
+export const TEXT = {
+  headline: "text-txt-hi",
+  body: "text-txt-hi",
+  secondary: "text-txt-mid",
+  label: "text-txt-mid",
+  hint: "text-txt-low",
+  faint: "text-txt-faint",
+} as const;
+
 export function LogoMark({ size = 34 }: { size?: number }) {
   return (
     <div
@@ -116,7 +138,9 @@ export function StatusDot({
 }
 
 const pillTones: Record<string, string> = {
-  blue: "border-[rgba(var(--p-rgb),0.35)] bg-[rgba(var(--p-rgb),0.12)] text-[#1b69b8]",
+  /* 2026-10-08: was static #1b69b8 - 3.2:1 on dark themes. The info token
+     is theme-defined so the pill stays legible everywhere. */
+  blue: "border-[rgba(var(--info-rgb),0.4)] bg-[rgba(var(--info-rgb),0.12)] text-[var(--info)]",
   cyan: "border-[rgba(var(--gold-rgb),0.3)] bg-[rgba(var(--gold-rgb),0.1)] text-[var(--accent-cyan)]",
   green: "border-[rgba(var(--p-rgb),0.32)] bg-[rgba(var(--p-rgb),0.1)] text-[var(--accent-green)]",
   red: "border-[rgba(var(--neg-rgb),0.32)] bg-[rgba(var(--neg-rgb),0.1)] text-[var(--accent-red)]",
@@ -128,7 +152,8 @@ const pillTones: Record<string, string> = {
   neg: "border-[rgba(var(--neg-rgb),0.32)] bg-[rgba(var(--neg-rgb),0.1)] text-[var(--accent-red)]",
   violet: "border-[rgba(242,105,92,0.32)] bg-[rgba(242,105,92,0.12)] text-[var(--c-negdeep)]",
   warn: "border-[rgba(var(--amber-rgb),0.32)] bg-[rgba(var(--amber-rgb),0.1)] text-[var(--accent-amber)]",
-  acc: "border-[rgba(var(--p-rgb),0.35)] bg-[rgba(var(--p-rgb),0.12)] text-[#1b69b8]",
+  acc: "border-[rgba(var(--info-rgb),0.4)] bg-[rgba(var(--info-rgb),0.12)] text-[var(--info)]",
+  danger: "border-[rgba(var(--neg-rgb),0.32)] bg-[rgba(var(--neg-rgb),0.1)] text-[var(--accent-red)]",
 };
 export type PillTone = keyof typeof pillTones;
 
@@ -527,7 +552,7 @@ export function ActionButton({ label, busy, tone = "neutral", onRun }: {
           try { setMsg({ ok: true, text: await onRun() }); }
           catch (e: any) { setMsg({ ok: false, text: e?.message || "failed" }); }
         }}
-        className={`tap rounded-lg border px-2.5 py-1.5 text-[11px] font-medium transition disabled:opacity-50 ${
+        className={`tap rounded-lg border px-2.5 py-1.5 text-[11px] font-medium transition disabled:opacity-60 ${
           tone === "danger"
             ? "border-[rgba(var(--neg-rgb),0.32)] text-[var(--accent-red)] hover:bg-[rgba(var(--neg-rgb),0.1)]"
             : tone === "pos"

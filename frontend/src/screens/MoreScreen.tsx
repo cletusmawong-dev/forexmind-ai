@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { BarChart3, Bell, BookOpen, ChevronRight, FlaskConical, Layers, LayoutGrid, LogOut, Newspaper, Settings as SettingsIcon, ShieldCheck, Zap } from "lucide-react";
+import { BarChart3, Bell, BookOpen, ChevronRight, FlaskConical, Layers, LayoutGrid, LogOut, Newspaper, Settings as SettingsIcon, ShieldCheck, Zap , Network } from "lucide-react";
 import { Eyebrow, Glass } from "../components/ui";
 import { Logo } from "../components/Logo";
 
@@ -8,6 +8,7 @@ const ITEMS = [
   { to: "/journal", label: "Journal", desc: "Trade log & lessons", icon: BookOpen },
   { to: "/strategies", label: "Strategies", desc: "Live, sleeping & research", icon: Layers },
   { to: "/learning", label: "AI Research Lab", desc: "Experiments & evidence", icon: FlaskConical },
+  { to: "/pipeline", label: "Research Pipeline", desc: "Autonomous strategy research + evidence", icon: Network },
   { to: "/analytics", label: "Analytics", desc: "Performance deep-dive", icon: BarChart3 },
   { to: "/execution", label: "Execution", desc: "VPS / MT5 / connector", icon: Zap },
   { to: "/notifications", label: "Notifications", desc: "History & Telegram", icon: Bell },

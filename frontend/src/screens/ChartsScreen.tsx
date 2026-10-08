@@ -86,8 +86,13 @@ export function ChartsScreen() {
   // create the chart once
   useEffect(() => {
     if (!boxRef.current) return;
+    /* 2026-10-08 contrast audit: axis/legend text was hard-coded #9aa3b2
+       (~2.8:1 on the light theme). Read the THEME TOKEN instead so labels
+       follow whichever theme is active (>=4.5:1 everywhere). */
+    const _txtRgb = getComputedStyle(document.documentElement)
+      .getPropertyValue("--txt-low-rgb").trim() || "122,132,150";
     const chart = createChart(boxRef.current, {
-      layout: { background: { type: ColorType.Solid, color: "transparent" }, textColor: "#9aa3b2", fontSize: 11 },
+      layout: { background: { type: ColorType.Solid, color: "transparent" }, textColor: `rgb(${_txtRgb})`, fontSize: 11 },
       grid: { vertLines: { color: "rgba(212,175,55,0.05)" }, horzLines: { color: "rgba(212,175,55,0.05)" } },
       crosshair: { mode: CrosshairMode.Normal },
       rightPriceScale: { borderColor: "rgba(212,175,55,0.15)" },
