@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { BarChart3, Bell, BookOpen, ChevronRight, FlaskConical, Layers, LayoutGrid, Newspaper, Settings as SettingsIcon, ShieldCheck, Zap } from "lucide-react";
+import { BarChart3, Bell, BookOpen, ChevronRight, FlaskConical, Layers, LayoutGrid, LogOut, Newspaper, Settings as SettingsIcon, ShieldCheck, Zap } from "lucide-react";
 import { Eyebrow, Glass } from "../components/ui";
 import { Logo } from "../components/Logo";
 
@@ -40,6 +40,15 @@ export function MoreScreen() {
           </Link>
         ))}
       </Glass>
+      <button
+        onClick={() => {
+          try { localStorage.removeItem("fm_token"); } catch { /* noop */ }
+          window.location.href = "/";
+        }}
+        className="tap mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-[rgba(var(--neg-rgb),0.3)] bg-[rgba(var(--neg-rgb),0.06)] px-4 py-3.5 text-[13px] font-semibold text-[var(--accent-red)] transition-all hover:bg-[rgba(var(--neg-rgb),0.12)]"
+      >
+        <LogOut size={15} /> Log out
+      </button>
       <p className="mt-8 pb-4 text-center text-[10px] text-txt-faint">
         <Logo /> FOREXMIND AI - Trade - Learn - Grow
       </p>

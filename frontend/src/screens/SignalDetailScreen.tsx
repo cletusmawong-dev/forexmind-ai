@@ -5,7 +5,7 @@ import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
 import { ReplayPanel } from "../components/intel30";
 import type { Candle, ReplayData, Signal } from "../lib/types";
-import { DemoTag, Divider, Glass, MetricGrid, Pill, Spinner, StatusDot, ProgressBar } from "../components/ui";
+import { DemoTag, Divider, Eyebrow, Glass, MetricGrid, Pill, ProgressBar, Spinner, StatusDot } from "../components/ui";
 import { CandleChart, ChartLine } from "../components/CandleChart";
 import { PositionSizeCard } from "../components/PositionSizeCard";
 import { fmtPrice, fmtR, fmtDateTime, TREND_LABEL } from "../lib/format";
@@ -551,6 +551,29 @@ export function SignalDetailScreen() {
         </p>
       )}
 
+      {s.zone_type && s.fvg_high != null && (
+        <Glass className="mt-4">
+          <Eyebrow>Strategy 2 · Supply & Demand + FVG — why this trade</Eyebrow>
+          <div className="mt-2.5 space-y-1.5">
+            {[
+              ["1 · Zone", `${String(s.zone_type).toUpperCase()} ${fmtN(s.zone_low)} – ${fmtN(s.zone_high)}`],
+              ["2 · Displacement", s.displacement_time ? `impulse candle ${String(s.displacement_time).replace("T", " ").slice(0, 16)} UTC` : "—"],
+              ["3 · FVG", `${s.fvg_type === "bearish_fvg" ? "Bearish" : "Bullish"} gap ${fmtN(s.fvg_low)} – ${fmtN(s.fvg_high)} (mid ${fmtN(s.fvg_mid)})`],
+              ["4 · Retest", s.retest_time ? `price returned ${String(s.retest_time).replace("T", " ").slice(0, 16)} UTC` : "—"],
+              ["5 · Entry", `${s.entry_method || "midpoint"} method${s.setup_state ? ` · machine state ${s.setup_state}` : ""}`],
+            ].map(([step, val]) => (
+              <div key={step} className="flex items-baseline justify-between gap-3 border-b border-[rgba(var(--warm-rgb),0.05)] pb-1.5 last:border-0">
+                <span className="shrink-0 text-[10px] font-bold uppercase tracking-[0.1em] text-txt-faint">{step}</span>
+                <span className="num text-right text-[11.5px] text-txt-mid">{val}</span>
+              </div>
+            ))}
+          </div>
+          <p className="mt-2.5 text-[10px] leading-relaxed text-txt-faint">
+            Demand/Supply → Displacement → FVG → Retest → Entry. No AI approval per entry - the AI reviews trades downstream.
+          </p>
+        </Glass>
+      )}
+
       <div className="mt-5 flex flex-wrap items-center justify-center gap-2 pb-2">
         <Pill tone="neutral">{s.signal_id}</Pill>
         <Pill tone="neutral">{s.market_conditions?.session} session</Pill>
@@ -558,6 +581,10 @@ export function SignalDetailScreen() {
       </div>
     </div>
   );
+}
+
+function fmtN(v: number | null | undefined): string {
+  return v == null ? "—" : Number(v).toLocaleString("en-US", { maximumSignificantDigits: 6 });
 }
 
 function LadderRow({ label, value, tone, note, muted, hit }: { label: string; value: string; tone: string; note?: string; muted?: boolean; hit?: boolean }) {

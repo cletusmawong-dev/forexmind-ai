@@ -26,7 +26,7 @@ from .api import (routes_agent, routes_aimanager, routes_auth, routes_journal, r
                   routes_trades, routes_telegram, routes_accounts,
            routes_intelligence, routes_admin, routes_evidence,
            routes_research, routes_charts, routes_insight, routes_news,
-           routes_community)
+           routes_community, routes_home)
 
 app = FastAPI(title="ForexMind AI", version="0.1.0",
               description="AI trading research & signal agent - signals only, never execution.")
@@ -37,7 +37,8 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
 for r in (routes_auth, routes_markets, routes_signals, routes_trades, routes_agent,
           routes_learning, routes_strategies, routes_journal, routes_misc, routes_telegram, routes_accounts,
           routes_intelligence, routes_aimanager, routes_admin, routes_evidence,
-          routes_research, routes_charts, routes_insight, routes_news, routes_community):
+          routes_research, routes_charts, routes_insight, routes_news, routes_community,
+          routes_home):
     app.include_router(r.router, prefix=settings.api_prefix)
 
 

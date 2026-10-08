@@ -33,14 +33,18 @@ def env(monkeypatch, tmp_path):
 # ----------------------------------------------------------------- registry
 def test_registry_states():
     assert LIFECYCLE["strategy_2_ema_atr"] == "LIVE"
-    assert LIFECYCLE["strategy_2_mtf_sweep_bos_retest"] == "LIVE"
+    assert LIFECYCLE["strategy_2_supply_demand_fvg"] == "LIVE"      # new S2 (v2.0.0)
+    assert LIFECYCLE["strategy_2_mtf_sweep_bos_retest"] == "RETIRED"  # old S2 - retired 2026-10-07
     assert LIFECYCLE["strategy_1_vp_pivots"] == "SLEEPING"
     assert LIFECYCLE["strategy_1_zero_lag"] == "RETIRED"
     assert is_live("strategy_2_ema_atr")
+    assert is_live("strategy_2_supply_demand_fvg")
+    assert not is_live("strategy_2_mtf_sweep_bos_retest")
     assert not is_live("strategy_1_vp_pivots")
     assert not is_live("strategy_1_zero_lag")
     assert lifecycle_of("unknown") == "LIVE"          # fail-open for new modules
     assert "strategy_1_zero_lag" in RETIRED_STRATEGIES  # back-compat export
+    assert "strategy_2_mtf_sweep_bos_retest" in RETIRED_STRATEGIES
 
 
 # -------------------------------------------------- sleeping cannot execute

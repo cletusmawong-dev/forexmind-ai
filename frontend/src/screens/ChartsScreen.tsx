@@ -9,7 +9,7 @@
  *  - "Ask AI" carries the exact chart context into the chat (§5)
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import {
   createChart, ColorType, CrosshairMode, LineStyle,
   type IChartApi, type ISeriesApi, type CandlestickData, type IPriceLine,
@@ -31,7 +31,23 @@ const DOWN = "#ef5350";
 
 type Candle = { time: string; open: number; high: number; low: number; close: number; volume?: number };
 type Overlay = { time: string; value: number };
-type Setup = { state: string; direction: string | null; levels: Record<string, number | null> };
+type Setup = {
+  state: string; direction: string | null;
+  levels: { zone_type?: string; zone_high?: number | null; zone_low?: number | null;
+            fvg_high?: number | null; fvg_low?: number | null; fvg_mid?: number | null };
+};
+type S2Live = {
+  state: string; direction: string; entry: number; sl: number; tps: number[];
+  zone_type: string; zone_high: number; zone_low: number;
+  fvg_high: number; fvg_low: number; fvg_mid: number; entry_method: string;
+};
+type S2Zone = {
+  kind: string; type: string; direction: string;
+  zone_high: number; zone_low: number; zone_from: string; zone_to: string; zone_active: boolean;
+  fvg_high: number; fvg_low: number; fvg_from: string; fvg_to: string; fvg_active: boolean;
+};
+type Overlays = { ema9: Overlay[]; ema21: Overlay[];
+                  s2?: { enabled: boolean; live: S2Live | null; zones: S2Zone[] } };
 type Annot = {
   signal_id: string; direction: string; entry: number; sl: number;
   tp1?: number; tp2?: number; tp3?: number; status: string;
@@ -43,11 +59,17 @@ function toUtc(t: string): number {
 }
 
 export function ChartsScreen() {
-  const [symbol, setSymbol] = useState("XAUUSD");
+  const location = useLocation();
+  const [symbol, setSymbol] = useState(
+    () => new URLSearchParams(location.search).get("symbol")?.toUpperCase() || "XAUUSD");
   const [tf, setTf] = useState<Tf>("15M");
   const [candles, setCandles] = useState<Candle[]>([]);
   const [ov, setOv] = useState<{ ema9: Overlay[]; ema21: Overlay[] }>({ ema9: [], ema21: [] });
   const [setup, setSetup] = useState<Setup | null>(null);
+  const [s2o, setS2o] = useState<Overlays["s2"]>({ enabled: false, live: null, zones: [] });
+  const [showZones, setShowZones] = useState(true);
+  const [showFvg, setShowFvg] = useState(true);
+  const [showLive, setShowLive] = useState(true);
   const [annots, setAnnots] = useState<Annot[]>([]);
   const [whynot, setWhynot] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -89,14 +111,18 @@ export function ChartsScreen() {
   const loadData = async () => {
     setLoading(true); setErr(null); setWhynot(null);
     try {
+      const s2tf = tf === "15M" || tf === "30M" || tf === "1H";
       const [cd, ovl, st, an] = await Promise.all([
         api.get<{ candles: Candle[] }>(endpoints.candles(symbol, tf, 400)),
-        api.get<{ ema9: Overlay[]; ema21: Overlay[] }>(`/api/charts/overlays?symbol=${symbol}&tf=${tf}&limit=400`),
-        api.get<Setup>(`/api/charts/setup?symbol=${symbol}&tf=15M`).catch(() => null),
+        api.get<Overlays>(`/api/charts/overlays?symbol=${symbol}&tf=${tf}&limit=400`),
+        s2tf
+          ? api.get<Setup>(`/api/charts/setup?symbol=${symbol}&tf=${tf}`).catch(() => null)
+          : Promise.resolve(null),
         api.get<{ annotations: Annot[] }>(`/api/charts/annotations?symbol=${symbol}&limit=10`),
       ]);
       setCandles(cd.candles || []);
       setOv({ ema9: ovl.ema9 || [], ema21: ovl.ema21 || [] });
+      setS2o(ovl.s2 || { enabled: false, live: null, zones: [] });
       setSetup(st);
       setAnnots(an.annotations || []);
     } catch (e: any) { setErr(e?.message || "chart data unavailable"); }
@@ -137,15 +163,36 @@ export function ChartsScreen() {
       if (last.tp2) mk(last.tp2, UP, "TP2", LineStyle.Dotted);
       if (last.tp3) mk(last.tp3, UP, "TP3", LineStyle.Dotted);
     }
-    // Strategy 2 live levels: liquidity / swept level
-    if (setup?.levels) {
-      const L = setup.levels;
-      if (L.structure_high != null) mk(L.structure_high as number, "rgba(240,200,92,0.8)", "LIQUIDITY ↑", LineStyle.Solid);
-      if (L.structure_low != null) mk(L.structure_low as number, "rgba(240,200,92,0.8)", "LIQUIDITY ↓", LineStyle.Solid);
-      if (L.swept_level != null) mk(L.swept_level as number, "rgba(160,120,255,0.9)", "SWEPT", LineStyle.LargeDashed);
+    // S2 Supply & Demand + FVG overlays (all layers toggleable)
+    const live = s2o?.live;
+    if (live) {
+      if (showZones) {
+        mk(live.zone_high, "rgba(38,166,154,0.55)", `${live.zone_type || "ZONE"} HIGH`, LineStyle.Solid);
+        mk(live.zone_low, "rgba(38,166,154,0.55)", `${live.zone_type || "ZONE"} LOW`, LineStyle.Solid);
+      }
+      if (showFvg) {
+        mk(live.fvg_high, "rgba(160,120,255,0.65)", "FVG HIGH", LineStyle.Dotted);
+        mk(live.fvg_low, "rgba(160,120,255,0.65)", "FVG LOW", LineStyle.Dotted);
+      }
+      if (showLive) {
+        mk(live.entry, "#f0c85c", `S2 ENTRY ${live.direction} (${live.entry_method})`);
+        mk(live.sl, DOWN, "S2 SL");
+        if (live.tps[0]) mk(live.tps[0], UP, "S2 TP1", LineStyle.Dotted);
+        if (live.tps[1]) mk(live.tps[1], UP, "S2 TP2", LineStyle.Dotted);
+        if (live.tps[2]) mk(live.tps[2], UP, "S2 TP3", LineStyle.Dotted);
+      }
+    }
+    if (showZones && s2o?.zones?.length) {
+      // most recent still-active historical zones (max 3 - keeps the chart readable)
+      const act = s2o.zones.filter((z) => z.zone_active).slice(-3);
+      for (const z of act) {
+        const tone = z.type === "demand" ? "rgba(38,166,154,0.4)" : "rgba(239,83,80,0.4)";
+        mk(z.zone_high, tone, `${z.type.toUpperCase()} ↑`, LineStyle.LargeDashed);
+        mk(z.zone_low, tone, `${z.type.toUpperCase()} ↓`, LineStyle.LargeDashed);
+      }
     }
     chartRef.current?.timeScale().fitContent();
-  }, [candles, ov, annots, setup]);
+  }, [candles, ov, annots, setup, s2o, showZones, showFvg, showLive]);
 
   const askWhy = async () => {
     setWhynot("…");
@@ -190,15 +237,31 @@ export function ChartsScreen() {
             </button>
           ))}
         </div>
+        <div className="flex flex-wrap items-center gap-1.5 border-t border-[rgba(var(--warm-rgb),0.06)] px-3 py-2">
+          <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-txt-faint">Overlays</span>
+          {([["S/D zones", showZones, setShowZones], ["FVG", showFvg, setShowFvg],
+             ["Entry/SL/TP", showLive, setShowLive]] as const).map(([label, on, set]) => (
+            <button key={label} onClick={() => set(!on)} aria-pressed={on}
+              className={`tap rounded-full border px-2.5 py-1 text-[9.5px] font-bold ${on ? "chip-on" : "chip-off"}`}>
+              {label}
+            </button>
+          ))}
+        </div>
         <div ref={boxRef} className="h-[340px] w-full" />
         {setup && setup.state !== "NO_SETUP" && (
           <div className="border-t border-[rgba(var(--warm-rgb),0.08)] px-4 py-3">
-            <Eyebrow>Strategy 2 · {symbol}</Eyebrow>
+            <Eyebrow>Strategy 2 · Supply & Demand + FVG · {symbol} · 15M</Eyebrow>
             <p className="mt-1 text-[11.5px] text-txt-mid">
               State <span className="font-bold text-txt-hi">{setup.state}</span>
-              {setup.direction && <> · direction <span className="font-bold">{setup.direction}</span></>}
-              {" — Liquidity → Sweep → Structure Break → Retest → Entry"}
+              {setup.direction && <> · <span className={`font-bold ${setup.direction === "BUY" ? "text-pos" : "text-neg"}`}>{setup.direction}</span></>}
+              {" — Demand/Supply → Displacement → FVG → Retest → Entry"}
             </p>
+            {setup.levels?.zone_high != null && (
+              <p className="mt-1 text-[10.5px] text-txt-faint">
+                {String(setup.levels.zone_type || "zone").toUpperCase()} {Number(setup.levels.zone_low)?.toFixed(5)}–{Number(setup.levels.zone_high)?.toFixed(5)}
+                {setup.levels.fvg_high != null && <> · FVG {Number(setup.levels.fvg_low)?.toFixed(5)}–{Number(setup.levels.fvg_high)?.toFixed(5)}</>}
+              </p>
+            )}
           </div>
         )}
       </Glass>

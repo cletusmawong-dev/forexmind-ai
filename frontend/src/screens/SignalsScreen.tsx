@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {Crosshair, Radio} from "lucide-react";
+import { ChevronRight, Crosshair, Radio } from "lucide-react";
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
 import type { Signal } from "../lib/types";
-import { Chip, DemoTag, Empty, PageHeader, Segmented, Spinner } from "../components/ui";
+import { Chip, DemoTag, Empty, Eyebrow, Glass, PageHeader, Segmented, Spinner } from "../components/ui";
 import { SignalRow } from "../components/SignalRow";
 
 export function SignalsScreen() {
@@ -48,6 +48,25 @@ export function SignalsScreen() {
   return (
     <div className="anim-fadeUp">
       <PageHeader title="Signals" icon={<Radio size={20} />} tone="cyan" sub="Every setup explained. You decide." right={<DemoTag />} />
+
+      {/* Strategy 2 pipeline explainer - how every S/D+FVG setup is built */}
+      <Glass level={2} className="mb-4 !px-4 !py-3.5">
+        <Eyebrow>How FOREXMIND builds an S/D + FVG setup</Eyebrow>
+        <div className="mt-2.5 flex items-center gap-1 overflow-x-auto no-scrollbar pb-0.5">
+          {["Demand/Supply", "Displacement", "FVG", "Retest", "Entry"].map((step, i, arr) => (
+            <span key={step} className="flex shrink-0 items-center gap-1">
+              <span className={`rounded-full border px-2.5 py-1 text-[9.5px] font-bold ${i === arr.length - 1 ? "border-[rgba(var(--gold-rgb),0.4)] bg-[rgba(var(--gold-rgb),0.1)] text-[var(--accent-cyan)]" : "border-[rgba(var(--warm-rgb),0.12)] text-txt-mid"}`}>
+                {step}
+              </span>
+              {i < arr.length - 1 && <ChevronRight size={11} className="shrink-0 text-txt-faint" />}
+            </span>
+          ))}
+        </div>
+        <p className="mt-2 text-[10px] leading-relaxed text-txt-faint">
+          A base forms a demand/supply zone - a strong candle displaces away - leaving a fair-value gap -
+          price returns and taps the gap - the machine signals the entry with SL beyond the zone.
+        </p>
+      </Glass>
 
       {/* live settings gates - exactly what the engine enforces on new signals */}
       {(riskQ.data || stratQ.data) && (

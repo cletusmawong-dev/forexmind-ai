@@ -47,6 +47,20 @@ export interface Signal {
   completed: boolean;
   user_action: string | null;
   extra_signal?: boolean;
+  /* S2 Supply & Demand + FVG (v2) - the WHY payload (persisted by the engine) */
+  setup_state?: string | null;
+  setup_sequence?: string | null;
+  zone_type?: string | null;
+  zone_high?: number | null;
+  zone_low?: number | null;
+  displacement_time?: string | null;
+  fvg_type?: string | null;
+  fvg_high?: number | null;
+  fvg_low?: number | null;
+  fvg_mid?: number | null;
+  fvg_created_time?: string | null;
+  retest_time?: string | null;
+  entry_method?: string | null;
   execution_status?: string | null;
   mt5_ticket?: number | null;
   entry_blocked_reason?: string | null;

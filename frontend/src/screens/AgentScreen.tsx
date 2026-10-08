@@ -9,6 +9,7 @@ import { fmtPct, fmtTime, shortAgo } from "../lib/format";
 import { AgentPulse } from "../components/AgentPulse";
 
 const QUICK = [
+  "What do you see on XAUUSD right now?",
   "What have you learned from Strategy 2?",
   "Show me pending suggestions",
   "Why did the last trade lose?",
@@ -25,7 +26,8 @@ interface ChatMsg {
 const SNAME: Record<string, string> = {
   strategy_1_vp_pivots: "VP + Pivots",
   strategy_2_ema_atr: "9/21 EMA Smart TP/SL",
-  strategy_2_mtf_sweep_bos_retest: "MTF Sweep BOS",
+  strategy_2_supply_demand_fvg: "Supply & Demand + FVG",
+  strategy_2_mtf_sweep_bos_retest: "MTF Sweep BOS (retired)",   // old S2 - history only
   strategy_1_zero_lag: "Zero Lag Trend (retired)",
 };
 

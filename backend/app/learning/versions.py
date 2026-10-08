@@ -27,7 +27,8 @@ from ..strategies import get_strategy
 # approval recorded in versions (never autonomous).
 LIFECYCLE = {
     "strategy_2_ema_atr": "LIVE",
-    "strategy_2_mtf_sweep_bos_retest": "LIVE",   # alias strategy_2_liquidity_structure
+    "strategy_2_supply_demand_fvg": "LIVE",      # new S2 v2.0.0 (2026-10-07)
+    "strategy_2_mtf_sweep_bos_retest": "RETIRED",  # old S2 (alias strategy_2_liquidity_structure) - retired 2026-10-07, no usable signals
     "strategy_1_vp_pivots": "SLEEPING",
     "strategy_1_zero_lag": "RETIRED",
 }
@@ -91,6 +92,27 @@ def ensure_strategy_docs() -> None:
                     "active": True,
                     "note": "Original version (restored)",
                 }, doc_id=f"{sid}-v{strategy.version}")
+        # lifecycle reconciliation (audited): RETIRED docs can never keep
+        # scanning, and a DISABLED doc of a LIVE strategy is re-enabled -
+        # PAUSED (a deliberate human pause) is always respected.
+        want = LIFECYCLE.get(sid)
+        if want:
+            doc = store.list("strategies", filters={"id": sid}, limit=1)[0]
+            cur = doc.get("status")
+            if want == "RETIRED" and cur != "DISABLED":
+                store.update("strategies", sid, {"status": "DISABLED"})
+                store.create("version_events", {
+                    "strategy_id": sid, "kind": "LIFECYCLE",
+                    "detail": f"{cur} -> DISABLED (lifecycle RETIRED, registry)",
+                    "at": __import__("datetime").datetime.now(
+                        __import__("datetime").timezone.utc).isoformat()})
+            elif want == "LIVE" and cur == "DISABLED":
+                store.update("strategies", sid, {"status": "ACTIVE"})
+                store.create("version_events", {
+                    "strategy_id": sid, "kind": "LIFECYCLE",
+                    "detail": "DISABLED -> ACTIVE (lifecycle LIVE, registry)",
+                    "at": __import__("datetime").datetime.now(
+                        __import__("datetime").timezone.utc).isoformat()})
 
 
 def active_params(strategy_id: str) -> Dict[str, Any]:

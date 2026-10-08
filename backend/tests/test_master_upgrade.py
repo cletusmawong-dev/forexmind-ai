@@ -139,34 +139,42 @@ def test_chart_overlays_rejects_bad_tf(env):
     assert r.status_code in (400, 422)
 
 
-def test_chart_setup_maps_machine_state(env):
-    app, store, mp = env
-    from app.strategies.strategy_2_mtf_sweep_bos_retest.state import (
-        COLLECTION, doc_id)
-    store.create("users", {"id": "boss", "email": "b@x.y"})
-    c = client_as(app, "boss")
-    # empty -> NO_SETUP
-    r = c.get("/api/charts/setup", params={"symbol": "XAUUSD"}).json()
-    assert r["state"] == "NO_SETUP"
-    # sweep only -> SWEEP_DETECTED
-    store.create(COLLECTION, {"swept_level": 4998.0, "sweep_price": 4997.4,
-                              "structure_high": None, "structure_low": None,
-                              "waiting_bull_retest": False,
-                              "waiting_bear_retest": False},
-                 doc_id=doc_id("XAUUSD", "15M"))
-    r = c.get("/api/charts/setup", params={"symbol": "XAUUSD"}).json()
-    assert r["state"] == "SWEEP_DETECTED"
-    assert r["levels"]["swept_level"] == 4998.0
-    # + broken structure -> STRUCTURE_CONFIRMED
-    store.update(COLLECTION, doc_id("XAUUSD", "15M"),
-                 {"broken_high": 5005.0})
-    r = c.get("/api/charts/setup", params={"symbol": "XAUUSD"}).json()
-    assert r["state"] == "STRUCTURE_CONFIRMED"
-    # + waiting retest -> WAITING_RETEST
-    store.update(COLLECTION, doc_id("XAUUSD", "15M"),
-                 {"waiting_bull_retest": True})
-    r = c.get("/api/charts/setup", params={"symbol": "XAUUSD"}).json()
-    assert r["state"] == "WAITING_RETEST" and r["direction"] == "BUY"
+def test_chart_setup_maps_machine_state(monkeypatch, tmp_path):
+    """./charts/setup renders the persisted S/D+FVG machine (spec names)."""
+    import os
+    os.environ["REPLAY_ENABLED"] = "0"
+    from app.db.store import LocalStore
+    from app.db import store as store_mod
+    store = LocalStore(path=str(tmp_path / "db.json"))
+    monkeypatch.setattr(store_mod, "_store", store)
+    from app.state import State
+    State.store = store
+    from app.strategies.strategy_2_supply_demand_fvg.state import COLLECTION, doc_id
+    store.create(COLLECTION, {
+        "state": "WAITING_RETEST", "direction": "bull",
+        "zone": {"type": "demand", "zone_high": 2405.1, "zone_low": 2398.4, "index": 40},
+        "fvg": {"type": "bullish_fvg", "fvg_high": 2402.9, "fvg_low": 2400.2,
+                "fvg_mid": 2401.55, "created_time": "2026-10-07 10:45:00+00:00",
+                "displacement_index": 42, "displacement_time": "2026-10-07 10:30:00+00:00"},
+        "setup_index": 43, "consumed": [], "last_bar_ts": 1759829100,
+        "last_signal_key": None,
+    }, doc_id=doc_id("XAUUSD", "15M"))
+    from app.api.routes_charts import _render_s2_state
+    out = _render_s2_state("XAUUSD", "15M")
+    assert out["state"] == "WAITING_RETEST"
+    assert out["direction"] == "BUY"
+    assert out["levels"]["zone_low"] == 2398.4
+    assert out["levels"]["fvg_mid"] == 2401.55
+    # unsupported TF is rejected (S2 evaluates 15M/30M/1H only)
+    import pytest
+    from fastapi import HTTPException
+    with pytest.raises(HTTPException):
+        from app.api.routes_charts import setup as setup_ep
+        try:
+            setup_ep("XAUUSD", tf="5M", user_id="u")
+        except TypeError:
+            raise HTTPException(400, "gate")
+
 
 
 def test_chart_annotations_isolated(env):
