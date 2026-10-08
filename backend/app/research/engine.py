@@ -425,9 +425,15 @@ def tick(user_id: Optional[str] = None, provider_df=None) -> Dict[str, Any]:
     if not cfg["enabled"]:
         out["notes"].append("engine disabled (RESEARCH_ENGINE_ENABLED=0)")
         return out
-    from .sources import ensure_registry
-    ensure_registry(store)
-    out["discovered"] = discover(store)
+    try:
+        from .sources import ensure_registry
+        ensure_registry(store)
+        out["discovered"] = discover(store)
+    except RuntimeError as _prov:
+        # Supabase tables not provisioned yet (PGRST205) - pause cleanly,
+        # honestly, and without 15-minute error spam.
+        out["paused"] = f"research tables not provisioned: {_prov}"
+        return out
 
     from .sources import usable_for
     pending = [c for c in store.list(COLLECTION, limit=200)

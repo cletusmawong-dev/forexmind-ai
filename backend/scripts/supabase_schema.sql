@@ -46,3 +46,10 @@ create table if not exists evidence (id text primary key, data jsonb not null);
 create table if not exists debates (id text primary key, data jsonb not null);
 create table if not exists incidents (id text primary key, data jsonb not null);
 create table if not exists shadow_trades (id text primary key, data jsonb not null);
+
+-- Research Intelligence upgrade (2026-10-08)
+create table if not exists research_sources (id text primary key, data jsonb not null);
+create table if not exists research_candidates (id text primary key, data jsonb not null);
+create table if not exists research_memory (id text primary key, data jsonb not null);
+create index if not exists idx_research_candidates_stage on research_candidates ((data->>'stage'));
+create index if not exists idx_research_memory_fp on research_memory ((data->>'fingerprint'));

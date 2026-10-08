@@ -289,11 +289,23 @@ def incident_resolve(incident_id: str, body: IncidentAction,
 
 
 # ------------------------------------------------- Research Intelligence (2026-10-08)
+_PROVISION = ("research tables not provisioned yet - run the research "
+              "SQL on Supabase (backend/scripts/supabase_schema.sql)")
+
+
 @router.get("/research/engine/sources")
 def research_sources(user_id: str = Depends(get_user_id)):
     """The controlled Research Source Registry (tiers + allowed purposes)."""
     from ..research.sources import list_sources, tier_name
-    return {"sources": list_sources(get_store()),
+    try:
+        rows = list_sources(get_store())
+    except Exception:
+        # table not provisioned yet (Supabase DDL runs in the owner's SQL editor)
+        return {"sources": [], "note": _PROVISION,
+                "tiers": {1: "STRONG", 2: "SUPPORTING", 3: "IDEA_DISCOVERY"},
+                "policy": "external claims are recorded as claims - never "
+                          "presented as FOREXMIND VERIFIED RESULTS"}
+    return {"sources": rows,
             "tiers": {1: tier_name(1), 2: tier_name(2), 3: tier_name(3)},
             "policy": "external claims are recorded as claims - never "
                       "presented as FOREXMIND VERIFIED RESULTS"}
@@ -316,7 +328,11 @@ def research_candidates(stage: Optional[str] = Query(None),
     """
     store = get_store()
     from ..research.engine import COLLECTION
-    rows = store.list(COLLECTION, limit=limit)
+    try:
+        rows = store.list(COLLECTION, limit=limit)
+    except Exception:
+        # table not provisioned yet - honest empty state, never a 500
+        return {"count": 0, "note": _PROVISION, "candidates": []}
     if stage:
         rows = [r for r in rows if r.get("stage") == stage]
     if sort == "evidence":
@@ -377,14 +393,20 @@ def research_memory(limit: int = Query(50, le=200),
                     user_id: str = Depends(get_user_id)):
     """Research Memory: what was already tested, verdicts + reasons."""
     from ..research import memory
-    return memory.summary(get_store(), limit=limit)
+    try:
+        return memory.summary(get_store(), limit=limit)
+    except Exception:
+        return {"total": 0, "rejected": 0, "recent": [], "note": _PROVISION}
 
 
 @router.post("/research/engine/tick")
 def research_engine_tick(user_id: str = Depends(get_user_id)):
     """Manual bounded tick (the background loop runs this automatically)."""
     from ..research.engine import tick
-    return tick()
+    out = tick()
+    if out.get("paused"):
+        out["note"] = _PROVISION
+    return out
 
 @router.post("/research/engine/candidates/{candidate_id}/submit-approval")
 def research_submit_approval(candidate_id: str,
