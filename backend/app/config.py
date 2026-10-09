@@ -89,6 +89,13 @@ class Settings:
     # The one user whose journal receives engine-executed trades (the bridge
     # drives a single Exness account). Everyone else's signals stay advisory.
     owner_user_id: str = os.getenv("FOREXMIND_OWNER_USER_ID", "cletusmawa")
+    # Owner request 2026-10-09: Telegram carries IMPORTANT messages only
+    # (signals, TP/SL events, failures, approvals). Everything else stays
+    # in-app. Extend via TELEGRAM_IMPORTANT_TYPES (comma-separated).
+    telegram_important_types: str = os.getenv("TELEGRAM_IMPORTANT_TYPES", "")
+    # Owner request 2026-10-09: no double signals - the same strategy/
+    # market/timeframe/direction may not re-fire inside this window.
+    signal_cooldown_min: int = int(os.getenv("SIGNAL_COOLDOWN_MIN", "180"))
 
     # --- MT5 execution (VPS bridge, demo account first) ----------------------
     # "off" = signals advisory only; "mt5_bridge" = auto-execute qualifying

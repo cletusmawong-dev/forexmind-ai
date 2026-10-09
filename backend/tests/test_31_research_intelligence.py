@@ -329,7 +329,7 @@ def test_engine_pipeline_and_dedup(env, monkeypatch):
     from app.research import engine
     c, store, mp, settings = env
     df = ohlc(900, seed=5)
-    mp.setattr(engine, "_get_df", lambda m, tf, limit: df)
+    mp.setattr(engine, "_get_df", lambda m, tf, limit: (df, f"{len(df)} candles"))
     out1 = engine.tick()
     assert out1["discovered"] == len(engine.SEED_CATALOG)
     assert out1["advanced"] <= 2                       # bounded tick
@@ -371,7 +371,7 @@ def test_engine_memory_blocks_rerun(env, monkeypatch):
     from app.research import engine, memory
     c, store, mp, settings = env
     df = ohlc(900, seed=5)
-    mp.setattr(engine, "_get_df", lambda m, tf, limit: df)
+    mp.setattr(engine, "_get_df", lambda m, tf, limit: (df, f"{len(df)} candles"))
     for _ in range(12):
         engine.tick()
     impls = [x.get("implemented") for x in store.list("research_candidates", limit=50)
@@ -436,7 +436,7 @@ def test_api_endpoints(env, monkeypatch):
     from app.research import engine
     c, store, mp, settings = env
     df = ohlc(900, seed=6)
-    mp.setattr(engine, "_get_df", lambda m, tf, limit: df)
+    mp.setattr(engine, "_get_df", lambda m, tf, limit: (df, f"{len(df)} candles"))
     for _ in range(12):
         engine.tick()
     r = c.get("/api/research/engine/candidates")
@@ -588,7 +588,7 @@ def test_engine_validation_includes_generalization(env, monkeypatch):
     from app.research import engine
     c, store, mp, settings = env
     df = ohlc(900, seed=5)
-    mp.setattr(engine, "_get_df", lambda m, tf, limit: df)
+    mp.setattr(engine, "_get_df", lambda m, tf, limit: (df, f"{len(df)} candles"))
     for _ in range(14):
         engine.tick()
     # seed a candidate straight into BACKTESTED so validation is deterministic
@@ -618,7 +618,7 @@ def test_candidates_sort_by_evidence(env, monkeypatch):
     from app.research import engine
     c, store, mp, settings = env
     df = ohlc(900, seed=5)
-    mp.setattr(engine, "_get_df", lambda m, tf, limit: df)
+    mp.setattr(engine, "_get_df", lambda m, tf, limit: (df, f"{len(df)} candles"))
     for _ in range(14):
         engine.tick()
     r = c.get("/api/research/engine/candidates?sort=evidence")

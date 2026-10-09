@@ -13,11 +13,19 @@ from typing import Any, Dict, List, Optional
 COLLECTION = "research_memory"
 
 
+PIPELINE_VERSION = "v2-deep-data"   # bumped when research capability changes
+
+
 def _fingerprint(source_id: str, name: str, market: str, timeframe: str,
                  entry_sig: str, param_sig: str) -> str:
+    """Identical experiment under the SAME pipeline version only.
+
+    When the research capability itself improves (deeper data, new gates),
+    earlier verdicts do not block re-research - they stay in memory under
+    their own version."""
     import hashlib
     h = hashlib.sha1()
-    for part in (source_id.lower(), name.lower(), market.upper(),
+    for part in (PIPELINE_VERSION, source_id.lower(), name.lower(), market.upper(),
                  timeframe.upper(), entry_sig, param_sig):
         h.update((part or "").encode())
     return h.hexdigest()[:16]
@@ -56,6 +64,7 @@ def remember_candidate(store, candidate: Dict[str, Any], implemented: Dict[str, 
                       param_signature(implemented))
     doc = {
         "fingerprint": fp,
+        "pipeline_version": PIPELINE_VERSION,
         "candidate_id": candidate.get("id") or candidate.get("candidate_id"),
         "name": candidate.get("name"),
         "source_id": candidate.get("source_id"),
@@ -84,7 +93,7 @@ def seen_before(store, candidate: Dict[str, Any], implemented: Dict[str, Any]
                       entry_signature(implemented),
                       param_signature(implemented))
     rows = store.list(COLLECTION, filters={"fingerprint": fp}, limit=1)
-    return rows[0] if rows else None
+    return rows[0] if rows else None    # fp already includes the version
 
 
 def summary(store, limit: int = 50) -> Dict[str, Any]:

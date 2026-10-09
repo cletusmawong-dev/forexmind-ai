@@ -279,6 +279,31 @@ class SignalEngine:
         if dedupe:
             return None
 
+        # DOUBLE-SIGNAL GUARD (owner request 2026-10-09): the per-candle
+        # dedupe above only blocks the SAME candle - a persistent supply/
+        # demand zone re-fired the identical setup on every 15-minute scan
+        # (00:01, 00:16, 00:31, 00:46 ...). The same strategy / market /
+        # timeframe / direction may not re-signal inside the cooldown
+        # window. The signal is skipped entirely (no Telegram, no journal
+        # noise); the zone remains visible on the chart.
+        try:
+            cutoff = (pd.Timestamp.now(tz="UTC") - pd.Timedelta(
+                minutes=max(0, int(settings.signal_cooldown_min)))).isoformat()
+            last = store.list("signals", filters={
+                "userId": user_id, "strategy_id": cand.strategy_id,
+                "market": cand.market, "timeframe": cand.timeframe,
+                "direction": cand.direction}, limit=1)
+            if last and str(last[0].get("createdAt") or "") >= cutoff:
+                self._log(
+                    f"Double signal suppressed: {cand.market} {cand.direction} "
+                    f"{strategy.short_name} already signalled at "
+                    f"{str(last[0].get('createdAt'))[:16]} (cooldown "
+                    f"{settings.signal_cooldown_min} min).",
+                    kind="SIGNAL", market=cand.market)
+                return None
+        except Exception:
+            pass  # dedupe must never break signal generation
+
         day = pd.Timestamp.utcnow().strftime("%Y-%m-%d")
         seq = store.count("signals", filters={"day": day}) + 1
         signal_id = f"SIG-{day.replace('-', '')}-{seq:03d}"

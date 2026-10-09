@@ -129,17 +129,20 @@ def discover(store) -> int:
     """Seed candidates from the documented catalog (memory-deduped)."""
     from . import memory
     n = 0
+    from .memory import PIPELINE_VERSION
     for seed in SEED_CATALOG:
         exists = store.list(COLLECTION,
                             filters={"name": seed["name"],
                                      "market": seed["raw_rules"]["market"],
-                                     "timeframe": seed["raw_rules"]["timeframe"]},
+                                     "timeframe": seed["raw_rules"]["timeframe"],
+                                     "pipeline_version": PIPELINE_VERSION},
                             limit=1)
         if exists:
             continue
         raw = seed["raw_rules"]
         store.create(COLLECTION, {
             "stage": "DISCOVERED",
+            "pipeline_version": PIPELINE_VERSION,
             "name": seed["name"],
             "market": raw["market"], "timeframe": raw["timeframe"],
             "source_id": seed["source_id"], "source_url": seed["url"],
@@ -162,12 +165,17 @@ def _event(cand: dict, stage: str, detail: str) -> None:
 
 
 def _get_df(market: str, tf: str, limit: int):
+    """Deepest honest history (provider cache -> TwelveData pages).
+
+    Returns (df, note) - the note states the candle count so candidate
+    events are transparent about how much data a verdict rests on."""
     from ..state import State
-    df = State.provider.get_candles(market, tf, limit=limit)
-    return df
+    from .data import get_history
+    return get_history(State.provider, market, tf,
+                       target_bars=max(int(limit), 800), min_bars=300)
 
 
-def _advance(cand: dict, store, df, cfg: dict) -> dict:
+def _advance(cand: dict, store, df, cfg: dict, data_note: str = "") -> dict:
     """One bounded stage advance for one candidate. Returns the new stage."""
     from . import backtest                     # single binding: closures below
     stage = cand.get("stage")
@@ -223,10 +231,12 @@ def _advance(cand: dict, store, df, cfg: dict) -> dict:
         if res["status"] != "OK" or n < 30:
             cand["stage"] = "REJECTED"
             _event(cand, "REJECTED",
-                   f"verified trade count {n} below the statistical floor (30)")
+                   f"verified trade count {n} below the statistical floor (30) "
+                   f"on {len(df)} candles ({data_note})")
             return cand["stage"]
         cand["stage"] = "BACKTESTED"
-        _event(cand, "BACKTESTED", f"{n} verified trades - "
+        res.setdefault("candles_used", len(df))
+        _event(cand, "BACKTESTED", f"{n} verified trades on {len(df)} candles - "
                f"PF {res['metrics'].get('profit_factor')}, "
                f"expectancy {res['metrics'].get('avg_r')}R")
         return cand["stage"]
@@ -449,12 +459,16 @@ def tick(user_id: Optional[str] = None, provider_df=None) -> Dict[str, Any]:
             pass
         market = cand.get("market")
         tf = cand.get("timeframe")
-        df = provider_df if provider_df is not None else _get_df(market, tf, cfg["candles"])
+        if provider_df is not None:
+            df, data_note = provider_df, f"{len(provider_df)} candles"
+        else:
+            df, data_note = _get_df(market, tf, cfg["candles"])
         if df is None or len(df) < 60:
-            out["notes"].append(f"{cand.get('name')}: no candle data yet - skipped tick")
+            out["notes"].append(f"{cand.get('name')}: no candle data yet "
+                                f"({data_note}) - skipped tick")
             continue
         stage_before = cand.get("stage")
-        _advance(cand, store, df, cfg)          # mutates the candidate dict
+        _advance(cand, store, df, cfg, data_note=data_note)  # mutates cand
         updates = {k: cand.get(k) for k in
                    ("stage", "events", "extraction_status", "rules", "missing_rules",
                     "implemented", "trace", "backtest", "validation",

@@ -397,6 +397,7 @@ def execute_signal(signal: dict, user_id: str) -> None:
         notify(user_id, "EXECUTION_SKIPPED", f"NOT EXECUTED - {signal.get('market')} {signal.get('direction')}",
                f"Daily execution cap reached ({cap}/day). "
                "The signal is tracked as research only - no trade was placed.",
+               meta={"telegram_important": True},
                signal_id=signal.get("id"))
         return
 
@@ -480,6 +481,7 @@ def execute_signal(signal: dict, user_id: str) -> None:
                 notify(user_id, "EXECUTION_SKIPPED", f"NOT EXECUTED - {signal.get('market')} {signal.get('direction')}",
                        "VPS bridge offline - the order was NOT sent to the broker. "
                        "Signal kept as research only.",
+                       meta={"telegram_important": True},
                        signal_id=signal.get("id"))
                 return
             with _exec_lock:
