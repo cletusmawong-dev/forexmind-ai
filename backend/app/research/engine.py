@@ -258,7 +258,8 @@ def _advance(cand: dict, store, df, cfg: dict, data_note: str = "") -> dict:
         # multi-pair / multi-timeframe generalization (where data permits)
         def _fetch(m: str, tf: str):
             try:
-                return _get_df(m, tf, cfg.get("candles", 1500))
+                df_alt, _ = _get_df(m, tf, cfg.get("candles", 1500))
+                return df_alt
             except Exception:
                 return None
         gates.append(validate.generalization_gate(
