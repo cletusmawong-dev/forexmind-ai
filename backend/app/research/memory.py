@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional
 COLLECTION = "research_memory"
 
 
-PIPELINE_VERSION = "v2-deep-data"   # bumped when research capability changes
+PIPELINE_VERSION = "v3-channel-fix"   # bumped when research capability changes
 
 
 def _fingerprint(source_id: str, name: str, market: str, timeframe: str,

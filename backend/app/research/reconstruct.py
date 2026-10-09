@@ -65,7 +65,8 @@ def reconstruct(rules: Dict[str, Any]) -> Dict[str, Any]:
         "costs": {"spread_pips": None, "commission_per_lot": 7.0,
                   "slippage_pips": 0.3},           # stamped at backtest time
         "evaluation": "closed bars only; entry next-bar open; first-touch "
-                      "SL-priority intrabar; no lookahead",
+                      "SL-priority intrabar; channel breakouts compare the "
+                      "PRIOR window (shift 1); no lookahead",
     }
     trace = {
         "source": {"source_id": rules.get("source_id"), "url": rules.get("source_url"),

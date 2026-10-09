@@ -72,6 +72,14 @@ def _series(df: pd.DataFrame, spec: Dict[str, Any]) -> pd.Series:
         return highest(df["high"], int(p.get("period", 20)))
     if name == "lowest":
         return lowest(df["low"], int(p.get("period", 20)))
+    if name == "highest_prev":
+        # channel EXCLUDING the current bar - a breakout means trading
+        # above the PRIOR N-bar channel (Donchian semantics). Without the
+        # shift, close > highest(..., N) is unsatisfiable whenever the
+        # current bar sets the channel high, so the rule never fires.
+        return highest(df["high"], int(p.get("period", 20))).shift(1)
+    if name == "lowest_prev":
+        return lowest(df["low"], int(p.get("period", 20))).shift(1)
     raise KeyError(f"unsupported indicator {name!r}")
 
 
@@ -86,11 +94,24 @@ def _cond_value(df: pd.DataFrame, spec: Dict[str, Any], i: int) -> Optional[floa
         return None
 
 
+def _cross_side(spec: Dict[str, Any]) -> Dict[str, Any]:
+    """Channel indicators (highest/lowest) inside a CROSS compare against
+    the PRIOR window - documented interpreter semantics for breakouts."""
+    if (spec or {}).get("indicator") in ("highest", "lowest"):
+        out = dict(spec)
+        out["indicator"] = out["indicator"] + "_prev"
+        return out
+    return spec
+
+
 def _op_result(df: pd.DataFrame, c: Dict[str, Any], i: int, prev_i: int) -> Optional[bool]:
     left = c["left"]
     op = c["op"]
+    if op in ("crosses_above", "crosses_below"):
+        c = {**c, "left": _cross_side(left),
+             "right": _cross_side(c.get("right") or {})}
     try:
-        ls = _series(df, left)
+        ls = _series(df, c["left"])
         l_now = float(ls.iloc[i]) if pd.notna(ls.iloc[i]) else None
     except Exception:
         l_now = None

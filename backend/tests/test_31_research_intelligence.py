@@ -631,3 +631,33 @@ def test_candidates_sort_by_evidence(env, monkeypatch):
     others = [i for i, x in enumerate(recs) if x != "REJECT"]
     if rejects and others:
         assert max(others) < min(rejects)
+
+
+def test_donchian_breakout_fires(env):
+    """Channel breakouts compare the PRIOR window - close crossing above a
+    channel that includes the current bar is unsatisfiable (never fires)."""
+    from app.research.backtest import run
+    idx = pd.date_range("2026-06-01", periods=600, freq="1h", tz="UTC")
+    rng = np.random.default_rng(21)
+    trend = np.cumsum(np.sin(np.arange(600) / 40) * 0.002 + rng.normal(0, 0.0008, 600))
+    close = 1.10 + trend
+    o = np.roll(close, 1); o[0] = close[0]
+    hi = np.maximum(o, close) + np.abs(rng.normal(0.0005, 0.0002, 600))
+    lo = np.minimum(o, close) - np.abs(rng.normal(0.0005, 0.0002, 600))
+    df = pd.DataFrame({"open": o, "high": hi, "low": lo, "close": close,
+                       "volume": 100.0}, index=idx)
+    df.index.name = "datetime"
+    impl = {"engine": "research.rule_interp.v1",
+            "entry": {"side": "LONG",
+                      "when": [{"op": "crosses_above",
+                                "left": {"indicator": "close"},
+                                "right": {"indicator": "highest",
+                                          "params": {"period": 20}}}],
+                      "all": True},
+            "sl": {"type": "atr_mult", "mult": 2.0},
+            "tp": {"type": "rr_multiple", "value": 3.0},
+            "exit_when": [], "costs": {}}
+    r = run(df, "EURUSD", impl)
+    assert r["status"] == "OK"
+    assert r["metrics"]["trade_count"] > 0, (
+        "Donchian breakout must fire - prior-window channel semantics")

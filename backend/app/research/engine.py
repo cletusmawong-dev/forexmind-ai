@@ -295,7 +295,10 @@ def _advance(cand: dict, store, df, cfg: dict, data_note: str = "") -> dict:
         cand["shadow"] = shadow
         if (shadow.get("n") or 0) >= 20:
             from . import probabilities, report
-            sp = probabilities.from_trades(shadow.get("trades") or [])
+            # shadow docs store result_r - map to the probability contract
+            sp = probabilities.from_trades(
+                [{**t, "r": float(t.get("result_r") or 0.0)}
+                 for t in (shadow.get("trades") or [])])
             bp = probabilities.from_trades(cand["backtest"]["trades"])
             cand["shadow_probabilities"] = sp
             rec = report.recommend(cand.get("validation") or [],
