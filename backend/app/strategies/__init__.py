@@ -15,6 +15,8 @@ from .strategy_1_vp_pivots.strategy import VPPivotsStrategy
 from .strategy_2_ema_atr.strategy import EmaAtrStrategy
 from .strategy_2_mtf_sweep_bos_retest.strategy import MtfSweepBosRetestStrategy  # retired 2026-10-07 - kept for signal history / replay
 from .strategy_2_supply_demand_fvg.strategy import SupplyDemandFvgStrategy
+from .strategy_3_fx_specs import (H1BreakoutStrategy, OpeningRangeStrategy,
+                                  LiquiditySweepStrategy, Crt4h15mStrategy)
 
 STRATEGY_CLASSES: Dict[str, Type[BaseStrategy]] = {
     ZeroLagStrategy.id: ZeroLagStrategy,   # retired: doc forced DISABLED (versions.RETIRED_STRATEGIES)
@@ -22,6 +24,12 @@ STRATEGY_CLASSES: Dict[str, Type[BaseStrategy]] = {
     EmaAtrStrategy.id: EmaAtrStrategy,
     MtfSweepBosRetestStrategy.id: MtfSweepBosRetestStrategy,  # retired: forced DISABLED
     SupplyDemandFvgStrategy.id: SupplyDemandFvgStrategy,      # new S2 (v2.0.0, LIVE)
+    # Strategy 3 spec family (owner directive 2026-10-10: the new ones take
+    # over). Spec-fixed XAUUSD rule engines - no tunable parameters.
+    H1BreakoutStrategy.id: H1BreakoutStrategy,
+    OpeningRangeStrategy.id: OpeningRangeStrategy,
+    LiquiditySweepStrategy.id: LiquiditySweepStrategy,
+    Crt4h15mStrategy.id: Crt4h15mStrategy,
 }
 
 _INSTANCES: Dict[str, BaseStrategy] = {}

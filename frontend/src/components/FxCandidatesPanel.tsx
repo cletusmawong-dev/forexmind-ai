@@ -6,9 +6,10 @@
  *
  * It deliberately has NO buttons and NO actions: nothing here can place an
  * order, touch MT5, or flip a strategy. Every response is forced
- * executionEnabled:false on the backend and every card is labelled
- * RESEARCH ONLY. A historical candidate is NOT a fresh backtest and NOT a
- * claim of profitability.
+ * executionEnabled:false on the backend - this is the research VIEW. The
+ * live trading counterparts (strategy_3_*) live on the Strategies screen
+ * and run through the normal signal + execution pipeline. A historical
+ * candidate is NOT a fresh backtest and NOT a claim of profitability.
  */
 import { FlaskConical, ShieldOff } from "lucide-react";
 import { api, endpoints } from "../lib/api";
@@ -122,7 +123,7 @@ function FxCard({ c }: { c: FxCandidate }) {
 
       <p className={`mt-2.5 flex items-center gap-1 text-[9.5px] uppercase tracking-[0.1em] ${TEXT.faint}`}>
         <ShieldOff size={11} className="shrink-0" />
-        Execution disabled · research output only
+        Research engine output · live strategy: see Strategies
       </p>
     </Glass>
   );
@@ -137,13 +138,14 @@ export function FxCandidatesPanel() {
       <SectionHeader>FX rule candidates — XAUUSD</SectionHeader>
       <p className={`text-[11px] ${TEXT.hint}`}>{fx.data?.note}</p>
       <p className={`mt-1 text-[9.5px] ${TEXT.faint}`}>
-        Deterministic rule engines evaluated on the latest completed candles.
-        A historical candidate report is not a fresh backtest and not a claim of
-        profitability. These never place orders.
+        Read-only research view of the four XAUUSD rule engines. Their LIVE
+        trading versions are on the Strategies screen and run through the
+        normal signal + execution pipeline. Not a backtest; no profitability
+        claims.
       </p>
 
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <Pill tone="warn"><FlaskConical size={11} className="mr-1 inline" />Research only</Pill>
+        <Pill tone="warn"><FlaskConical size={11} className="mr-1 inline" />Research view</Pill>
         {fx.data?.executionEnabled === false && (
           <Pill tone="neutral">executionEnabled: false</Pill>
         )}
