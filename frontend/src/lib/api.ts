@@ -121,6 +121,9 @@ export const endpoints = {
   researchEngineApprove: (id: string) => `/api/research/engine/candidates/${id}/approve`,
   researchEngineReject: (id: string) => `/api/research/engine/candidates/${id}/reject`,
   researchEngineTick: "/api/research/engine/tick",
+  /* FX rule candidates — RESEARCH ONLY (owner spec 2026-10-10).
+   * Never executes anything: pure read of rule evaluations. */
+  researchFxCandidates: "/api/research/candidates/fx",
   montecarlo: "/api/research/montecarlo",
   stress: "/api/research/stress",
   calibration: "/api/research/calibration",

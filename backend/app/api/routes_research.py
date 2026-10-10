@@ -450,3 +450,28 @@ def research_reject(candidate_id: str, body: DecisionBody,
     audit(user_id, "research.reject", candidate_id,
           {"stage": "READY_FOR_REVIEW"}, res, body.note)
     return res
+
+
+@router.get("/research/candidates/fx")
+def fx_research_candidates(user_id: str = Depends(get_user_id)):
+    """Four XAUUSD research candidates (h1_breakout_v1, opening_range_v1,
+    liquidity_sweep_v1, crt_4h_15m_v1) evaluated on COMPLETED candles per
+    FOREXMIND_STRATEGY_SPECIFICATIONS.md.
+
+    RESEARCH ONLY - completely disconnected from order placement, the MT5
+    bridge and strategy switching (fx_engines imports nothing from
+    app.execution). executionEnabled is False by construction.
+    """
+    from ..state import State
+    from ..research.fx_engines import evaluate_all
+
+    def candles(tf: str, limit: int):
+        try:
+            return State.provider.get_candles("XAUUSD", tf, limit=limit)
+        except Exception:
+            return None
+
+    out = evaluate_all(candles("1H", 300), candles("5M", 600),
+                       candles("15M", 300), candles("4H", 100))
+    out["executionEnabled"] = False
+    return out
