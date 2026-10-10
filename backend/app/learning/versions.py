@@ -57,62 +57,69 @@ def ensure_strategy_docs() -> None:
     store = get_store()
     from ..strategies import all_strategies
     for sid, strategy in all_strategies().items():
-        doc = store.list("strategies", filters={"id": sid}, limit=1)
-        if not doc:
-            store.create("strategies", {
-                "id": sid,
-                "name": strategy.name,
-                "short_name": strategy.short_name,
-                "description": strategy.description,
-                "status": RETIRED_STRATEGIES.get(sid, "ACTIVE"),
-                                              # ACTIVE | PAUSED | DISABLED
-                "active_version": strategy.version,
-            }, doc_id=sid)
-            store.create("strategy_versions", {
-                "strategy_id": sid,
-                "version": strategy.version,
-                "params": dict(strategy.base_params),
-                "changes": [],
-                "hypothesis_id": None,
-                "experiment_id": None,
-                "active": True,
-                "note": "Original version",
-            }, doc_id=f"{sid}-v{strategy.version}")
-        else:
-            active = store.list("strategy_versions",
-                                filters={"strategy_id": sid, "active": True}, limit=1)
-            if not active:
-                store.create("strategy_versions", {
-                    "strategy_id": sid,
-                    "version": strategy.version,
-                    "params": dict(strategy.base_params),
-                    "changes": [],
-                    "hypothesis_id": None,
-                    "experiment_id": None,
-                    "active": True,
-                    "note": "Original version (restored)",
-                }, doc_id=f"{sid}-v{strategy.version}")
-        # lifecycle reconciliation (audited): RETIRED docs can never keep
-        # scanning, and a DISABLED doc of a LIVE strategy is re-enabled -
-        # PAUSED (a deliberate human pause) is always respected.
-        want = LIFECYCLE.get(sid)
-        if want:
-            doc = store.list("strategies", filters={"id": sid}, limit=1)[0]
-            cur = doc.get("status")
-            if want == "RETIRED" and cur != "DISABLED":
-                store.update("strategies", sid, {"status": "DISABLED"})
-                store.create("version_events", {
-                    "strategy_id": sid, "kind": "LIFECYCLE",
-                    "detail": f"{cur} -> DISABLED (lifecycle RETIRED, registry)",
-                    "at": __import__("datetime").datetime.now(
-                        __import__("datetime").timezone.utc).isoformat()})
-            elif want == "LIVE" and cur == "DISABLED":
-                store.update("strategies", sid, {"status": "ACTIVE"})
-                store.create("version_events", {
-                    "strategy_id": sid, "kind": "LIFECYCLE",
-                    "detail": "DISABLED -> ACTIVE (lifecycle LIVE, registry)",
-                    "at": __import__("datetime").datetime.now(
-                        __import__("datetime").timezone.utc).isoformat()})
+        # Isolate each strategy: one damaged row must never starve the rest
+        # (a stale active:false version row used to 409 the create below and
+        # abort the whole loop, so later strategies never got docs).
+        try:
+            _ensure_single_strategy_doc(store, sid, strategy)
+        except Exception as e:  # noqa: BLE001 - reconciliation must survive
+            print(f"[ensure_strategy_docs] {sid} skipped: {e}")
+
+
+def _ensure_single_strategy_doc(store, sid: str, strategy) -> None:
+    doc = store.list("strategies", filters={"id": sid}, limit=1)
+    if not doc:
+        store.create("strategies", {
+            "id": sid,
+            "name": strategy.name,
+            "short_name": strategy.short_name,
+            "description": strategy.description,
+            "status": RETIRED_STRATEGIES.get(sid, "ACTIVE"),
+                                          # ACTIVE | PAUSED | DISABLED
+            "active_version": strategy.version,
+        }, doc_id=sid)
+    vid = f"{sid}-v{strategy.version}"
+    version_row = (store.list("strategy_versions", filters={"id": vid}, limit=1) or [None])[0]
+    active = store.list("strategy_versions",
+                        filters={"strategy_id": sid, "active": True}, limit=1)
+    if version_row is None:
+        store.create("strategy_versions", {
+            "strategy_id": sid,
+            "version": strategy.version,
+            "params": dict(strategy.base_params),
+            "changes": [],
+            "hypothesis_id": None,
+            "experiment_id": None,
+            "active": True,
+            "note": "Original version",
+        }, doc_id=vid)
+    elif not active:
+        # Row exists but nothing marked active (e.g. flipped by a rollback):
+        # reactivate it in place instead of colliding with its doc_id - the
+        # old plain-create 409ed here and starved every later strategy.
+        store.update("strategy_versions", vid, {"active": True})
+
+    # lifecycle reconciliation (audited): RETIRED docs can never keep
+    # scanning, and a DISABLED doc of a LIVE strategy is re-enabled -
+    # PAUSED (a deliberate human pause) is always respected.
+    want = LIFECYCLE.get(sid)
+    if want:
+        doc = store.list("strategies", filters={"id": sid}, limit=1)[0]
+        cur = doc.get("status")
+        if want == "RETIRED" and cur != "DISABLED":
+            store.update("strategies", sid, {"status": "DISABLED"})
+            store.create("version_events", {
+                "strategy_id": sid, "kind": "LIFECYCLE",
+                "detail": f"{cur} -> DISABLED (lifecycle RETIRED, registry)",
+                "at": __import__("datetime").datetime.now(
+                    __import__("datetime").timezone.utc).isoformat()})
+        elif want == "LIVE" and cur == "DISABLED":
+            store.update("strategies", sid, {"status": "ACTIVE"})
+            store.create("version_events", {
+                "strategy_id": sid, "kind": "LIFECYCLE",
+                "detail": "DISABLED -> ACTIVE (lifecycle LIVE, registry)",
+                "at": __import__("datetime").datetime.now(
+                    __import__("datetime").timezone.utc).isoformat()})
 
 
 def active_params(strategy_id: str) -> Dict[str, Any]:
