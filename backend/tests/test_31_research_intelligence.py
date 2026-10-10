@@ -443,7 +443,8 @@ def test_api_endpoints(env, monkeypatch):
     assert r.status_code == 200
     body = r.json()
     assert body["count"] == len(engine.SEED_CATALOG)
-    cand = body["candidates"][0]
+    cand = next((x for x in body["candidates"] if x.get("recommendation")),
+                body["candidates"][0])      # dashboard only opens reported ones
     for key in ("id", "name", "stage", "evidence_tier", "recommendation",
                 "verified_trades"):
         assert key in cand

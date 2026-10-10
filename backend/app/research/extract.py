@@ -29,7 +29,7 @@ OPTIONAL_RULE_FIELDS = {
 # condition schema the deterministic interpreter understands (section 5)
 OPS = {"crosses_above", "crosses_below", "greater", "less", "rising", "falling"}
 INDICATORS = {"close", "open", "high", "low", "ema", "sma", "rsi", "atr",
-              "highest", "lowest", "body", "range"}
+              "highest", "lowest", "body", "range", "macd", "macd_signal"}
 SL_TYPES = {"fixed_pips", "atr_mult", "structure_level"}
 TP_TYPES = {"fixed_pips", "atr_mult", "rr_multiple", "structure_level"}
 

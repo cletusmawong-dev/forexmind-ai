@@ -72,6 +72,15 @@ def _series(df: pd.DataFrame, spec: Dict[str, Any]) -> pd.Series:
         return highest(df["high"], int(p.get("period", 20)))
     if name == "lowest":
         return lowest(df["low"], int(p.get("period", 20)))
+    if name == "macd":
+        # Appel's classic 12/26 MACD line (documented defaults)
+        fast = ema(df["close"], int(p.get("fast", 12)))
+        slow = ema(df["close"], int(p.get("slow", 26)))
+        return fast - slow
+    if name == "macd_signal":
+        macd_line = ema(df["close"], int(p.get("fast", 12))) \
+            - ema(df["close"], int(p.get("slow", 26)))
+        return ema(macd_line, int(p.get("period", 9)))
     if name == "highest_prev":
         # channel EXCLUDING the current bar - a breakout means trading
         # above the PRIOR N-bar channel (Donchian semantics). Without the

@@ -99,7 +99,8 @@ def seen_before(store, candidate: Dict[str, Any], implemented: Dict[str, Any]
 def summary(store, limit: int = 50) -> Dict[str, Any]:
     rows = store.list(COLLECTION, limit=limit)
     rows.sort(key=lambda d: d.get("createdAt") or "", reverse=True)
-    rejected = [r for r in rows if r.get("verdict") == "REJECT"]
+    rejected = [r for r in rows
+                if str(r.get("verdict") or "").startswith("REJECT")]
     return {
         "total": len(rows),
         "rejected": len(rejected),
