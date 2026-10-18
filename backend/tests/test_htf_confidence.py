@@ -10,6 +10,11 @@ import numpy as np
 import pandas as pd
 import pytest
 
+# OWNER WIPE 2026-10-10: production registry is empty; these tests
+# exercise strategy-module behavior via the with_strategies fixture.
+pytestmark = pytest.mark.usefixtures("with_strategies")
+
+
 
 def _base_df():
     """15M frame whose LAST closed bar is a bullish 9/21 cross (>=300 bars)."""

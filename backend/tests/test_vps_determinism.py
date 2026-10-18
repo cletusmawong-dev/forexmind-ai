@@ -11,6 +11,11 @@ import numpy as np
 import pandas as pd
 import pytest
 
+# OWNER WIPE 2026-10-10: production registry is empty; these tests
+# exercise strategy-module behavior via the with_strategies fixture.
+pytestmark = pytest.mark.usefixtures("with_strategies")
+
+
 
 # ---------- shared deterministic fixture (§25) ----------
 

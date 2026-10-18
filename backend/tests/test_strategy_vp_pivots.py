@@ -14,7 +14,11 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from app.strategies import all_strategies, get_strategy
+from app.strategies.strategy_1_vp_pivots.strategy import VPPivotsStrategy
+from app.strategies.strategy_2_ema_atr.strategy import EmaAtrStrategy
+def get_strategy(sid):
+    return {'strategy_1_vp_pivots': VPPivotsStrategy(),
+            'strategy_2_ema_atr': EmaAtrStrategy()}[sid]
 
 
 # ----------------------------------------------------------------- helpers
@@ -96,11 +100,13 @@ def test_metadata_and_defaults():
     assert "hvn_rejection" in S.experiment_variables["entry_mode"]["options"]
 
 
-def test_registry_new_strategy_registered_and_zero_lag_resolvable():
-    ss = all_strategies()
-    assert "strategy_1_vp_pivots" in ss
-    # retired but resolvable: old signals / replay / executor need it
-    assert "strategy_1_zero_lag" in ss
+def test_registry_wiped_2026_10_10_modules_still_importable():
+    """OWNER WIPE 2026-10-10: the registry is empty; the strategy modules
+    remain importable for signal history, but nothing is registered."""
+    import app.strategies as reg
+    assert reg.STRATEGY_CLASSES == {}
+    from app.strategies.strategy_1_vp_pivots.strategy import VPPivotsStrategy
+    assert VPPivotsStrategy().id == "strategy_1_vp_pivots"
 
 
 # ------------------------------------------------------- profile exactness
@@ -350,40 +356,28 @@ def test_detect_is_causal_future_bars_cannot_create_past_events():
 
 
 # ------------------------------------------------- version control / API
-def test_retired_zero_lag_docs_are_created_disabled(store):
-    doc = store.get("strategies", "strategy_1_zero_lag")
-    assert doc["status"] == "DISABLED"
-    newdoc = store.get("strategies", "strategy_1_vp_pivots")
-    assert newdoc["status"] == "ACTIVE"
+def test_owner_wipe_boot_purges_all_strategy_docs(store):
+    """OWNER WIPE 2026-10-10: with an empty registry the boot reconciliation
+    purges every strategy doc instead of creating DISABLED/ACTIVE ones."""
+    assert store.list("strategies", limit=1000) == []
+    assert store.list("strategy_versions", limit=1000) == []
 
 
-def test_set_param_direct_versions_and_audits(store):
-    from app.learning.versions import (active_params, active_version,
-                                       set_param_direct)
-    v0 = active_version("strategy_1_vp_pivots")
-    doc = set_param_direct("boss", "strategy_1_vp_pivots", "entry_mode", "breakout")
-    assert doc["version"] != v0
-    assert active_params("strategy_1_vp_pivots")["entry_mode"] == "breakout"
-    changes = doc["changes"][0]
-    assert changes == {"variable": "entry_mode",
-                       "old_value": "hvn_rejection", "new_value": "breakout"}
-    audits = store.list("audit_log", filters={"action": "strategy.param.set"}, limit=5)
-    assert audits and audits[0]["actor"] == "boss"
-    vs = store.list("strategy_versions", filters={"strategy_id": "strategy_1_vp_pivots"})
-    assert len(vs) == 2 and sum(1 for v in vs if v["active"]) == 1
+def test_set_param_direct_after_wipe_rejects_unknown(store):
+    """OWNER WIPE 2026-10-10: with zero registered strategies every param
+    change is honestly refused."""
+    from app.learning.versions import set_param_direct
+    with pytest.raises((ValueError, KeyError)):
+        set_param_direct("boss", "strategy_1_vp_pivots", "entry_mode", "breakout")
 
 
 def test_set_param_direct_validates(store):
     from app.learning.versions import set_param_direct
-    with pytest.raises(ValueError):     # not one of the select options
-        set_param_direct("boss", "strategy_1_vp_pivots", "entry_mode", "moon")
-    with pytest.raises(ValueError):     # out of range
-        set_param_direct("boss", "strategy_1_vp_pivots", "sl_mult", 9.9)
-    with pytest.raises(KeyError):       # unknown variable
-        set_param_direct("boss", "strategy_1_vp_pivots", "nope", 1)
-    with pytest.raises(ValueError):     # no-op change
-        set_param_direct("boss", "strategy_1_vp_pivots", "entry_mode",
-                         "hvn_rejection")
+    # OWNER WIPE 2026-10-10: the unknown-strategy guard fires first
+    for var, val in (("entry_mode", "moon"), ("sl_mult", 9.9), ("nope", 1),
+                     ("entry_mode", "hvn_rejection")):
+        with pytest.raises((ValueError, KeyError)):
+            set_param_direct("boss", "strategy_1_vp_pivots", var, val)
 
 
 def test_params_route_patch():
@@ -409,12 +403,8 @@ def test_params_route_patch():
         with TestClient(app) as c:
             r = c.patch("/api/strategies/strategy_1_vp_pivots/params",
                         json={"variable": "entry_mode", "value": "poc_bounce"})
-            assert r.status_code == 200, r.text
-            body = r.json()
-            assert body["params"]["entry_mode"] == "poc_bounce"
-            bad = c.patch("/api/strategies/strategy_1_vp_pivots/params",
-                          json={"variable": "entry_mode", "value": "moon"})
-            assert bad.status_code == 422
+            # OWNER WIPE 2026-10-10: no strategies -> honest 404
+            assert r.status_code == 404, r.text
     finally:
         State.store = prev
         State.ready = False

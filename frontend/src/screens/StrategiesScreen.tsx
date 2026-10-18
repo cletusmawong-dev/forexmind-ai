@@ -110,6 +110,13 @@ export function StrategiesScreen() {
             {activeCount === 0 ? "no strategy is generating signals" : `${activeCount} generating signals`}
           </span>.
         </p>
+        {(data?.strategies ?? []).length === 0 && (
+          <p className="mt-4 rounded-2xl border border-[rgba(var(--warm-rgb),0.14)] px-4 py-3 text-[11.5px] leading-relaxed text-txt-low">
+            All strategies have been removed at the owner's request (2026-10-10) -
+            sleeping and live alike. Nothing is scanned or traded. Past signals
+            and journal history are untouched.
+          </p>
+        )}
         <div className={`mt-4 space-y-2 ${busy.startsWith("toggle:") ? "pointer-events-none opacity-50" : ""}`}>
           {(data?.strategies ?? []).map((st) => {
             const retired = st.status === "DISABLED";

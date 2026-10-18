@@ -7,6 +7,11 @@ import pytest
 
 from app.learning.experiments import ExperimentError, validate_one_variable
 
+# OWNER WIPE 2026-10-10: production registry is empty; these tests
+# exercise strategy-module behavior via the with_strategies fixture.
+pytestmark = pytest.mark.usefixtures("with_strategies")
+
+
 
 def test_two_variables_must_be_rejected():
     base = {"fast_len": 9, "slow_len": 21, "atr_len": 14, "sl_mult": 1.5,

@@ -12,6 +12,11 @@ import pytest
 from app.strategies.strategy_2_mtf_sweep_bos_retest import machine
 from app.strategies.strategy_2_mtf_sweep_bos_retest.strategy import MtfSweepBosRetestStrategy
 
+# OWNER WIPE 2026-10-10: production registry is empty; these tests
+# exercise strategy-module behavior via the with_strategies fixture.
+pytestmark = pytest.mark.usefixtures("with_strategies")
+
+
 S = MtfSweepBosRetestStrategy()
 T0 = pd.Timestamp("2026-09-19 10:00")
 

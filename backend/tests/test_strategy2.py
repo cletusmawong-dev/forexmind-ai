@@ -2,7 +2,10 @@
 import numpy as np
 import pandas as pd
 
-from app.strategies import get_strategy
+from app.strategies.strategy_2_ema_atr.strategy import EmaAtrStrategy
+def get_strategy(sid):
+    assert sid == 'strategy_2_ema_atr'
+    return EmaAtrStrategy()
 
 
 def test_exact_base_parameters():

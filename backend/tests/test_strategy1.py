@@ -1,7 +1,10 @@
 """Strategy 1 tests (SPEC §9, §58): Zero Lag Trend Signals detection, MTF."""
 import numpy as np
 
-from app.strategies import get_strategy
+from app.strategies.strategy_1_zero_lag.strategy import ZeroLagStrategy as _ZL
+def get_strategy(sid):
+    assert sid == 'strategy_1_zero_lag'
+    return _ZL()
 
 
 def test_metadata_and_parameters():

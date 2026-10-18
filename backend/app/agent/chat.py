@@ -79,7 +79,8 @@ def answer(message: str, user_id: str) -> Dict[str, Any]:
     if "learned from strategy 1" in q or "learned from strategy 2" in q or \
             ("learned" in q and "strateg" in q):
         which = "strategy_1_zero_lag" if "1" in q else "strategy_2_ema_atr"
-        name = all_strategies()[which].short_name
+        strat = all_strategies().get(which)
+        name = strat.short_name if strat else ("Strategy 1" if "1" in q else "Strategy 2")
         lessons = store.list("lessons", filters={"userId": user_id, "strategy_id": which},
                              limit=3)
         if not lessons:

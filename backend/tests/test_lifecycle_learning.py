@@ -10,6 +10,12 @@ from app.learning.versions import (active_params, active_version, approve_hypoth
                                    ensure_strategy_docs, reject_hypothesis, rollback)
 from app.strategies import get_strategy
 import pandas as pd
+import pytest
+
+# OWNER WIPE 2026-10-10: production registry is empty; these tests
+# exercise strategy-module behavior via the with_strategies fixture.
+pytestmark = pytest.mark.usefixtures("with_strategies")
+
 
 
 def _mk_sig(**kw):

@@ -14,7 +14,6 @@ import { FlaskConical, Lock, CheckCircle2, XCircle, MinusCircle, HelpCircle } fr
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
 import { Divider, ErrorNote, Glass, Pill, SectionHeader, Spinner, PageHeader, TEXT } from "../components/ui";
-import { FxCandidatesPanel } from "../components/FxCandidatesPanel";
 
 /* ---- types (matches backend app/research/*) ---- */
 type Rec = "REJECT" | "CONTINUE_RESEARCH" | "SHADOW" | "READY_FOR_REVIEW";
@@ -402,10 +401,6 @@ export function ResearchPipelineScreen() {
           ))}
         </div>
       )}
-
-      {/* FX rule candidates (owner spec batch 2026-10-10) - RESEARCH ONLY,
-           read-only panel over /api/research/candidates/fx; no actions. */}
-      <FxCandidatesPanel />
 
       {/* source registry */}
       {sources.data && (

@@ -67,3 +67,34 @@ def _isolate_regime_cache():
         _regime.clear_cache()
     except Exception:
         pass
+
+
+import pytest as _pytest
+
+
+@_pytest.fixture()
+def with_strategies():
+    """Re-register the kept-for-history strategy modules for tests that
+    exercise STRATEGY behavior. The OWNER WIPE (2026-10-10) ships an empty
+    registry (nothing scanned/traded in production); these tests verify
+    module logic, not the registry state. Use via
+    `pytestmark = pytest.mark.usefixtures("with_strategies")`."""
+    import app.strategies as reg
+    from app.strategies.strategy_1_zero_lag.strategy import ZeroLagStrategy
+    from app.strategies.strategy_1_vp_pivots.strategy import VPPivotsStrategy
+    from app.strategies.strategy_2_ema_atr.strategy import EmaAtrStrategy
+    from app.strategies.strategy_2_mtf_sweep_bos_retest.strategy import MtfSweepBosRetestStrategy
+    from app.strategies.strategy_2_supply_demand_fvg.strategy import SupplyDemandFvgStrategy
+    prev = dict(reg.STRATEGY_CLASSES)
+    reg.STRATEGY_CLASSES.update({
+        ZeroLagStrategy.id: ZeroLagStrategy,
+        VPPivotsStrategy.id: VPPivotsStrategy,
+        EmaAtrStrategy.id: EmaAtrStrategy,
+        MtfSweepBosRetestStrategy.id: MtfSweepBosRetestStrategy,
+        SupplyDemandFvgStrategy.id: SupplyDemandFvgStrategy,
+    })
+    reg._INSTANCES.clear()
+    yield reg.STRATEGY_CLASSES
+    reg.STRATEGY_CLASSES.clear()
+    reg.STRATEGY_CLASSES.update(prev)
+    reg._INSTANCES.clear()

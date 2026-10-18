@@ -18,6 +18,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.strategies.strategy_2_supply_demand_fvg.strategy import SupplyDemandFvgStrategy  # noqa: E402
 
+# OWNER WIPE 2026-10-10: production registry is empty; these tests
+# exercise strategy-module behavior via the with_strategies fixture.
+pytestmark = pytest.mark.usefixtures("with_strategies")
+
+
 
 # ---------------------------------------------------------------------------
 # deterministic frame builders (15M bars, UTC index)

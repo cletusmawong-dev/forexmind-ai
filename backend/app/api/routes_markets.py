@@ -23,7 +23,14 @@ def _market_card(symbol: str) -> dict:
     if df is None or len(df) < 300 or price is None:
         card.update({"bias": "N/A", "timeframe": "15M", "status": "NO DATA"})
         return card
-    s1 = get_strategy("strategy_1_zero_lag")
+    try:
+        s1 = get_strategy("strategy_1_zero_lag")
+    except KeyError:
+        # OWNER WIPE 2026-10-10: no strategies installed - the card stays
+        # honest about market data without strategy status.
+        card.update({"bias": "N/A", "timeframe": "15M",
+                     "status": "NO STRATEGIES INSTALLED", "mtf": None})
+        return card
     state = s1.compute(df, active_params("strategy_1_zero_lag"))
     trend = int(state["trend"].iloc[-1])
     zl = float(state["zlema"].iloc[-1]); vol = float(state["vol"].iloc[-1])

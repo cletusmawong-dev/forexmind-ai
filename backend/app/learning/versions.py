@@ -53,9 +53,26 @@ def _bump(version: str) -> str:
 
 
 def ensure_strategy_docs() -> None:
-    """Registers every strategy module in the database with its v1.0."""
+    """Registers every strategy module in the database with its v1.0 - and
+    purges every strategy doc that is NOT registered (owner wipe 2026-10-10:
+    the registry is empty, so all strategy docs are removed from the database
+    on boot; sleeping, retired or live. Signal history is NOT touched -
+    signals/journal carry the strategy name as plain strings)."""
     store = get_store()
     from ..strategies import all_strategies
+    registered = set(all_strategies().keys())
+    try:
+        for doc in store.list("strategies", limit=1000):
+            if doc.get("id") not in registered:
+                store.delete("strategies", doc.get("id"))
+        for doc in store.list("strategy_versions", limit=1000):
+            if doc.get("strategy_id") not in registered:
+                store.delete("strategy_versions", doc.get("id"))
+        for doc in store.list("version_events", limit=1000):
+            if doc.get("strategy_id") not in registered:
+                store.delete("version_events", doc.get("id"))
+    except Exception as e:  # purge must never break boot
+        print(f"[ensure_strategy_docs] doc purge failed: {e}")
     for sid, strategy in all_strategies().items():
         # Isolate each strategy: one damaged row must never starve the rest
         # (a stale active:false version row used to 409 the create below and

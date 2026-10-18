@@ -65,7 +65,10 @@ class ExperimentError(Exception):
 def validate_one_variable(strategy_id: str, base_params: Dict[str, Any],
                           new_params: Dict[str, Any]) -> str:
     """Returns the single changed variable name, or raises ExperimentError."""
-    strategy = get_strategy(strategy_id)
+    try:
+        strategy = get_strategy(strategy_id)
+    except KeyError:
+        raise ExperimentError("Unknown strategy - no strategies are installed")
     base = strategy.get_parameters(base_params)
     new = strategy.get_parameters(new_params)
 
@@ -112,7 +115,10 @@ class ExperimentEngine:
 
     def compare(self, user_id: str, strategy_id: str, base_params: Dict[str, Any],
                 new_params: Dict[str, Any], market: str, timeframe: str) -> Dict[str, Any]:
-        strategy = get_strategy(strategy_id)
+        try:
+            strategy = get_strategy(strategy_id)
+        except KeyError:
+            raise ExperimentError("Unknown strategy - no strategies are installed")
         changed_key = validate_one_variable(strategy_id, base_params, new_params)
 
         # SAME dataset for both versions (SPEC §39)
@@ -213,7 +219,10 @@ class ExperimentEngine:
     def run_from_hypothesis(self, user_id: str, hypothesis: Dict[str, Any]) -> Dict[str, Any]:
         store = get_store()
         strategy_id = hypothesis["strategy_id"]
-        strategy = get_strategy(strategy_id)
+        try:
+            strategy = get_strategy(strategy_id)
+        except KeyError:
+            raise ExperimentError("Unknown strategy - no strategies are installed")
 
         active = store.list("strategy_versions",
                             filters={"strategy_id": strategy_id, "active": True}, limit=1)

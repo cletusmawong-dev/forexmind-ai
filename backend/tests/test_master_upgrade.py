@@ -15,6 +15,11 @@ from datetime import datetime, timezone
 import pytest
 from fastapi.testclient import TestClient
 
+# OWNER WIPE 2026-10-10: production registry is empty; these tests
+# exercise strategy-module behavior via the with_strategies fixture.
+pytestmark = pytest.mark.usefixtures("with_strategies")
+
+
 # a 1x1 transparent PNG
 PNG_1PX = base64.b64encode(
     b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"

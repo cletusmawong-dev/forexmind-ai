@@ -27,7 +27,10 @@ def create_hypothesis(user_id: str, strategy_id: str, variable: str, new_value: 
                       contradictory_evidence: Optional[List[Dict[str, Any]]] = None,
                       evidence_state: Optional[str] = None,
                       falsification: Optional[str] = None) -> Dict[str, Any]:
-    strategy = get_strategy(strategy_id)
+    try:
+        strategy = get_strategy(strategy_id)
+    except KeyError:
+        raise ValueError(f"Unknown strategy '{strategy_id}' - none installed")
     spec = strategy.experiment_variables.get(variable)
     if spec is None:
         raise ValueError(f"'{variable}' is not an experimentable variable of {strategy_id}")
@@ -82,7 +85,10 @@ def propose_from_lessons(user_id: str, max_new: int = 2) -> List[Dict[str, Any]]
             break
         strategy_id = lesson["strategy_id"]
         segment = lesson.get("segment", "")
-        strategy = get_strategy(strategy_id)
+        try:
+            strategy = get_strategy(strategy_id)
+        except KeyError:
+            raise ValueError(f"Unknown strategy '{strategy_id}' - none installed")
 
         # skip segments we already proposed a hypothesis for
         already = store.list("hypotheses", filters={"source_lesson": lesson["id"]}, limit=1)

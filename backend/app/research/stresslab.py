@@ -59,7 +59,10 @@ def _to_df(rows: List[dict], start="2026-01-01", freq="15min"):
 
 def run_stress(strategy_id: str, seed: int = 7) -> dict:
     from ..strategies import get_strategy
-    strategy = get_strategy(strategy_id)
+    try:
+        strategy = get_strategy(strategy_id)
+    except KeyError:
+        return {"ok": False, "error": "Unknown strategy - none installed"}
     out = []
     for sc in SCENARIOS:
         try:

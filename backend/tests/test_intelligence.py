@@ -7,6 +7,11 @@ audit trail, experiment codes + anti-overfitting split fields.
 import pytest
 from fastapi.testclient import TestClient
 
+# OWNER WIPE 2026-10-10: production registry is empty; these tests
+# exercise strategy-module behavior via the with_strategies fixture.
+pytestmark = pytest.mark.usefixtures("with_strategies")
+
+
 
 @pytest.fixture(scope="module")
 def client():
