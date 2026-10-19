@@ -14,10 +14,14 @@ Guarantees after the wipe:
 from fastapi.testclient import TestClient
 
 
-def test_registry_is_empty():
+def test_registry_has_only_the_owner_spec_pair():
+    """Later on 2026-10-10 the owner supplied two new gold specs and asked
+    for exactly those to be implemented - they are the only registered
+    strategies; everything wiped earlier stays out."""
     from app.strategies import all_strategies, STRATEGY_CLASSES
-    assert STRATEGY_CLASSES == {}
-    assert all_strategies() == {}
+    assert set(STRATEGY_CLASSES) == {"strategy_h1_trend_breakout",
+                                     "strategy_gold_orb"}
+    assert set(all_strategies()) == set(STRATEGY_CLASSES)
 
 
 def test_boot_purges_all_strategy_docs(tmp_path, monkeypatch):
@@ -38,10 +42,18 @@ def test_boot_purges_all_strategy_docs(tmp_path, monkeypatch):
                      doc_id=f"{sid}-evt")
     monkeypatch.setattr(vc, "get_store", lambda: store)
     vc.ensure_strategy_docs()
-    assert store.list("strategies", limit=1000) == []
-    assert store.list("strategy_versions", limit=1000) == []
-    assert store.list("version_events", limit=1000) == []
-    vc.ensure_strategy_docs()          # idempotent - still nothing, no crash
+    # the old five are purged; the two owner-spec strategies are created PAUSED
+    ids = {d["id"] for d in store.list("strategies", limit=1000)}
+    assert ids == {"strategy_h1_trend_breakout", "strategy_gold_orb"}
+    assert all(d["status"] == "PAUSED" for d in store.list("strategies", limit=1000))
+    for sid in ("strategy_1_vp_pivots", "strategy_2_ema_atr",
+                "strategy_2_supply_demand_fvg", "strategy_1_zero_lag",
+                "strategy_3_h1_breakout"):
+        assert not store.list("strategies", filters={"id": sid})
+        assert not store.list("strategy_versions", filters={"strategy_id": sid})
+        assert not store.list("version_events", filters={"strategy_id": sid})
+    vc.ensure_strategy_docs()          # idempotent - same state, no crash
+    assert len(store.list("strategy_versions", limit=1000)) == 2
 
 
 def test_registered_doc_would_survive_purge(tmp_path, monkeypatch):
@@ -73,7 +85,9 @@ def test_strategies_api_returns_zero():
         with TestClient(app) as c:
             r = c.get("/api/strategies")
             assert r.status_code == 200
-            assert r.json()["strategies"] == []
+            rows = r.json()["strategies"]
+            assert {x["id"] for x in rows} == {"strategy_h1_trend_breakout",
+                                               "strategy_gold_orb"}
     finally:
         # never leak the override into other test files (full-suite isolation)
         app.dependency_overrides.pop(get_user_id, None)

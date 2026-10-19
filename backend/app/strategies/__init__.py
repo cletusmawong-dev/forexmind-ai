@@ -19,7 +19,19 @@ from .base import BaseStrategy, Candidate
 # historical signals / journal entries keep their meaning; they never run.
 # ensure_strategy_docs() purges any strategy docs left in the database on
 # every boot. Re-adding a strategy = registering its class here again.
-STRATEGY_CLASSES: Dict[str, Type[BaseStrategy]] = {}
+#
+# 2026-10-10, later the same day: the owner supplied TWO new gold strategy
+# specifications (FOREXMIND H1 Trend Breakout + FOREXMIND Gold ORB) with the
+# instruction "Implement these two Gold strategies as written." They are the
+# only registered strategies. Per the specs' own rule 7 the docs are created
+# PAUSED (see learning.versions.START_PAUSED) - activation is an explicit
+# owner step after tests, historical validation and forward demo testing.
+from .gold_specs import GoldOrbStrategy, H1TrendBreakoutStrategy
+
+STRATEGY_CLASSES: Dict[str, Type[BaseStrategy]] = {
+    H1TrendBreakoutStrategy.id: H1TrendBreakoutStrategy,
+    GoldOrbStrategy.id: GoldOrbStrategy,
+}
 
 _INSTANCES: Dict[str, BaseStrategy] = {}
 

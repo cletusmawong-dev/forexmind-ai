@@ -25,6 +25,15 @@ from ..strategies import get_strategy
 # CANDIDATE / READY_FOR_REVIEW / APPROVED are research-side states owned by
 # the Research Lab; a candidate can ONLY reach LIVE via explicit human
 # approval recorded in versions (never autonomous).
+# Owner spec rule 7 (2026-10-10): live execution stays disabled until the
+# implementation passes tests, historical validation and forward demo
+# testing. Docs for these strategies are therefore created PAUSED; the
+# owner activates them explicitly (Strategies screen / audited PATCH).
+START_PAUSED = {
+    "strategy_h1_trend_breakout",
+    "strategy_gold_orb",
+}
+
 LIFECYCLE = {
     "strategy_2_ema_atr": "LIVE",
     "strategy_2_supply_demand_fvg": "LIVE",      # new S2 v2.0.0 (2026-10-07)
@@ -91,8 +100,9 @@ def _ensure_single_strategy_doc(store, sid: str, strategy) -> None:
             "name": strategy.name,
             "short_name": strategy.short_name,
             "description": strategy.description,
-            "status": RETIRED_STRATEGIES.get(sid, "ACTIVE"),
-                                          # ACTIVE | PAUSED | DISABLED
+            "status": (RETIRED_STRATEGIES.get(sid)
+                       or ("PAUSED" if sid in START_PAUSED else "ACTIVE")),
+                      # ACTIVE | PAUSED | DISABLED
             "active_version": strategy.version,
         }, doc_id=sid)
     vid = f"{sid}-v{strategy.version}"

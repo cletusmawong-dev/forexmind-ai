@@ -100,11 +100,13 @@ def test_metadata_and_defaults():
     assert "hvn_rejection" in S.experiment_variables["entry_mode"]["options"]
 
 
-def test_registry_wiped_2026_10_10_modules_still_importable():
-    """OWNER WIPE 2026-10-10: the registry is empty; the strategy modules
-    remain importable for signal history, but nothing is registered."""
+def test_owner_specs_are_the_only_registered_strategies():
+    """OWNER WIPE 2026-10-10, later the same day: the two new gold specs are
+    the only registered strategies; this module's strategies stay
+    unregistered but importable for signal history."""
     import app.strategies as reg
-    assert reg.STRATEGY_CLASSES == {}
+    assert set(reg.STRATEGY_CLASSES) == {"strategy_h1_trend_breakout",
+                                         "strategy_gold_orb"}
     from app.strategies.strategy_1_vp_pivots.strategy import VPPivotsStrategy
     assert VPPivotsStrategy().id == "strategy_1_vp_pivots"
 
@@ -357,10 +359,12 @@ def test_detect_is_causal_future_bars_cannot_create_past_events():
 
 # ------------------------------------------------- version control / API
 def test_owner_wipe_boot_purges_all_strategy_docs(store):
-    """OWNER WIPE 2026-10-10: with an empty registry the boot reconciliation
-    purges every strategy doc instead of creating DISABLED/ACTIVE ones."""
-    assert store.list("strategies", limit=1000) == []
-    assert store.list("strategy_versions", limit=1000) == []
+    """OWNER WIPE 2026-10-10 + owner spec pair: the boot reconciliation
+    purges the wiped strategies' docs and creates the two spec strategies
+    PAUSED (spec rule 7)."""
+    ids = {d["id"] for d in store.list("strategies", limit=1000)}
+    assert ids == {"strategy_h1_trend_breakout", "strategy_gold_orb"}
+    assert all(d["status"] == "PAUSED" for d in store.list("strategies", limit=1000))
 
 
 def test_set_param_direct_after_wipe_rejects_unknown(store):
