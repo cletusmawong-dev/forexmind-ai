@@ -270,6 +270,54 @@ class TradeManager:
                             execution=ladder, snapshot_ts=now)
             return out
 
+        # 0b) DETERMINISTIC POSITION POLICY (owner brief 2026-10-10, s.3):
+        #     market food (1H/4H levels) + completed-candle evidence decide
+        #     when they can. When the policy has an actionable decision it
+        #     IS the decision for this review (recorded as
+        #     deterministic_policy) and flows through the SAME risk gate as
+        #     everything else. A HOLD from the policy leaves the existing
+        #     AI path untouched (existing behaviour preserved). Wicks are
+        #     observations; only completed closes + follow-through act.
+        policy_decision = None
+        try:
+            market = pos.get("app_market") or pos.get("symbol", "")
+            from ..analysis.market_food import analyze as mf_analyze
+            from .position_policy import evaluate as policy_eval
+            food = mf_analyze(market, provider=self.provider)
+            h1_df = None
+            if self.provider is not None:
+                h1_df = self.provider.get_candles(market, "1H", limit=400)
+            entry_px = float(pos.get("price_open") or 0)
+            cur_px = float(pos.get("price_current") or 0)
+            is_buy = str(pos.get("type", "")).upper() == "BUY"
+            init_sl = (sig or {}).get("sl") or pos.get("sl")
+            risk = abs(entry_px - float(init_sl)) if init_sl else 0.0
+            r_mult = ((cur_px - entry_px) / risk if is_buy else
+                      (entry_px - cur_px) / risk) if risk > 0 else 0.0
+            policy_decision = policy_eval(pos=pos, risk=risk,
+                                          r_multiple=r_mult, food=food,
+                                          h1=h1_df)
+            st["last_policy"] = {"code": policy_decision.get("reason_code"),
+                                 "detail": policy_decision.get("detail"),
+                                 "ts": now}
+        except Exception as exc:
+            policy_decision = None
+            recorder.record(user_id, pos, trigger, "-", "local", None, False,
+                            "POLICY_ERROR_HELD", error=str(exc)[:160],
+                            snapshot_ts=now)
+
+        if policy_decision and policy_decision.get("action") not in (None, "HOLD"):
+            decision = {
+                "action": policy_decision["action"],
+                "recommended_sl": policy_decision.get("recommended_sl"),
+                "partial_fraction": policy_decision.get("partial_fraction"),
+                "reasoning": policy_decision.get("detail", ""),
+            }
+            model_name, layer = "deterministic_policy", "local"
+            decision_err = None
+            brain_meta = None
+            snapshot_ts = time.time()
+
         # 1) evidence -> AI. Brain 2.0 pipeline when enabled (world model ->
         #    generate -> self-challenge -> decide); on ANY brain error we fall
         #    back to the legacy single-call path and RECORD it (never silent).

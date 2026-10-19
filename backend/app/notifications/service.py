@@ -25,6 +25,12 @@ _TELEGRAM_IMPORTANT = {
 
 
 def _telegram_worthy(type_: str, meta: Optional[Dict[str, Any]]) -> bool:
+    try:   # STRICT MESSAGING (2026-10-10, s.8): commentary can never be forced
+        from .policy import telegram_allowed
+        if not telegram_allowed(type_, meta):
+            return False
+    except Exception:
+        pass
     if meta and meta.get("telegram_important"):
         return True
     if type_ in _TELEGRAM_IMPORTANT:

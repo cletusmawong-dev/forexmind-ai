@@ -508,6 +508,47 @@ def execute_signal(signal: dict, user_id: str) -> None:
                 _log(f"Lot size capped {lots} -> {MAX_LOTS} (EXECUTION_MAX_LOTS).", market,
                      kind="EXEC_WARN")
                 lots = MAX_LOTS
+            # PROP-FIRM BUDGET CAP (owner brief 2026-10-10, s.6): shrink-only
+            # cap from the account's CONFIGURED challenge rules (an account
+            # without prop_rules is not governed and passes straight through).
+            # Never enlarges; refuses the entry when no risk budget remains.
+            try:
+                from ..risk.propfirm import cap_lots as _pf_cap
+                from ..engine.daily import daily_state as _daily_state
+                _acct_doc = None
+                try:
+                    from ..api.routes_accounts import active_account as _aa
+                    _acct_doc = _aa(user_id)
+                except Exception:
+                    _acct_doc = None
+                if _acct_doc:
+                    _pip = PIP_SIZE.get(market, 0.1)
+                    _pipv = PIP_VALUE.get(market, 10.0)
+                    _stop_usd_per_lot = (abs(entry - sl) / _pip) * _pipv
+                    _d = _daily_state(user_id)
+                    _pf = _pf_cap(_acct_doc, {
+                        "daily_pl": float(_d.get("total_usd") or 0.0),
+                        "consecutive_losses": int(_d.get("consecutive_losses") or 0),
+                        "peak_equity": _acct_doc.get("peak_equity"),
+                    }, lots, _stop_usd_per_lot)
+                    if not _pf.get("allowed"):
+                        store.update("signals", signal["id"], {
+                            "execution_status": "SKIPPED_PROP_FIRM_BUDGET",
+                            "mt5_note": str(_pf.get("reason"))[:200]})
+                        _log(f"Execution skipped - prop-firm budget: "
+                             f"{_pf.get('reason')}", market, kind="EXEC_WARN")
+                        _emit(user_id, "ENTRY", "SKIPPED", market=market,
+                              signal=signal, detail=str(_pf.get("reason"))[:120])
+                        return
+                    if _pf.get("shrunk"):
+                        _log(f"Prop-firm cap: lot {lots} -> {_pf['lots']} "
+                             f"(challenge {_pf.get('budgets', {}).get('label')}).",
+                             market, kind="EXEC_WARN")
+                        lots = float(_pf["lots"])
+            except Exception as _pf_exc:
+                _log(f"Prop-firm cap check failed ({type(_pf_exc).__name__}) - "
+                     "continuing with the standard risk math.", market,
+                     kind="EXEC_WARN")
             _emit(user_id, "ENTRY", "REQUESTED", market=market, signal=signal,
                   detail=f"{signal['direction']} {lots} lots @ {entry}, SL {sl}, TP {tp}")
             _t0 = time.time()
@@ -550,6 +591,47 @@ def execute_signal(signal: dict, user_id: str) -> None:
                 _log(f"Lot size capped {lots} -> {MAX_LOTS} (EXECUTION_MAX_LOTS).", market,
                      kind="EXEC_WARN")
                 lots = MAX_LOTS
+            # PROP-FIRM BUDGET CAP (owner brief 2026-10-10, s.6): shrink-only
+            # cap from the account's CONFIGURED challenge rules (an account
+            # without prop_rules is not governed and passes straight through).
+            # Never enlarges; refuses the entry when no risk budget remains.
+            try:
+                from ..risk.propfirm import cap_lots as _pf_cap
+                from ..engine.daily import daily_state as _daily_state
+                _acct_doc = None
+                try:
+                    from ..api.routes_accounts import active_account as _aa
+                    _acct_doc = _aa(user_id)
+                except Exception:
+                    _acct_doc = None
+                if _acct_doc:
+                    _pip = PIP_SIZE.get(market, 0.1)
+                    _pipv = PIP_VALUE.get(market, 10.0)
+                    _stop_usd_per_lot = (abs(entry - sl) / _pip) * _pipv
+                    _d = _daily_state(user_id)
+                    _pf = _pf_cap(_acct_doc, {
+                        "daily_pl": float(_d.get("total_usd") or 0.0),
+                        "consecutive_losses": int(_d.get("consecutive_losses") or 0),
+                        "peak_equity": _acct_doc.get("peak_equity"),
+                    }, lots, _stop_usd_per_lot)
+                    if not _pf.get("allowed"):
+                        store.update("signals", signal["id"], {
+                            "execution_status": "SKIPPED_PROP_FIRM_BUDGET",
+                            "mt5_note": str(_pf.get("reason"))[:200]})
+                        _log(f"Execution skipped - prop-firm budget: "
+                             f"{_pf.get('reason')}", market, kind="EXEC_WARN")
+                        _emit(user_id, "ENTRY", "SKIPPED", market=market,
+                              signal=signal, detail=str(_pf.get("reason"))[:120])
+                        return
+                    if _pf.get("shrunk"):
+                        _log(f"Prop-firm cap: lot {lots} -> {_pf['lots']} "
+                             f"(challenge {_pf.get('budgets', {}).get('label')}).",
+                             market, kind="EXEC_WARN")
+                        lots = float(_pf["lots"])
+            except Exception as _pf_exc:
+                _log(f"Prop-firm cap check failed ({type(_pf_exc).__name__}) - "
+                     "continuing with the standard risk math.", market,
+                     kind="EXEC_WARN")
             cmd = store.create("exec_commands", {
                 "userId": user_id, "signal_doc_id": signal["id"],
                 "signal_id": signal["signal_id"], "status": "PENDING",

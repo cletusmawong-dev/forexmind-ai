@@ -379,10 +379,62 @@ class SignalEngine:
                             f" | FVG {float(_s2['fvg_low']):,.5g}-{float(_s2['fvg_high']):,.5g} retested")
             except Exception:
                 _tf_line = ""
+        # STRICT MESSAGING (owner brief 2026-10-10, s.8A): a new-trade message
+        # must carry instrument, direction, entry, SL, TP, RR, concise trade-
+        # specific reasoning incl. market food 1H/4H levels, the invalidation
+        # condition, and a probability ONLY when validated evidence exists.
+        _tp0 = cand.tps[0] if cand.tps else None
+        _rr = (abs(_tp0 - cand.entry) / cand.risk) if (_tp0 and cand.risk > 0) else None
+        _mf_txt = ""
+        _inv_txt = ""
+        _prob_txt = ""
+        try:
+            from ..analysis.market_food import analyze as _mf
+            _food = _mf(cand.market, provider=self.provider)
+            _hl = _food.get("h1") or {}
+            if _hl.get("ok"):
+                _nxt = _hl.get("majors", []) + _hl.get("internal", [])
+                _ahead = [lv for lv in _nxt
+                          if (lv["price"] > cand.entry) == (cand.direction == "BUY")]
+                if _ahead:
+                    _n = min(_ahead, key=lambda lv: abs(lv["price"] - cand.entry))
+                    _mf_txt = (f"\nLevels: nearest 1H {_n['side']} level "
+                               f"{_n['price']:,.5g} ({_n['touches']} touches); "
+                               f"4H {'OK' if (_food.get('h4') or {}).get('ok') else 'n/a'}.")
+                else:
+                    _mf_txt = "\nLevels: open structure - no mapped 1H level ahead."
+        except Exception:
+            pass
+        try:
+            if getattr(cand, "extra", None) and cand.extra.get("spec_id"):
+                _inv_txt = f"\nInvalidation: the setup fails if SL {cand.sl:,.5g} is hit."
+        except Exception:
+            pass
+        if _rr is None or _tp0 is None:
+            raise ValueError("signal without valid TP cannot be messaged (s.8A)")
+        try:
+            from ..learning.probability import estimate as _prob_est
+            closed = store.list("signals", filters={"completed": True}, limit=1000) or []
+            _est = _prob_est(cand.strategy_id, cand.market, cand.direction,
+                             (doc.get("market_conditions") or {}).get("atr_pct")
+                             if isinstance(doc.get("market_conditions"), dict) else None,
+                             closed)
+            if _est.get("status") == "OK":
+                _prob_txt = (f"\nTP-first probability (evidence, n={_est['n']}): "
+                             f"{_est['p_tp']:.0%}")
+                store.update("signals", doc["id"], {"tp_probability": _est})
+            else:
+                store.update("signals", doc["id"],
+                             {"tp_probability": {"status": "INSUFFICIENT_EVIDENCE"}})
+        except Exception:
+            pass
         notify(user_id, "NEW_SIGNAL",
                f"{'🟢' if cand.direction == 'BUY' else '🔴'} {cand.market} {cand.direction}",
-               f"{strategy.short_name}\n{score_word} - Signal score {cand.score}/100.\n"
-               f"Entry {cand.entry:,.5g} - SL {cand.sl:,.5g}. Tap to view analysis.{_tf_line}",
+               f"{strategy.short_name}\n"
+               f"Entry {cand.entry:,.5g} - SL {cand.sl:,.5g} - "
+               f"TP {_tp0:,.5g}{'' if _rr is None else f' (RR 1:{_rr:.2f})'}."
+               f"{_mf_txt}{_inv_txt}{_prob_txt}\n"
+               f"Tap to view analysis.{_tf_line}",
                signal_id=doc["id"])
         self._log(f"{strategy.short_name}: {cand.direction} signal on {cand.market} "
                   f"{cand.timeframe} approved for notification.",
