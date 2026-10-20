@@ -26,10 +26,14 @@ def _market_card(symbol: str) -> dict:
     try:
         s1 = get_strategy("strategy_1_zero_lag")
     except KeyError:
-        # OWNER WIPE 2026-10-10: no strategies installed - the card stays
-        # honest about market data without strategy status.
-        card.update({"bias": "N/A", "timeframe": "15M",
-                     "status": "NO STRATEGIES INSTALLED", "mtf": None})
+        # The legacy bias scanner (zero_lag/ema_atr) was removed with the
+        # owner wipe; the active gold-spec strategies signal on their own
+        # sessions and do not feed these cards. Show monitoring, honestly.
+        card.update({"bias": "N/A", "timeframe": "15M", "mtf": None,
+                     "status": "MONITORING",
+                     "note": "Bias cards were driven by the retired legacy "
+                             "scanner; the active gold specs signal on their "
+                             "own sessions."})
         return card
     state = s1.compute(df, active_params("strategy_1_zero_lag"))
     trend = int(state["trend"].iloc[-1])

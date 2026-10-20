@@ -150,5 +150,6 @@ def test_market_card_survives_without_strategies(monkeypatch):
 
     monkeypatch.setattr(rm.State, "provider", StubProvider(), raising=False)
     card = rm._market_card("XAUUSD")
-    assert card["status"] == "NO STRATEGIES INSTALLED"
+    assert card["status"] == "MONITORING"
     assert card["bias"] == "N/A"
+    assert "retired legacy" in card["note"]
