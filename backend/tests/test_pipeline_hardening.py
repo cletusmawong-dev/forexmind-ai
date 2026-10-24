@@ -7,6 +7,7 @@ SIG-006 -> SIG-007 re-fired 15 min apart off the SAME sweep (machine must
 return to NO_SWEEP after a signal, per the Pine loop).
 """
 import pandas as pd
+import json
 import pytest
 
 from app.config import settings
@@ -85,7 +86,7 @@ def env(monkeypatch, tmp_path):
     monkeypatch.setattr(settings, "bridge_url", "http://fake:8700")
     monkeypatch.setattr(settings, "execution_max_trades_per_day", 99)
     monkeypatch.setattr(X, "bridge_get",
-                        lambda p, timeout=8: {"balance": 1000} if p == "/account" else None)
+                        lambda p, timeout=8: {"balance": 1000} if p == "/account" else (json.loads('{"bars": [{"c": 1.1000}]}') if p.startswith("/rates") else None))
     sent = []
 
     def fake_post(path, payload, timeout=15):

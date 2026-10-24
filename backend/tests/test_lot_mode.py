@@ -4,6 +4,7 @@ medium = exactly the previous behavior; low = ~half the computed lot;
 high = ~1.5x; floored to the broker 0.01 step, never below it. The
 multiplier applies AFTER the risk-% math in BOTH execution paths.
 """
+import json
 import pytest
 
 from app.config import settings
@@ -77,7 +78,7 @@ SIG = {"id": "sig1", "userId": "u1", "signal_id": "SIG-LOT-001", "market": "EURU
 def _vps_lots(monkeypatch):
     sent = {}
     monkeypatch.setattr(X, "bridge_get",
-                        lambda p, timeout=8: {"balance": 1000} if p == "/account" else None)
+                        lambda p, timeout=8: {"balance": 1000} if p == "/account" else (json.loads('{"bars": [{"c": 1.1000}]}') if p.startswith("/rates") else None))
     monkeypatch.setattr(settings, "execution_mode", "mt5_bridge")
     monkeypatch.setattr(settings, "bridge_url", "http://fake:8700")
 

@@ -7,6 +7,7 @@ max-TOTAL-drawdown wall is intentionally NOT an extra-signal wall.
 """
 from datetime import datetime, timedelta, timezone
 
+import json
 import pytest
 
 from app.config import settings
@@ -146,8 +147,8 @@ def test_floating_pushes_total_over_wall(fresh_store, monkeypatch):
     _mk_user(fresh_store, daily_profit_target_usd=300)
     _completed(fresh_store, "S1", r=1.0, pl=250, confirmed=True)
     monkeypatch.setattr(D, "user_mode_safe", lambda uid: "vps")
-    monkeypatch.setattr(X, "bridge_get", lambda p, timeout=6: {
-        "positions": [{"ticket": 1, "magic": 20260914, "profit": 70.0}]})
+    monkeypatch.setattr(X, "bridge_get", lambda p, timeout=6: ({"bars": [{"c": 2400.0}]} if p.startswith("/rates") else {
+        "positions": [{"ticket": 1, "magic": 20260914, "profit": 70.0}]}))
     st = D.daily_state("u1")
     assert st["floating_usd"] == 70.0 and st["floating_source"] == "bridge_positions"
     assert st["hit_target"] is True and st["status"] == "TARGET_HIT"
@@ -236,7 +237,7 @@ def test_executor_cancels_pending_entries_on_wall(xenv):
 
 def test_executor_enters_normally_without_wall(xenv):
     store, X, monkeypatch = xenv
-    monkeypatch.setattr(X, "bridge_get", lambda p, timeout=8: {"balance": 1000})
+    monkeypatch.setattr(X, "bridge_get", lambda p, timeout=8: {"balance": 1000, **({"bars": [{"c": 2400.0}]} if p.startswith("/rates") else {})})
     monkeypatch.setattr(X, "bridge_post", lambda p, payload, timeout=15:
                         {"ok": True, "ticket": 9, "position_id": 10, "volume": 0.01,
                          "price": 2400.1, "symbol": "XAUUSD"})

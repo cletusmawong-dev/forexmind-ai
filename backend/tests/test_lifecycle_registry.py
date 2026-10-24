@@ -4,6 +4,7 @@ LIVE strategies execute; SLEEPING/RETIRED strategies may inform and research
 but their execution is HARD-BLOCKED server-side (not just hidden in the UI).
 The existing 9/21 EMA strategy must still execute exactly as before.
 """
+import json
 import pytest
 
 from app.config import settings
@@ -82,7 +83,7 @@ def test_live_ema_still_executes(env, monkeypatch):
     sig = {**SIG, "strategy_id": "strategy_2_ema_atr"}
     store.create("signals", dict(sig))
     monkeypatch.setattr(X, "bridge_get",
-                        lambda p, timeout=8: {"balance": 1000} if p == "/account" else None)
+                        lambda p, timeout=8: {"balance": 1000} if p == "/account" else (json.loads('{"bars": [{"c": 1.1000}]}') if p.startswith("/rates") else None))
     monkeypatch.setattr(X, "bridge_post",
                         lambda p, payload, timeout=15: {"ok": True, "ticket": 777,
                                                         "position_id": 888,

@@ -14,6 +14,7 @@ Rules under test:
  - every admin mutation writes an append-only audit_log entry
 """
 import os
+import json
 import pytest
 from fastapi.testclient import TestClient
 
@@ -149,7 +150,7 @@ def test_executor_respects_db_permission(world):
     store.create("signals", dict(SIG))
     sent = []
     X_orig_get, X_orig_post = X.bridge_get, X.bridge_post
-    X.bridge_get = lambda p, timeout=8: None
+    X.bridge_get = lambda p, timeout=8: (json.loads('{"bars": [{"c": 1.1000}]}') if p.startswith("/rates") else None)
     X.bridge_post = lambda p, payload, timeout=15: sent.append(payload) or {"ok": True, "ticket": 9}
     X.connector_online = lambda uid: True
     X._connector_seen = lambda uid: True

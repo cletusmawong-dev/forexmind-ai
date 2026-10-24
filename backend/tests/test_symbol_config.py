@@ -9,6 +9,7 @@ import os
 import sys
 import types
 
+import json
 import pytest
 
 from app.config import settings
@@ -181,7 +182,7 @@ SIG = {"id": "sig1", "userId": "u1", "signal_id": "SIG-20260914-001", "market": 
 
 def test_fill_stores_broker_symbol(xenv):
     store, X, monkeypatch = xenv
-    monkeypatch.setattr(X, "bridge_get", lambda p, timeout=8: {"balance": 1000})
+    monkeypatch.setattr(X, "bridge_get", lambda p, timeout=8: {"balance": 1000, **(json.loads('{"bars": [{"c": 2400.0}]}') if p.startswith("/rates") else {})})
     monkeypatch.setattr(X, "bridge_post", lambda p, payload, timeout=15:
                         {"ok": True, "ticket": 5, "position_id": 6, "volume": 0.02,
                          "price": 2400.1, "symbol": "XAUUSDm"})   # broker suffix

@@ -12,6 +12,7 @@ Covers:
 import os
 import time
 
+import json
 import pytest
 from fastapi.testclient import TestClient
 
@@ -136,7 +137,7 @@ def test_weave_entry_ledger_audit_and_suspension(env):
     store.create("signals", dict(SIG))
     from app.execution import mt5 as X
     orig_get, orig_post = X.bridge_get, X.bridge_post
-    X.bridge_get = lambda p, timeout=8: {"balance": 1000} if p == "/account" else {}
+    X.bridge_get = lambda p, timeout=8: {"balance": 1000} if p == "/account" else (json.loads('{"bars": [{"c": 1.1000}]}') if p.startswith("/rates") else {})
     X.bridge_post = lambda p, payload, timeout=15: \
         {"ok": True, "ticket": 900, "volume": 0.1, "price": 1.1}
     try:

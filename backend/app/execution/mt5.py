@@ -26,13 +26,21 @@ import requests
 from ..config import settings
 from ..db.store import get_store
 from ..notifications.service import notify
+from .pretrade import planned_rr as _planned_rr, validate_order
 
 MAGIC = 20260914          # identifies ForexMind trades on the MT5 account
 CONNECTOR_TIMEOUT_S = 90  # connector considered offline after this many seconds
 COMMAND_TTL_S = 900       # queued manual orders expire after 15 min offline
 
-PIP_SIZE = {"EURUSD": 0.0001, "GBPUSD": 0.0001, "USDJPY": 0.01, "XAUUSD": 0.1, "NAS100": 1.0}
-PIP_VALUE = {"EURUSD": 10.0, "GBPUSD": 10.0, "XAUUSD": 10.0}   # USD per pip per 1.0 lot
+PIP_SIZE = {"EURUSD": 0.0001, "GBPUSD": 0.0001, "USDJPY": 0.01, "XAUUSD": 0.1,
+            "XAGUSD": 0.01, "NAS100": 1.0}
+# USD per pip per 1.0 lot. XAGUSD: 5,000 oz contract -> $50 per 0.01 pip.
+# NAS100: Exness 1 lot = 1 index contract -> $1 per 1.0 point.
+# An instrument missing from BOTH tables cannot be sized (calc_lot returns
+# 0.0) and the pre-trade validator refuses the order loudly - never a
+# silent 0.01-lot fallback.
+PIP_VALUE = {"EURUSD": 10.0, "GBPUSD": 10.0, "XAUUSD": 10.0, "XAGUSD": 50.0,
+             "NAS100": 1.0}   # USD per pip per 1.0 lot
 LOT_STEP = 0.01
 MODES = ("off", "manual", "vps")
 
@@ -43,17 +51,20 @@ _lock = threading.Lock()
 # lot sizing (same math as the app's Position Size card)
 # ---------------------------------------------------------------------------
 def calc_lot(market: str, entry: float, sl: float, balance: float, risk_pct: float) -> float:
+    """Risk-% position size. Returns 0.0 when the instrument is unknown or an
+    input is unusable - the caller (pre-trade validator) must REFUSE the
+    order loudly instead of silently trading a 0.01-lot fallback."""
     pip = PIP_SIZE.get(market)
     if pip is None or entry <= 0 or sl <= 0 or balance <= 0 or risk_pct <= 0:
-        return LOT_STEP
+        return 0.0
     pip_value = PIP_VALUE.get(market)
     if pip_value is None and market == "USDJPY":
         pip_value = 1000.0 / entry
     if not pip_value:
-        return LOT_STEP
+        return 0.0
     pips = abs(entry - sl) / pip
     if pips <= 0:
-        return LOT_STEP
+        return 0.0
     raw = (balance * risk_pct / 100.0) / (pips * pip_value)
     # epsilon guards the float edge (0.049999... must floor to 0.05, not 0.04)
     return max(LOT_STEP, math.floor(raw * 100 + 1e-9) / 100)
@@ -247,6 +258,44 @@ def bridge_post(path: str, payload: dict, timeout: int = 15) -> Optional[dict]:
 # execution entry point (called by the signal engine)
 # ---------------------------------------------------------------------------
 _exec_lock = threading.Lock()
+
+
+def _reference_price(market: str) -> Optional[float]:
+    """Last closed BROKER-terminal candle close - the execution ground truth
+    (the bridge just answered /account, so its own feed is authoritative).
+    The cloud provider feed is deliberately NOT a fallback: a lagging or
+    synthetic upstream price must never gate a broker order. None -> the vps
+    path refuses (NO_PRICE_REFERENCE); manual mode skips the drift check."""
+    try:
+        r = bridge_get(f"/rates?market={market}&tf=5M&count=2") or {}
+        bars = r.get("bars") or []
+        if bars:
+            return float(bars[-1]["c"])
+    except Exception:
+        pass
+    return None
+
+
+def _reject_pretrade(store, signal: dict, user_id: str, market: str,
+                     code: str, reason: str) -> None:
+    """Record a pre-trade refusal loudly: signal status, ledger, activity,
+    Telegram. The order is never sent and never silently repaired."""
+    try:
+        if signal.get("id"):
+            store.update("signals", signal["id"], {
+                "execution_status": "REJECTED_PRETRADE",
+                "mt5_note": f"{code}: {reason}"[:200]})
+        _log(f"Order REFUSED by pre-trade validation - {code}: {reason}",
+             market, kind="EXEC_WARN")
+        _emit(user_id, "ENTRY", "SKIPPED", market=market, signal=signal,
+              detail=f"pre-trade {code}: {reason}"[:160])
+        notify(user_id, "EXECUTION_SKIPPED",
+               f"ORDER REFUSED - {market} {signal.get('direction')}",
+               f"Pre-trade check {code}: {reason}. No trade was placed.",
+               meta={"telegram_important": True},
+               signal_id=signal.get("id"))
+    except Exception:
+        pass
 
 
 def _setup_already_sent(store, signal: dict) -> Optional[str]:
@@ -450,24 +499,34 @@ def execute_signal(signal: dict, user_id: str) -> None:
         # the trade's context bucket (user directive 2026-09-25: "the TP
         # manager should work with probability"). Auditable record lands on
         # the signal doc either way.
-        tp_level = fallback_level = 2
-        raw = str(settings.execution_tp_level).strip().upper()
-        if raw.isdigit() and int(raw) in (1, 2, 3):
-            tp_level = fallback_level = int(raw)
-        else:   # AUTO
-            try:
-                from .tp_picker import pick_tp_level
-                sel = pick_tp_level(signal, min_sample=int(os.getenv("TP_PROB_MIN_SAMPLE", "20")),
-                                    fallback_level=2)
-                tp_level = int(sel.get("level") or 2)
-                fallback_level = tp_level
-                store.update("signals", signal["id"], {"tp_selection": sel})
-                if sel.get("source") == "probability":
-                    _log(f"TP level {tp_level} selected by probability "
-                         f"(P(1R)={sel.get('p1')}, P(2R)={sel.get('p2')}, P(3R)={sel.get('p3')}, "
-                         f"n={sel.get('n')}).", market, kind="EXEC")
-            except Exception:
-                tp_level = 2
+        # OWNER BRIEF 2026-10-24 (R:R audit): a strategy-defined target WINS.
+        # Signals with a single intended TP (tp2/tp3 empty - both live spec
+        # strategies) are sent with THAT target. The TP-level manager only
+        # applies to signals that genuinely define multiple targets. This is
+        # the exact spot where intended-1:3 setups went out at 1:1 in
+        # September (orderRR 1.0 vs rr_primary 3.0, prod evidence).
+        _tp2, _tp3 = signal.get("tp2"), signal.get("tp3")
+        if _tp2 in (None, "", 0) and _tp3 in (None, "", 0):
+            tp_level = fallback_level = 1     # the strategy's own target
+        else:
+            tp_level = fallback_level = 2
+            raw = str(settings.execution_tp_level).strip().upper()
+            if raw.isdigit() and int(raw) in (1, 2, 3):
+                tp_level = fallback_level = int(raw)
+            else:   # AUTO
+                try:
+                    from .tp_picker import pick_tp_level
+                    sel = pick_tp_level(signal, min_sample=int(os.getenv("TP_PROB_MIN_SAMPLE", "20")),
+                                        fallback_level=2)
+                    tp_level = int(sel.get("level") or 2)
+                    fallback_level = tp_level
+                    store.update("signals", signal["id"], {"tp_selection": sel})
+                    if sel.get("source") == "probability":
+                        _log(f"TP level {tp_level} selected by probability "
+                             f"(P(1R)={sel.get('p1')}, P(2R)={sel.get('p2')}, P(3R)={sel.get('p3')}, "
+                             f"n={sel.get('n')}).", market, kind="EXEC")
+                except Exception:
+                    tp_level = 2
         tp = signal.get(f"tp{max(1, min(3, tp_level))}") or signal.get("tp1")
 
         if mode == "vps":
@@ -549,6 +608,33 @@ def execute_signal(signal: dict, user_id: str) -> None:
                 _log(f"Prop-firm cap check failed ({type(_pf_exc).__name__}) - "
                      "continuing with the standard risk math.", market,
                      kind="EXEC_WARN")
+            # UNIVERSAL PRE-TRADE VALIDATION (owner brief 2026-10-24, s.3):
+            # the composed order must match the strategy's own rules exactly -
+            # direction, sides, configured R:R, sizing - and the live market
+            # must still sit near the intended entry. Refuse, never repair.
+            _ref = _reference_price(market)
+            if _ref is None:
+                _reject_pretrade(store, signal, user_id, market, "NO_PRICE_REFERENCE",
+                                 "no trustworthy live price for the entry-drift check")
+                return
+            store.update("signals", signal["id"],
+                         {"order_rr": _planned_rr(entry, sl, tp)})
+            _ok, _code, _why = validate_order(
+                market=market, direction=signal.get("direction"),
+                entry=entry, sl=sl, tp=tp, lots=lots,
+                intended_rr=signal.get("rr_primary"),
+                declared_tps=[signal.get("tp1"), signal.get("tp2"), signal.get("tp3")],
+                symbol_known=market in PIP_SIZE,
+                strategy_status=(store.list("strategies", filters={"id": signal.get("strategy_id")}, limit=1) or [{}])[0].get("status"),
+                lifecycle=_life, pip_size=PIP_SIZE.get(market),
+                pip_value=PIP_VALUE.get(market), min_stop_pips=MIN_STOP_PIPS,
+                balance=float(acct.get("balance") or 0.0),
+                eff_risk_pct=risk_pct * LOT_MODE_MULT.get(_mode, 1.0),
+                lots_cap=MAX_LOTS, dup_checked=True, budgets_allowed=True,
+                reference_price=_ref)
+            if not _ok:
+                _reject_pretrade(store, signal, user_id, market, _code, _why)
+                return
             _emit(user_id, "ENTRY", "REQUESTED", market=market, signal=signal,
                   detail=f"{signal['direction']} {lots} lots @ {entry}, SL {sl}, TP {tp}")
             _t0 = time.time()
@@ -632,6 +718,32 @@ def execute_signal(signal: dict, user_id: str) -> None:
                 _log(f"Prop-firm cap check failed ({type(_pf_exc).__name__}) - "
                      "continuing with the standard risk math.", market,
                      kind="EXEC_WARN")
+            # UNIVERSAL PRE-TRADE VALIDATION (static checks at queue time;
+            # the live entry-drift guard does not apply here - there is no
+            # authoritative cloud-side price while the connector is offline;
+            # the queue carries the signal's own levels untouched).
+            # Refuse, never repair. (Dup protection: single authorized trader,
+            # the connector acks each signal_id once - unchanged semantics.)
+            _ref = None
+            if signal.get("id"):
+                store.update("signals", signal["id"],
+                             {"order_rr": _planned_rr(entry, sl, tp)})
+            _ok, _code, _why = validate_order(
+                market=market, direction=signal.get("direction"),
+                entry=entry, sl=sl, tp=tp, lots=lots,
+                intended_rr=signal.get("rr_primary"),
+                declared_tps=[signal.get("tp1"), signal.get("tp2"), signal.get("tp3")],
+                symbol_known=market in PIP_SIZE,
+                strategy_status=(store.list("strategies", filters={"id": signal.get("strategy_id")}, limit=1) or [{}])[0].get("status"),
+                lifecycle=_life, pip_size=PIP_SIZE.get(market),
+                pip_value=PIP_VALUE.get(market), min_stop_pips=MIN_STOP_PIPS,
+                balance=float(bal or 0.0),
+                eff_risk_pct=risk_pct * LOT_MODE_MULT.get(_mode, 1.0),
+                lots_cap=MAX_LOTS, dup_checked=True, budgets_allowed=True,
+                reference_price=_ref)
+            if not _ok:
+                _reject_pretrade(store, signal, user_id, market, _code, _why)
+                return
             cmd = store.create("exec_commands", {
                 "userId": user_id, "signal_doc_id": signal["id"],
                 "signal_id": signal["signal_id"], "status": "PENDING",
@@ -666,11 +778,26 @@ def execute_signal(signal: dict, user_id: str) -> None:
 
 
 def _apply_fill(store, signal: dict, res: dict, lots: float) -> None:
+    """Record the broker fill WITH the R:R truth (owner brief 2026-10-24):
+    intended_rr = the strategy's configured multiple; executed_rr = the same
+    levels measured from the ACTUAL fill; entry_slippage = fill - entry."""
+    _int_rr = _exec_rr = _slip = None
+    try:
+        e, sl, tp = float(signal["entry"]), float(signal["sl"]), float(signal.get("tp1") or 0)
+        if abs(e - sl) > 0:
+            _int_rr = round(abs(tp - e) / abs(e - sl), 4)
+        fill = res.get("price")
+        if fill and float(fill) > 0 and abs(float(fill) - sl) > 0:
+            _exec_rr = round(abs(tp - float(fill)) / abs(float(fill) - sl), 4)
+            _slip = round(float(fill) - e, 5)
+    except Exception:
+        pass
     store.update("signals", signal["id"], {
         "execution_status": "SUBMITTED", "mt5_ticket": res.get("ticket"),
         "mt5_position_id": res.get("position_id"), "mt5_volume": res.get("volume") or lots,
         "mt5_open_price": res.get("price"),
         "mt5_symbol": res.get("symbol"),   # broker-resolved name (suffix/alias included)
+        "intended_rr": _int_rr, "executed_rr": _exec_rr, "entry_slippage": _slip,
         "mt5_executed_at": datetime.now(timezone.utc).isoformat()})
     _emit(signal.get("userId") or settings.owner_user_id, "ENTRY", "CONFIRMED",
           market=signal.get("market"), signal=signal,

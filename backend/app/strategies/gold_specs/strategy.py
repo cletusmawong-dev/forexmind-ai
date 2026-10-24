@@ -26,8 +26,13 @@ class GoldSpecStrategy(BaseStrategy):
     name = ""
     short_name = ""
     description = ""
-    version = "1.0"
-    markets = ["XAUUSD"]
+    version = "1.1"
+    # OWNER BRIEF 2026-10-24 (s.1): no instrument is hardcoded. The specs'
+    # RULES are fixed per strategy; the INSTRUMENTS follow the user's
+    # selected markets (Settings -> Allowed markets). Each selected pair is
+    # scanned independently with the same deterministic rules.
+    markets = None                            # None = every scanned market
+    configured_rr = None                      # spec target multiple (subclass)
     timeframes = ["15M", "1H", "4H", "1D"]   # scanned tfs; the engine reads
     min_bars = 3                             # its own base frame
     base_params: Dict[str, Any] = {}
@@ -48,7 +53,8 @@ class GoldSpecStrategy(BaseStrategy):
                       higher_frames: Optional[Dict[str, pd.DataFrame]] = None,
                       score_context: Optional[Dict[str, Any]] = None,
                       lookback: int = 3) -> Optional[Candidate]:
-        if market not in self.markets or timeframe not in self.timeframes:
+        if (self.markets and market not in self.markets) \
+                or timeframe not in self.timeframes:
             return None
         if df is None and not (higher_frames or {}):
             return None
@@ -63,11 +69,16 @@ class GoldSpecStrategy(BaseStrategy):
         risk = abs(entry - sl)
         if risk <= 0:
             return None
+        rr = float(res.get("tp_r", abs(tp - entry) / risk))
+        if self.configured_rr and abs(rr - self.configured_rr) > 0.02:
+            # spec integrity: the engine must produce the spec's own target
+            # multiple - anything else is an engine bug, not a trade
+            return None
         return Candidate(
             strategy_id=self.id, market=market, timeframe=self.base_tf,
             direction=direction, candle_time=str(res.get("signal_time") or ""),
             entry=entry, entry_zone=[entry, entry], sl=sl, tps=[tp],
-            risk=risk, rr_primary=float(res.get("tp_r", abs(tp - entry) / risk)),
+            risk=risk, rr_primary=rr,
             score=60, score_components={"spec_rule": 60.0},
             checks=list(res.get("checks") or []),
             analysis=str(res.get("summary", "spec setup")),
@@ -119,11 +130,13 @@ class H1TrendBreakoutStrategy(GoldSpecStrategy):
     id = h1_trend_breakout.STRATEGY_ID
     name = "FOREXMIND H1 Trend Breakout"
     short_name = "H1 Trend Breakout"
-    description = ("Spec v1 (2026-10-10), XAUUSD H1: close beyond the prior "
+    description = ("Spec v1 (2026-10-10) H1: close beyond the prior "
                    "20-bar high/low plus 0.05xATR14, EMA20>EMA50 on H1 and "
                    "EMA20>EMA50>EMA200 on H4 (short: inverse), ADX14 > 25; "
                    "entry at the next M15 open; stop 1.2xATR14; target 1.25R; "
-                   "break-even at +0.5R. Long and short.")
+                   "break-even at +0.5R. Long and short. Trades the markets "
+                   "selected in Settings.")
+    configured_rr = 1.25
     base_tf = "1H"
     required_frames = ("1H", "M15", "4H")     # M15 = the entry reference frame
     engine_id = "forexmind_h1_trend_breakout"
@@ -143,11 +156,13 @@ class GoldOrbStrategy(GoldSpecStrategy):
     id = gold_orb.STRATEGY_ID
     name = "FOREXMIND Gold ORB"
     short_name = "Gold ORB"
-    description = ("Spec v1 (2026-10-10), XAUUSD M5 UTC: opening range from "
+    description = ("Spec v1 (2026-10-10) M5 UTC: opening range from "
                    "the six M5 candles 13:30-13:55; long on the FIRST candle "
                    "in 14:00-16:59 UTC closing above the range high (close > "
                    "open); entry at that close; stop at the range low; target "
-                   "1.5R; break-even at +1R; one trade per opening range.")
+                   "1.5R; break-even at +1R; one trade per opening range. "
+                   "Trades the markets selected in Settings.")
+    configured_rr = 1.5
     base_tf = "5M"
     required_frames = ("5M",)
     engine_id = "forexmind_gold_orb"

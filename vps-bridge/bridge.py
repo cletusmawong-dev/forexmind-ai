@@ -79,6 +79,9 @@ ALIASES.update(parse_symbol_aliases(os.getenv("SYMBOL_ALIASES", "")))
 
 
 def resolve_symbol(market: str) -> str:
+    """Exact broker name -> configured aliases -> prefix match. NEVER falls
+    back to a different instrument: a failed resolution raises and the error
+    names the requested symbol (owner brief 2026-10-24 s.1)."""
     want = market.upper()
     with _mt5_lock:
         _ensure()
@@ -92,11 +95,14 @@ def resolve_symbol(market: str) -> str:
             for n in names:
                 if n.upper() == cand.upper():
                     return n
-        for cand in candidates:          # fuzzy: startswith/contains
+        for cand in candidates:          # suffix convention: BROKER + "m"/".m"/"pro"/...
             for n in names:
                 if n.upper().startswith(cand.upper()):
+                    print(f"[bridge] symbol '{market}' resolved via prefix to broker '{n}'", flush=True)
                     return n
-    raise HTTPException(404, f"no MT5 symbol matches {market}")
+    print(f"[bridge] SYMBOL RESOLUTION FAILED for '{market}' - no order sent", flush=True)
+    raise HTTPException(404, f"no MT5 symbol matches '{market}' - order refused; "
+                             f"configure SYMBOL_ALIASES for this broker naming")
 
 
 def normalize_lots(symbol: str, lots: float) -> float:
@@ -174,16 +180,25 @@ def execute(order: OrderIn, x_bridge_token: Optional[str] = Header(None)):
             raise HTTPException(503, f"no tick for {symbol} (market closed?)")
         is_buy = order.direction.upper() == "BUY"
         price = tick.ask if is_buy else tick.bid
+        digits = int(getattr(info, "digits", 5) or 5)
+
+        def _norm(px: float) -> float:
+            """Broker expects prices AT the symbol's tick size (owner brief
+            2026-10-24 s.2). Rounding to digits changes nothing meaningful -
+            it strips sub-point float noise so valid orders don't die on
+            retcode 10016 'Invalid stops'. Levels are never moved."""
+            return round(float(px), digits)
+
         req = {
             "action": mt5.TRADE_ACTION_DEAL,
             "symbol": symbol,
             "volume": normalize_lots(symbol, order.lots),
             "type": mt5.ORDER_TYPE_BUY if is_buy else mt5.ORDER_TYPE_SELL,
-            "price": price,
+            "price": _norm(price),
             # MT5 wants 0.0 for "absent", not None (None -> order_send returns
             # None with 'Invalid "tp" argument')
-            "sl": float(order.sl or 0.0),
-            "tp": float(order.tp or 0.0),
+            "sl": _norm(order.sl or 0.0),
+            "tp": _norm(order.tp or 0.0),
             "deviation": order.deviation,
             "magic": order.magic,
             "comment": order.signal_id[:31],   # MT5 comment limit
@@ -194,6 +209,11 @@ def execute(order: OrderIn, x_bridge_token: Optional[str] = Header(None)):
     if res is None:
         raise HTTPException(503, f"order_send returned None: {mt5.last_error()}")
     if res.retcode != mt5.TRADE_RETCODE_DONE:
+        if res.retcode == 10016:   # Invalid stops - report the exact geometry
+            stops = float(getattr(info, "trade_stops_level", 0) or 0) * float(getattr(info, "point", 0.0) or 0.0)
+            raise HTTPException(400, f"MT5 retcode 10016 Invalid stops on {symbol} "
+                                     f"(digits {digits}): sl={req['sl']} tp={req['tp']} "
+                                     f"price={req['price']} min_stop_distance={stops}")
         raise HTTPException(400, f"MT5 retcode {res.retcode}: {res.comment}")
     return {"ok": True, "ticket": res.order,
             # Exness fills res.order; res.position may be 0/None on market

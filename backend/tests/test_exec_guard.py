@@ -8,6 +8,7 @@ invalidated on create -> two docs shared one signal_id. Order latency (user:
 "supposed to fill at 1:11, filled 1:13") traced to the fixed 60s loop tick
 missing candle boundaries by up to a minute.
 """
+import json
 import pytest
 
 from app.config import settings
@@ -30,8 +31,15 @@ def env(monkeypatch, tmp_path):
                 "volume": payload["lots"], "price": 1.10}
 
     monkeypatch.setattr(X, "bridge_post", fake_post)
-    monkeypatch.setattr(X, "bridge_get",
-                        lambda p, timeout=8: {"balance": 1000} if p == "/account" else None)
+    def rates_aware(p, timeout=8):
+        if p == "/account":
+            return {"balance": 1000}
+        if p.startswith("/rates"):
+            m = "XAUUSD" if "XAUUSD" in p else "EURUSD"
+            px = 4350.0 if m == "XAUUSD" else 1.1000
+            return json.loads(f'{{"bars": [{{"c": {px}}}]}}')
+        return None
+    monkeypatch.setattr(X, "bridge_get", rates_aware)
     return store, sent
 
 

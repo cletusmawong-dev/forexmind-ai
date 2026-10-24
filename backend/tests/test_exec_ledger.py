@@ -15,6 +15,7 @@ import os
 import time
 from datetime import datetime, timezone
 
+import json
 import pytest
 from fastapi.testclient import TestClient
 
@@ -80,7 +81,7 @@ def test_entry_lifecycle_confirmed(world):
     store.create("signals", dict(SIG))
     from app.execution import mt5 as X
     orig_get, orig_post = X.bridge_get, X.bridge_post
-    X.bridge_get = lambda p, timeout=8: {"balance": 1000} if p == "/account" else {}
+    X.bridge_get = lambda p, timeout=8: {"balance": 1000} if p == "/account" else (json.loads('{"bars": [{"c": 1.1000}]}') if p.startswith("/rates") else {})
     X.bridge_post = lambda p, payload, timeout=15: \
         {"ok": True, "ticket": 777, "volume": 0.1, "price": 1.1}
     try:
@@ -100,7 +101,7 @@ def test_entry_lifecycle_failed(world):
     store.create("signals", dict(SIG))
     from app.execution import mt5 as X
     orig_get, orig_post = X.bridge_get, X.bridge_post
-    X.bridge_get = lambda p, timeout=8: {"balance": 1000} if p == "/account" else {}
+    X.bridge_get = lambda p, timeout=8: {"balance": 1000} if p == "/account" else (json.loads('{"bars": [{"c": 1.1000}]}') if p.startswith("/rates") else {})
     X.bridge_post = lambda p, payload, timeout=15: {"ok": False, "error": "requote"}
     try:
         X.execute_signal(store.get("signals", "sg1"), "boss")

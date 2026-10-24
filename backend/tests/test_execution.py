@@ -1,4 +1,5 @@
 """MT5 execution policy: caps, kill switch, lot math, deal sync (bridge mocked)."""
+import json
 import pytest
 
 from app.config import settings
@@ -38,7 +39,7 @@ def test_calc_lot_matches_app_calculator():
 
 def test_execute_submits_and_records(monkeypatch):
     calls = {}
-    monkeypatch.setattr(X, "bridge_get", lambda p, timeout=8: {"balance": 1000} if p == "/account" else None)
+    monkeypatch.setattr(X, "bridge_get", lambda p, timeout=8: {"balance": 1000} if p == "/account" else (json.loads('{"bars": [{"c": 1.1000}]}') if p.startswith("/rates") else None))
     def fake_post(path, payload, timeout=15):
         calls.update(payload)
         return {"ok": True, "ticket": 777, "position_id": 888, "volume": 0.05, "price": 1.0999}
@@ -53,7 +54,7 @@ def test_execute_submits_and_records(monkeypatch):
 def test_kill_switch_blocks(monkeypatch):
     X.set_execution_enabled("u1", False)
     sent = []
-    monkeypatch.setattr(X, "bridge_get", lambda p, timeout=8: {"balance": 1000})
+    monkeypatch.setattr(X, "bridge_get", lambda p, timeout=8: {"balance": 1000, **(json.loads('{"bars": [{"c": 1.1000}]}') if p.startswith("/rates") else {})})
     monkeypatch.setattr(X, "bridge_post", lambda p, payload, timeout=15: sent.append(payload))
     X.execute_signal(SIG, "u1")
     assert sent == []
@@ -75,7 +76,7 @@ def test_daily_cap(monkeypatch):
     for i in range(2):   # cap = 2
         store.create("signals", {"userId": "u1", "signal_id": f"S-{i}", "day": today,
                                  "mt5_ticket": 100 + i})
-    monkeypatch.setattr(X, "bridge_get", lambda p, timeout=8: {"balance": 1000})
+    monkeypatch.setattr(X, "bridge_get", lambda p, timeout=8: {"balance": 1000, **(json.loads('{"bars": [{"c": 1.1000}]}') if p.startswith("/rates") else {})})
     X.execute_signal(SIG, "u1")
     # C-2 (approved 2026-09-21): the branch now stamps a terminal status
     assert store.get("signals", "sig1").get("execution_status") == "SKIPPED_EXEC_DAILY_CAP"
@@ -218,7 +219,7 @@ def test_non_owner_signals_stay_advisory(monkeypatch):
     broker position (production incident: SIG-20260924-001 executed under
     the demo user). Non-owner -> advisory, bridge never called."""
     sent = []
-    monkeypatch.setattr(X, "bridge_get", lambda p, timeout=8: {"balance": 1000})
+    monkeypatch.setattr(X, "bridge_get", lambda p, timeout=8: {"balance": 1000, **(json.loads('{"bars": [{"c": 1.1000}]}') if p.startswith("/rates") else {})})
     monkeypatch.setattr(X, "bridge_post", lambda p, payload, timeout=15: sent.append(payload))
     env_store = X.get_store()
     X.execute_signal(SIG, "someone_else")
@@ -235,7 +236,7 @@ def test_skip_paths_notify_telegram(monkeypatch):
     notices = []
     monkeypatch.setattr(X, "notify",
                         lambda uid, t, title, body, **kw: notices.append((t, title)))
-    monkeypatch.setattr(X, "bridge_get", lambda p, timeout=8: {"balance": 1000})
+    monkeypatch.setattr(X, "bridge_get", lambda p, timeout=8: {"balance": 1000, **(json.loads('{"bars": [{"c": 1.1000}]}') if p.startswith("/rates") else {})})
     monkeypatch.setattr(X, "_executed_today", lambda uid: X.settings.execution_max_trades_per_day)
     X.execute_signal(SIG, "u1")
     assert store.get("signals", "sig1")["execution_status"] == "SKIPPED_EXEC_DAILY_CAP"
@@ -350,7 +351,7 @@ def test_execute_signal_uses_auto_tp(monkeypatch):
     monkeypatch.setattr(X.settings, "owner_user_id", "u1")
     monkeypatch.setattr(X.settings, "bridge_url", "http://fake-bridge:8700")
     monkeypatch.setattr(X.settings, "bridge_token", "tok")
-    monkeypatch.setattr(X, "bridge_get", lambda p, timeout=8: {"balance": 1000} if p == "/account" else None)
+    monkeypatch.setattr(X, "bridge_get", lambda p, timeout=8: {"balance": 1000} if p == "/account" else (json.loads('{"bars": [{"c": 1.1000}]}') if p.startswith("/rates") else None))
     sent = {}
     monkeypatch.setattr(X, "bridge_post", lambda p, payload, timeout=15: sent.update(payload) or {"ok": True, "ticket": 5})
     monkeypatch.setattr(X, "_executed_today", lambda uid: 0)
