@@ -20,7 +20,8 @@ def test_registry_has_only_the_owner_spec_pair():
     strategies; everything wiped earlier stays out."""
     from app.strategies import all_strategies, STRATEGY_CLASSES
     assert set(STRATEGY_CLASSES) == {"strategy_h1_trend_breakout",
-                                     "strategy_gold_orb"}
+                                     "strategy_gold_orb",
+                                     "strategy_tpc15_pullback"}
     assert set(all_strategies()) == set(STRATEGY_CLASSES)
 
 
@@ -42,10 +43,14 @@ def test_boot_purges_all_strategy_docs(tmp_path, monkeypatch):
                      doc_id=f"{sid}-evt")
     monkeypatch.setattr(vc, "get_store", lambda: store)
     vc.ensure_strategy_docs()
-    # the old five are purged; the two owner-spec strategies are created PAUSED
-    ids = {d["id"] for d in store.list("strategies", limit=1000)}
-    assert ids == {"strategy_h1_trend_breakout", "strategy_gold_orb"}
-    assert all(d["status"] == "PAUSED" for d in store.list("strategies", limit=1000))
+    # the old five are purged; the two owner-spec strategies are created
+    # PAUSED (spec rule 7), TPC-15 ACTIVE (owner directive 2026-10-24)
+    docs = {d["id"]: d for d in store.list("strategies", limit=1000)}
+    assert set(docs) == {"strategy_h1_trend_breakout", "strategy_gold_orb",
+                         "strategy_tpc15_pullback"}
+    for sid in ("strategy_h1_trend_breakout", "strategy_gold_orb"):
+        assert docs[sid]["status"] == "PAUSED"
+    assert docs["strategy_tpc15_pullback"]["status"] == "ACTIVE"
     for sid in ("strategy_1_vp_pivots", "strategy_2_ema_atr",
                 "strategy_2_supply_demand_fvg", "strategy_1_zero_lag",
                 "strategy_3_h1_breakout"):
@@ -53,7 +58,7 @@ def test_boot_purges_all_strategy_docs(tmp_path, monkeypatch):
         assert not store.list("strategy_versions", filters={"strategy_id": sid})
         assert not store.list("version_events", filters={"strategy_id": sid})
     vc.ensure_strategy_docs()          # idempotent - same state, no crash
-    assert len(store.list("strategy_versions", limit=1000)) == 2
+    assert len(store.list("strategy_versions", limit=1000)) == 3
 
 
 def test_registered_doc_would_survive_purge(tmp_path, monkeypatch):
@@ -87,7 +92,8 @@ def test_strategies_api_returns_zero():
             assert r.status_code == 200
             rows = r.json()["strategies"]
             assert {x["id"] for x in rows} == {"strategy_h1_trend_breakout",
-                                               "strategy_gold_orb"}
+                                               "strategy_gold_orb",
+                                               "strategy_tpc15_pullback"}
     finally:
         # never leak the override into other test files (full-suite isolation)
         app.dependency_overrides.pop(get_user_id, None)

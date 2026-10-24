@@ -27,10 +27,15 @@ from .base import BaseStrategy, Candidate
 # PAUSED (see learning.versions.START_PAUSED) - activation is an explicit
 # owner step after tests, historical validation and forward demo testing.
 from .gold_specs import GoldOrbStrategy, H1TrendBreakoutStrategy
+from .tpc15.live import TPC15PullbackStrategy
 
 STRATEGY_CLASSES: Dict[str, Type[BaseStrategy]] = {
     H1TrendBreakoutStrategy.id: H1TrendBreakoutStrategy,
     GoldOrbStrategy.id: GoldOrbStrategy,
+    # Owner directive 2026-10-24 ("Make the tpc-15 live"): registered with a
+    # boot-ACTIVE doc (deliberately NOT in START_PAUSED) and lifecycle LIVE.
+    # Rules are the owner's guide, unmodified; instrument-agnostic.
+    TPC15PullbackStrategy.id: TPC15PullbackStrategy,
 }
 
 _INSTANCES: Dict[str, BaseStrategy] = {}

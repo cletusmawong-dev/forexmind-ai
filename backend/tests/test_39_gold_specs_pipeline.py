@@ -1,7 +1,7 @@
 """Gold specs in the LIVE pipeline (2026-10-10).
 
-The two spec strategies are the only registered strategies after the owner
-wipe. Per spec rule 7 their docs are created PAUSED: nothing is scanned,
+The two spec strategies (plus TPC-15, owner-registered 2026-10-24) are the
+registered strategies after the owner wipe. Per spec rule 7 their docs are created PAUSED: nothing is scanned,
 no signal can be created, nothing can trade - activation is an explicit
 owner step. These tests pin that state AND prove the activation path works
 (PATCH to ACTIVE -> scan -> signal -> executor stays honest in tests).
@@ -14,10 +14,10 @@ NEW_IDS = ("strategy_h1_trend_breakout", "strategy_gold_orb")
 # ------------------------------------------------------------- registry
 def test_registry_contains_exactly_the_two_specs():
     import app.strategies as reg
-    assert set(reg.STRATEGY_CLASSES.keys()) == set(NEW_IDS)
+    assert set(reg.STRATEGY_CLASSES.keys()) == set(NEW_IDS) | {"strategy_tpc15_pullback"}
     for sid in NEW_IDS:
         s = reg.STRATEGY_CLASSES[sid]()
-        assert s.markets == ["XAUUSD"]
+        assert s.markets is None   # owner brief 2026-10-24: no instrument pin
         assert s.base_params == {} and s.experiment_variables == {}   # spec-fixed
 
 
@@ -161,8 +161,11 @@ def test_strategies_api_lists_both_paused():
             r = c.get("/api/strategies")
             assert r.status_code == 200
             rows = r.json()["strategies"]
-            assert {s["id"] for s in rows} == set(NEW_IDS)
-            assert all(s["status"] == "PAUSED" for s in rows)
+            by_id = {s["id"]: s for s in rows}
+            assert set(by_id) == set(NEW_IDS) | {"strategy_tpc15_pullback"}
+            for sid in NEW_IDS:
+                assert by_id[sid]["status"] == "PAUSED"    # spec rule 7 holds
+            assert by_id["strategy_tpc15_pullback"]["status"] == "ACTIVE"
     finally:
         app.dependency_overrides.pop(get_user_id, None)
         State.store = _prev

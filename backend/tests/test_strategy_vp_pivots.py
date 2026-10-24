@@ -106,7 +106,8 @@ def test_owner_specs_are_the_only_registered_strategies():
     unregistered but importable for signal history."""
     import app.strategies as reg
     assert set(reg.STRATEGY_CLASSES) == {"strategy_h1_trend_breakout",
-                                         "strategy_gold_orb"}
+                                         "strategy_gold_orb",
+                                         "strategy_tpc15_pullback"}
     from app.strategies.strategy_1_vp_pivots.strategy import VPPivotsStrategy
     assert VPPivotsStrategy().id == "strategy_1_vp_pivots"
 
@@ -362,9 +363,12 @@ def test_owner_wipe_boot_purges_all_strategy_docs(store):
     """OWNER WIPE 2026-10-10 + owner spec pair: the boot reconciliation
     purges the wiped strategies' docs and creates the two spec strategies
     PAUSED (spec rule 7)."""
-    ids = {d["id"] for d in store.list("strategies", limit=1000)}
-    assert ids == {"strategy_h1_trend_breakout", "strategy_gold_orb"}
-    assert all(d["status"] == "PAUSED" for d in store.list("strategies", limit=1000))
+    docs = {d["id"]: d for d in store.list("strategies", limit=1000)}
+    assert set(docs) == {"strategy_h1_trend_breakout", "strategy_gold_orb",
+                         "strategy_tpc15_pullback"}
+    for sid in ("strategy_h1_trend_breakout", "strategy_gold_orb"):
+        assert docs[sid]["status"] == "PAUSED"    # spec rule 7
+    assert docs["strategy_tpc15_pullback"]["status"] == "ACTIVE"  # owner 2026-10-24
 
 
 def test_set_param_direct_after_wipe_rejects_unknown(store):
