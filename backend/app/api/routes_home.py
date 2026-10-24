@@ -15,7 +15,8 @@ missing data is reported honestly (null / "NO DATA"), never faked.
 from __future__ import annotations
 
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from pandas import Timedelta
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends
@@ -166,7 +167,31 @@ def _account_and_status(user_id: str) -> Dict[str, Any]:
         "risk_per_trade_pct": prog.get("risk_per_trade_pct"),
         "trades_today": ex.get("trades_today"),
         "max_per_day": ex.get("max_per_day"),
+        # owner request 2026-10-24: trades taken THIS WEEK (rolling 7 days,
+        # broker-confirmed fills only - mt5_ticket present, never estimates)
+        **_week_trades(user_id),
     }
+
+
+def _week_trades(user_id: str) -> Dict[str, Any]:
+    """Executed trades in the last 7 days: signals with a broker ticket
+    (mt5_ticket), counted from the journal stores - no estimates."""
+    try:
+        cutoff = (datetime.now(timezone.utc) - Timedelta(days=7)).isoformat()
+        rows = _store().list("signals", filters={"userId": user_id}, limit=1000)
+        rows.sort(key=lambda d: d.get("createdAt") or "", reverse=True)
+        taken = wins = 0
+        for r in rows:
+            created = str(r.get("createdAt") or "")
+            if created < cutoff:
+                break                       # sorted newest-first: done early
+            if r.get("mt5_ticket"):
+                taken += 1
+                if r.get("completed") and float(r.get("r_multiple") or 0) > 0:
+                    wins += 1
+        return {"week_trades": taken, "week_wins": wins}
+    except Exception:
+        return {"week_trades": None, "week_wins": None}
 
 
 def _goal_balance(user_id: str) -> Optional[float]:

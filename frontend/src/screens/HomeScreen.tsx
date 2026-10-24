@@ -213,8 +213,8 @@ export function HomeScreen() {
                   : "DATA UNAVAILABLE - connect your MT5 bridge"}
             </p>
 
-            {/* account facts: today / open / drawdown - broker truth or honest empty */}
-            <div className="mt-4 grid grid-cols-3 gap-2">
+            {/* account facts: today / open / drawdown / week - broker truth or honest empty */}
+            <div className="mt-4 grid grid-cols-4 gap-2">
               <div className="rounded-2xl border border-[rgba(var(--warm-rgb),0.09)] bg-[rgba(var(--bg-primary-rgb,20,24,33),0.35)] px-3 py-2.5">
                 <div className="text-[8.5px] font-bold uppercase tracking-[0.14em] text-txt-faint">Today P/L</div>
                 <div className={`num mt-1 text-[14px] font-extrabold ${upToday ? "text-pos" : "text-neg"}`}>
@@ -235,6 +235,15 @@ export function HomeScreen() {
                 <div className="text-[8.5px] font-bold uppercase tracking-[0.14em] text-txt-faint">Drawdown</div>
                 <div className="num mt-1 text-[14px] font-extrabold text-neg">
                   {acct.drawdown_pct != null && acct.drawdown_pct > 0 ? `${acct.drawdown_pct.toFixed(2)}%` : "0.00%"}
+                </div>
+              </div>
+              <div className="rounded-2xl border border-[rgba(var(--warm-rgb),0.09)] bg-[rgba(var(--bg-primary-rgb,20,24,33),0.35)] px-3 py-2.5">
+                <div className="text-[8.5px] font-bold uppercase tracking-[0.14em] text-txt-faint">Week Trades</div>
+                <div className="num mt-1 text-[14px] font-extrabold">
+                  {acct.week_trades != null ? acct.week_trades : "-"}
+                </div>
+                <div className="text-[8px] text-txt-faint">
+                  {acct.week_wins != null ? `${acct.week_wins} win${acct.week_wins === 1 ? "" : "s"}` : "last 7 days"}
                 </div>
               </div>
             </div>

@@ -27,6 +27,7 @@ from .base import BaseStrategy, Candidate
 # PAUSED (see learning.versions.START_PAUSED) - activation is an explicit
 # owner step after tests, historical validation and forward demo testing.
 from .gold_specs import GoldOrbStrategy, H1TrendBreakoutStrategy
+from .research_only.live import TrendBreakStrategy, ZoneSweepStrategy
 from .tpc15.live import TPC15PullbackStrategy
 
 STRATEGY_CLASSES: Dict[str, Type[BaseStrategy]] = {
@@ -36,6 +37,12 @@ STRATEGY_CLASSES: Dict[str, Type[BaseStrategy]] = {
     # boot-ACTIVE doc (deliberately NOT in START_PAUSED) and lifecycle LIVE.
     # Rules are the owner's guide, unmodified; instrument-agnostic.
     TPC15PullbackStrategy.id: TPC15PullbackStrategy,
+    # Owner directive 2026-10-24 ("implement the strategies per the rules,
+    # add it to the app and make them live"): the two research candidates
+    # go live through thin adapters - rules UNCHANGED, the spec's own
+    # market list enforced (EURUSD/GBPUSD/USDJPY/XAUUSD, no XAGUSD).
+    TrendBreakStrategy.id: TrendBreakStrategy,
+    ZoneSweepStrategy.id: ZoneSweepStrategy,
 }
 
 _INSTANCES: Dict[str, BaseStrategy] = {}

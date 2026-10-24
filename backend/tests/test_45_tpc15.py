@@ -429,7 +429,8 @@ def test_tpc15_is_registered_and_live():
     from app.learning.versions import START_PAUSED, lifecycle_of
     assert set(reg.STRATEGY_CLASSES.keys()) == {
         "strategy_h1_trend_breakout", "strategy_gold_orb",
-        "strategy_tpc15_pullback"}
+        "strategy_tpc15_pullback", "strategy_trendbreak_h1",
+        "strategy_zonesweep_m15"}
     assert "strategy_tpc15_pullback" not in START_PAUSED   # boot-ACTIVE doc
     assert lifecycle_of("strategy_tpc15_pullback") == "LIVE"
 
