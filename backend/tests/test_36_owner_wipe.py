@@ -23,7 +23,8 @@ def test_registry_has_only_the_owner_spec_pair():
                                      "strategy_gold_orb",
                                      "strategy_tpc15_pullback",
                                      "strategy_trendbreak_h1",
-                                     "strategy_zonesweep_m15"}
+                                     "strategy_zonesweep_m15",
+                                     "strategy_trendbreak_v2"}
     assert set(all_strategies()) == set(STRATEGY_CLASSES)
 
 
@@ -50,10 +51,11 @@ def test_boot_purges_all_strategy_docs(tmp_path, monkeypatch):
     docs = {d["id"]: d for d in store.list("strategies", limit=1000)}
     assert set(docs) == {"strategy_h1_trend_breakout", "strategy_gold_orb",
                          "strategy_tpc15_pullback", "strategy_trendbreak_h1",
-                         "strategy_zonesweep_m15"}
+                         "strategy_zonesweep_m15", "strategy_trendbreak_v2"}
     for sid in ("strategy_h1_trend_breakout", "strategy_gold_orb"):
         assert docs[sid]["status"] == "PAUSED"
     assert docs["strategy_tpc15_pullback"]["status"] == "ACTIVE"
+    assert docs["strategy_trendbreak_v2"]["status"] == "ACTIVE"
     for sid in ("strategy_1_vp_pivots", "strategy_2_ema_atr",
                 "strategy_2_supply_demand_fvg", "strategy_1_zero_lag",
                 "strategy_3_h1_breakout"):
@@ -61,7 +63,7 @@ def test_boot_purges_all_strategy_docs(tmp_path, monkeypatch):
         assert not store.list("strategy_versions", filters={"strategy_id": sid})
         assert not store.list("version_events", filters={"strategy_id": sid})
     vc.ensure_strategy_docs()          # idempotent - same state, no crash
-    assert len(store.list("strategy_versions", limit=1000)) == 5
+    assert len(store.list("strategy_versions", limit=1000)) == 6
 
 
 def test_registered_doc_would_survive_purge(tmp_path, monkeypatch):
@@ -98,7 +100,8 @@ def test_strategies_api_returns_zero():
                                                "strategy_gold_orb",
                                                "strategy_tpc15_pullback",
                                                "strategy_trendbreak_h1",
-                                               "strategy_zonesweep_m15"}
+                                               "strategy_zonesweep_m15",
+                                               "strategy_trendbreak_v2"}
     finally:
         # never leak the override into other test files (full-suite isolation)
         app.dependency_overrides.pop(get_user_id, None)

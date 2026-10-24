@@ -435,7 +435,7 @@ def test_candidates_registered_via_adapters_only():
     assert set(reg.STRATEGY_CLASSES.keys()) == {
         "strategy_h1_trend_breakout", "strategy_gold_orb",
         "strategy_tpc15_pullback", "strategy_trendbreak_h1",
-        "strategy_zonesweep_m15"}
+        "strategy_zonesweep_m15", "strategy_trendbreak_v2"}
     for mod in (tb, zs):
         src = inspect.getsource(mod)
         assert "STRATEGY_CLASSES" not in src

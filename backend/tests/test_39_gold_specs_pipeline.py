@@ -14,7 +14,7 @@ NEW_IDS = ("strategy_h1_trend_breakout", "strategy_gold_orb")
 # ------------------------------------------------------------- registry
 def test_registry_contains_exactly_the_two_specs():
     import app.strategies as reg
-    assert set(reg.STRATEGY_CLASSES.keys()) == set(NEW_IDS) | {"strategy_tpc15_pullback", "strategy_trendbreak_h1", "strategy_zonesweep_m15"}
+    assert set(reg.STRATEGY_CLASSES.keys()) == set(NEW_IDS) | {"strategy_tpc15_pullback", "strategy_trendbreak_h1", "strategy_zonesweep_m15", "strategy_trendbreak_v2"}
     for sid in NEW_IDS:
         s = reg.STRATEGY_CLASSES[sid]()
         assert s.markets is None   # owner brief 2026-10-24: no instrument pin
@@ -163,7 +163,7 @@ def test_strategies_api_lists_both_paused():
             rows = r.json()["strategies"]
             by_id = {s["id"]: s for s in rows}
             live_ids = {"strategy_tpc15_pullback", "strategy_trendbreak_h1",
-                        "strategy_zonesweep_m15"}
+                        "strategy_zonesweep_m15", "strategy_trendbreak_v2"}
             assert set(by_id) == set(NEW_IDS) | live_ids
             for sid in NEW_IDS:
                 assert by_id[sid]["status"] == "PAUSED"    # spec rule 7 holds

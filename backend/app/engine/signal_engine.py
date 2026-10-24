@@ -410,8 +410,19 @@ class SignalEngine:
                 _inv_txt = f"\nInvalidation: the setup fails if SL {cand.sl:,.5g} is hit."
         except Exception:
             pass
-        if _rr is None or _tp0 is None:
+        _trail = bool(getattr(cand, "extra", None) and cand.extra.get("trail_only"))
+        if (_rr is None or _tp0 is None) and not _trail:
             raise ValueError("signal without valid TP cannot be messaged (s.8A)")
+        if _trail:
+            # Trail strategy (TrendBreak v2): NO fixed TP by rule - the s.8A
+            # message carries the exit plan instead (5xATR trail + time exit).
+            _xa = float((cand.extra or {}).get("atr") or 0)
+            _exit_txt = (f"\nExit plan: {5.0 if not _xa else ''}5xATR trailing "
+                         f"stop from best price (tighten-only)"
+                         + (f" - trail starts {abs(cand.entry - 5.0 * _xa):,.5g} away"
+                            if _xa > 0 else "")
+                         + " + 240-bar time exit. NO fixed TP by rule "
+                           "(owner Pine 2026-10-24); R:R open-ended.")
         try:
             from ..learning.probability import estimate as _prob_est
             closed = store.list("signals", filters={"completed": True}, limit=1000) or []
@@ -428,14 +439,23 @@ class SignalEngine:
                              {"tp_probability": {"status": "INSUFFICIENT_EVIDENCE"}})
         except Exception:
             pass
-        notify(user_id, "NEW_SIGNAL",
-               f"{'🟢' if cand.direction == 'BUY' else '🔴'} {cand.market} {cand.direction}",
-               f"{strategy.short_name}\n"
-               f"Entry {cand.entry:,.5g} - SL {cand.sl:,.5g} - "
-               f"TP {_tp0:,.5g}{'' if _rr is None else f' (RR 1:{_rr:.2f})'}."
-               f"{_mf_txt}{_inv_txt}{_prob_txt}\n"
-               f"Tap to view analysis.{_tf_line}",
-               signal_id=doc["id"])
+        if _trail:
+            notify(user_id, "NEW_SIGNAL",
+                   f"{'🟢' if cand.direction == 'BUY' else '🔴'} {cand.market} {cand.direction}",
+                   f"{strategy.short_name}\n"
+                   f"Entry {cand.entry:,.5g} - SL {cand.sl:,.5g}."
+                   f"{_exit_txt}{_mf_txt}{_inv_txt}\n"
+                   f"Tap to view analysis.{_tf_line}",
+                   signal_id=doc["id"])
+        else:
+            notify(user_id, "NEW_SIGNAL",
+                   f"{'🟢' if cand.direction == 'BUY' else '🔴'} {cand.market} {cand.direction}",
+                   f"{strategy.short_name}\n"
+                   f"Entry {cand.entry:,.5g} - SL {cand.sl:,.5g} - "
+                   f"TP {_tp0:,.5g}{'' if _rr is None else f' (RR 1:{_rr:.2f})'}."
+                   f"{_mf_txt}{_inv_txt}{_prob_txt}\n"
+                   f"Tap to view analysis.{_tf_line}",
+                   signal_id=doc["id"])
         self._log(f"{strategy.short_name}: {cand.direction} signal on {cand.market} "
                   f"{cand.timeframe} approved for notification.",
                   kind="SIGNAL", market=cand.market)

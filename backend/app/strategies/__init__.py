@@ -27,7 +27,9 @@ from .base import BaseStrategy, Candidate
 # PAUSED (see learning.versions.START_PAUSED) - activation is an explicit
 # owner step after tests, historical validation and forward demo testing.
 from .gold_specs import GoldOrbStrategy, H1TrendBreakoutStrategy
-from .research_only.live import TrendBreakStrategy, ZoneSweepStrategy
+from .research_only.live import (TrendBreakStrategy,
+                                      TrendBreakV2Strategy,
+                                      ZoneSweepStrategy)
 from .tpc15.live import TPC15PullbackStrategy
 
 STRATEGY_CLASSES: Dict[str, Type[BaseStrategy]] = {
@@ -43,6 +45,11 @@ STRATEGY_CLASSES: Dict[str, Type[BaseStrategy]] = {
     # market list enforced (EURUSD/GBPUSD/USDJPY/XAUUSD, no XAGUSD).
     TrendBreakStrategy.id: TrendBreakStrategy,
     ZoneSweepStrategy.id: ZoneSweepStrategy,
+    # Owner directive 2026-10-24 ("Add this too as a new strategy name it
+    # H1 very.2.0"): TrendBreak v2 (H1) - trail-riding (no fixed TP by
+    # rule); exits = 5xATR tighten-only trail + 240-bar time exit,
+    # maintained by the trade manager's strategy-owned block (engine 0a).
+    TrendBreakV2Strategy.id: TrendBreakV2Strategy,
 }
 
 _INSTANCES: Dict[str, BaseStrategy] = {}

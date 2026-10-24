@@ -29,6 +29,7 @@ import pandas as pd
 
 from ..base import BaseStrategy, Candidate
 from . import trendbreak as tb
+from . import trendbreak_v2 as tb2
 from . import zonesweep as zs
 from .trendbreak import SPEC as TB_SPEC
 from .zonesweep import SPEC as ZS_SPEC
@@ -148,6 +149,126 @@ class TrendBreakStrategy(_ResearchCandidateStrategy):
                   "detail": "H4 trend + first-bar 120-bar channel breakout "
                             "(spec rules, unmodified)"}],
                 "TrendBreak: H1 breakout with the H4 trend (1:3).")
+
+
+class TrendBreakV2Strategy(_ResearchCandidateStrategy):
+    """TrendBreak v2 (H1) - owner Pine port, made live (owner 2026-10-24).
+
+    Trail-riding strategy: NO take-profit by design - the exits are the
+    5xATR trail (tighten-only, maintained by the trade manager) and the
+    240-bar time exit. The order carries the initial 2.5xATR stop and no
+    TP (tp1 stays empty; the pre-trade validator accepts no-TP orders for
+    this strategy only). One position at a time per market (Pine's
+    position_size == 0 gate), enforced in detect_signal via the store.
+    """
+    id = "strategy_trendbreak_v2"
+    name = "TrendBreak v2 (H1)"
+    short_name = "H1 v2.0"
+    description = (
+        "TrendBreak v2 (H1) - owner Pine v6 port, live 2026-10-24. H1 "
+        "breakout in the H4 trend with gap and volatility filters: "
+        "|H4 EMA50-EMA200| > 2xATR, ATR percentrank(480) > 30%; 120-bar "
+        "channel, first breakout bar only; entry at the next H1 open; "
+        "initial stop 2.5xATR(signal bar); NO fixed target - trailing "
+        "stop 5xATR from the best price (only tightens) and a 240-bar "
+        "time exit. Spec markets: EURUSD, GBPUSD, USDJPY, XAUUSD.")
+    version = "1.0"
+    markets = list(tb2.SPEC["markets"])
+    timeframes = ["15M", "1H", "4H", "1D"]
+    min_bars = 500                      # percentrank window (480 + ATR 14)
+    base_params: Dict[str, Any] = {}
+    experiment_variables: Dict[str, Dict[str, Any]] = {}
+    configured_rr = None                # trail strategy: no fixed R:R
+    entry_tf = "1H"
+    context_tfs = ("4H",)
+
+    def _has_open_position(self, market: str) -> bool:
+        """Pine: strategy.position_size == 0 gate - one position at a time."""
+        try:
+            from ...db.store import get_store
+            rows = get_store().list("signals", filters={
+                "strategy_id": self.id, "market": market}, limit=50)
+            for r in rows:
+                if r.get("mt5_ticket") and not r.get("completed"):
+                    return True
+        except Exception:
+            return False                # fail-open? NO - fail honest: skip
+        return False
+
+    def detect_signal(self, df: Optional[pd.DataFrame], market: str,
+                      timeframe: str, params: Optional[Dict[str, Any]] = None,
+                      higher_frames: Optional[Dict[str, pd.DataFrame]] = None,
+                      score_context: Optional[Dict[str, Any]] = None
+                      ) -> Optional[Candidate]:
+        if market not in self.markets:
+            return None
+        if self._has_open_position(market):
+            return None                 # one position at a time (Pine gate)
+        h1, ctx = self._context(df, timeframe, higher_frames)
+        h4 = ctx.get("4H")
+        if h1 is None or h4 is None:
+            return None
+        res = tb2.evaluate(h1, h4, market=market)
+        if not isinstance(res, dict) or res.get("status") != tb2.SIGNAL:
+            return None
+        direction = res["direction"]
+        atr = float(res["atr"])
+        entry = float(h1["close"].iloc[-1])     # reference entry (signal close)
+        sign = 1.0 if direction == "BUY" else -1.0
+        sl = entry - sign * tb2.SPEC["stop_mult"] * atr
+        return Candidate(
+            strategy_id=self.id, market=market, timeframe="1H",
+            direction=direction, candle_time=str(res["signal_bar"]),
+            entry=entry, entry_zone=[entry, entry], sl=sl,
+            tps=[],                              # trail strategy: NO target
+            risk=abs(entry - sl), rr_primary=None,
+            score=60, score_components={"trendbreak_v2_rule": 60.0},
+            checks=list(res.get("checks") or []),
+            analysis="H1 breakout with H4 gap + volatility filters; "
+                     "initial stop 2.5xATR, 5xATR trail, no fixed target.",
+            params={}, params_version=self.version,
+            extra={"spec_id": tb2.SPEC["name"], "atr": atr,
+                   "entry_rule": "NEXT_BAR_OPEN", "trail_only": True,
+                   "session": (score_context or {}).get("session")})
+
+    def compute(self, df: pd.DataFrame, params: Dict[str, Any]) -> Dict[str, Any]:
+        return {"state": "trendbreak v2 engine (detect_signal only)"}
+
+    def detect_on_bar(self, state, i):
+        return None
+
+    def build_candidate(self, state, i, event, df, market, timeframe, params,
+                        higher_frames, score_context) -> Candidate:
+        direction = str(event.get("direction", "BUY"))
+        entry = float(event.get("entry", df["close"].iloc[i]))
+        sl = float(event.get("sl", entry))
+        return Candidate(strategy_id=self.id, market=market, timeframe="1H",
+                         direction=direction, candle_time=str(df.index[i]),
+                         entry=entry, entry_zone=[entry, entry], sl=sl,
+                         tps=[], risk=abs(entry - sl), rr_primary=None,
+                         score=60, score_components={"trendbreak_v2_rule": 60.0},
+                         checks=[], analysis="TrendBreak v2 setup",
+                         params={}, params_version=self.version,
+                         extra={"spec_id": tb2.SPEC["name"], "trail_only": True})
+
+    def calculate_risk(self, df, state, i, direction, params):
+        entry = float(df["close"].iloc[i])
+        atr_series = state.get("atr")
+        atr = float(atr_series.iloc[-1]) if atr_series is not None else 0.0
+        return {"entry": entry,
+                "sl": entry - sign * tb2.SPEC["stop_mult"] * atr
+                if (sign := (1.0 if direction == "BUY" else -1.0)) else entry,
+                "risk": tb2.SPEC["stop_mult"] * atr}
+
+    def calculate_targets(self, entry: float, risk: float, direction: str, params):
+        return []                            # trail strategy: no targets
+
+    def explain_signal(self, state, i, direction, params, extra):
+        return ([{"label": "TrendBreak v2 rules", "ok": True,
+                  "detail": "H4 trend + gap + volatility + first-bar "
+                            "breakout (Pine defaults, unmodified)"}],
+                "TrendBreak v2: H1 breakout, 2.5xATR stop, 5xATR trail, "
+                "no fixed target.")
 
 
 class ZoneSweepStrategy(_ResearchCandidateStrategy):

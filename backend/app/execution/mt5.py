@@ -81,6 +81,10 @@ LOT_MODE_MULT = {"low": 0.5, "medium": 1.0, "high": 1.5}
 # reject anyway (stop too close -> retcode 10016 'Invalid stops', seen live
 # on SIG-20260921-007 with a 2.2-pip SL) never go out; and the risk-% lot
 # math on a tiny SL can explode (0.77 lots) - a hard cap keeps that sane.
+# Trail strategies: exits are the managed trail + time exit - NO fixed TP
+# by rule (owner Pine 2026-10-24). Orders for these go out without a TP
+# (the bridge sends tp=0.0 to MT5) and the trade manager owns the exits.
+TRAIL_ONLY_STRATEGIES = {"strategy_trendbreak_v2"}
 MIN_STOP_PIPS = float(os.getenv("EXECUTION_MIN_STOP_PIPS", "6"))
 MAX_LOTS = float(os.getenv("EXECUTION_MAX_LOTS", "1.0"))
 
@@ -631,6 +635,7 @@ def execute_signal(signal: dict, user_id: str) -> None:
                 balance=float(acct.get("balance") or 0.0),
                 eff_risk_pct=risk_pct * LOT_MODE_MULT.get(_mode, 1.0),
                 lots_cap=MAX_LOTS, dup_checked=True, budgets_allowed=True,
+                allow_no_tp=signal.get("strategy_id") in TRAIL_ONLY_STRATEGIES,
                 reference_price=_ref)
             if not _ok:
                 _reject_pretrade(store, signal, user_id, market, _code, _why)
@@ -740,6 +745,7 @@ def execute_signal(signal: dict, user_id: str) -> None:
                 balance=float(bal or 0.0),
                 eff_risk_pct=risk_pct * LOT_MODE_MULT.get(_mode, 1.0),
                 lots_cap=MAX_LOTS, dup_checked=True, budgets_allowed=True,
+                allow_no_tp=signal.get("strategy_id") in TRAIL_ONLY_STRATEGIES,
                 reference_price=_ref)
             if not _ok:
                 _reject_pretrade(store, signal, user_id, market, _code, _why)
@@ -783,12 +789,15 @@ def _apply_fill(store, signal: dict, res: dict, lots: float) -> None:
     levels measured from the ACTUAL fill; entry_slippage = fill - entry."""
     _int_rr = _exec_rr = _slip = None
     try:
-        e, sl, tp = float(signal["entry"]), float(signal["sl"]), float(signal.get("tp1") or 0)
-        if abs(e - sl) > 0:
-            _int_rr = round(abs(tp - e) / abs(e - sl), 4)
+        _tp_raw = signal.get("tp1")
+        _tp = float(_tp_raw) if _tp_raw not in (None, "", 0) else None
+        e, sl = float(signal["entry"]), float(signal["sl"])
         fill = res.get("price")
+        if _tp is not None and abs(e - sl) > 0:
+            _int_rr = round(abs(_tp - e) / abs(e - sl), 4)
         if fill and float(fill) > 0 and abs(float(fill) - sl) > 0:
-            _exec_rr = round(abs(tp - float(fill)) / abs(float(fill) - sl), 4)
+            if _tp is not None:
+                _exec_rr = round(abs(_tp - float(fill)) / abs(float(fill) - sl), 4)
             _slip = round(float(fill) - e, 5)
     except Exception:
         pass

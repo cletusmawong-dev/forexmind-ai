@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import threading
 import time
+
+import pandas as pd
 from typing import Any, Dict, List, Optional, Tuple
 
 from ..config import settings
@@ -258,6 +260,22 @@ class TradeManager:
         st = self._state.get(int(pos["ticket"]), {})
         out: Dict[str, Any] = {"actions": []}
 
+        # 0a) STRATEGY-OWNED DETERMINISTIC MANAGEMENT (TrendBreak v2): this
+        #     position's exits belong to the strategy's own rules (owner
+        #     Pine 2026-10-24) - a 5xATR trail from the best price since
+        #     entry (ONLY ever tightened) and the 240-bar time exit. The
+        #     generic TP ladder and position policy MUST NOT touch a
+        #     trail-only position: the strategy IS the management plan.
+        if (sig or {}).get("strategy_id") == "strategy_trendbreak_v2":
+            v2 = self._trendbreak_v2_manage(user_id, pos, sig)
+            out["actions"].extend(v2.get("actions", []))
+            st["last_review"] = now
+            st["last_pl"] = float(pos.get("profit") or 0)
+            recorder.record(user_id, pos, trigger, "deterministic", "local",
+                            None, True, v2.get("verdict", "TB2_TRAIL"),
+                            execution=v2, snapshot_ts=now)
+            return out
+
         # 0) TP-ladder deterministic layer FIRST (SS14-16): hard rules run
         #    regardless of AI availability/decisions (implemented in P9)
         ladder = self._tp_ladder(user_id, pos, sig, st, trigger)
@@ -426,6 +444,76 @@ class TradeManager:
     # ==================================================================
     # TP ladder (SS14/SS15/SS16) - deterministic, AI-independent
     # ==================================================================
+    def _trendbreak_v2_manage(self, user_id: str, pos: dict,
+                              sig: Optional[dict]) -> Dict[str, Any]:
+        """TrendBreak v2 (H1) deterministic exits (owner Pine 2026-10-24):
+        trail = best-price-so-far -/+ 5 x ATR(signal bar), applied ONLY
+        when it tightens the existing stop, and a time exit that closes
+        the position once 240 H1 bars have completed since entry. No TP
+        exists on this position by rule - nothing else to manage."""
+        actions: List[Dict[str, Any]] = []
+        try:
+            from ..strategies.research_only import trendbreak_v2 as tb2
+            market = pos.get("app_market") or pos.get("symbol", "")
+            is_buy = str(pos.get("type", "")).upper() == "BUY"
+            entry = float(pos.get("price_open") or 0)
+            sig_atr = float((sig or {}).get("atr") or 0)
+            cur_stop = pos.get("sl")
+            if cur_stop not in (None, "", 0):
+                cur_stop = float(cur_stop)
+            else:
+                cur_stop = None
+            if entry <= 0 or sig_atr <= 0:
+                return {"actions": [], "verdict": "TB2_NO_SIG_CONTEXT",
+                        "skip_ai": True}
+            df = None
+            if self.provider is not None:
+                try:
+                    df = self.provider.get_candles(market, "1H", limit=800)
+                except Exception:
+                    df = None
+            if df is None or len(df) < 5:
+                return {"actions": [], "verdict": "TB2_NO_DATA",
+                        "skip_ai": True}
+            idx = df.index if isinstance(df.index, pd.DatetimeIndex) else None
+            # bars closed since the fill: entry bar (partial) counts as bar 0
+            try:
+                import pandas as _pd
+                t0 = _pd.Timestamp((sig or {}).get("mt5_executed_at")
+                                   or (sig or {}).get("entry_time")
+                                   or df.index[-1])
+                if t0.tzinfo is None:
+                    t0 = t0.tz_localize("UTC")
+                else:
+                    t0 = t0.tz_convert("UTC")
+                cut = idx.searchsorted(t0) if idx is not None else 0
+                window = df.iloc[max(0, cut - 1):]
+            except Exception:
+                window = df
+            held = max(0, len(window) - 1)
+            best = (float(window["high"].max()) if is_buy
+                    else float(window["low"].min()))
+            trail = (best - tb2.SPEC["trail_mult"] * sig_atr if is_buy
+                     else best + tb2.SPEC["trail_mult"] * sig_atr)
+            tighten = (cur_stop is None or trail > cur_stop) if is_buy \
+                else (cur_stop is None or trail < cur_stop)
+            if tighten:
+                res = risk_gate.execute_plan(
+                    user_id, pos, {"modify_sl": round(trail, 6)},
+                    reason="TB2 trail (5xATR from best price, tighten-only)")
+                actions.append(res)
+            if held >= tb2.SPEC["max_bars"]:
+                res = risk_gate.execute_plan(
+                    user_id, pos, {"close_full": True},
+                    reason="TB2 time exit (240 H1 bars since entry)")
+                actions.append(res)
+            return {"actions": actions, "verdict": "TB2_TRAIL",
+                    "best": best, "trail": round(trail, 6),
+                    "held_bars": held, "sig_atr": sig_atr, "skip_ai": True}
+        except Exception as exc:
+            return {"actions": actions, "verdict": "TB2_ERROR",
+                    "error": type(exc).__name__, "skip_ai": True}
+
     def _tp_ladder(self, user_id: str, pos: dict, sig: Optional[dict],
                    st: dict, trigger: str) -> Dict[str, Any]:
         """Updates tp_state from live price and applies the hard rules:

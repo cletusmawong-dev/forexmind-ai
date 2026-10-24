@@ -92,6 +92,7 @@ def validate_order(
     lots_cap: float,
     dup_checked: bool = True,
     budgets_allowed: bool = True,
+    allow_no_tp: bool = False,     # trail strategies (no fixed target by rule)
     reference_price: Optional[float] = None,   # live market ref (vps path)
 ) -> Tuple[bool, str, str]:
     """Returns (ok, code, reason). Never raises."""
@@ -115,19 +116,41 @@ def validate_order(
             return False, "DIRECTION_INVALID", f"direction '{direction}' is not BUY/SELL"
         if not _finite_positive(entry, sl):
             return False, "PRICES_INVALID", "entry and SL must be finite positive numbers"
-        if tp is None or not _finite_positive(tp):
-            return False, "PRICES_INVALID", "TP missing or invalid - refusing to send an order without a target"
         risk_dist = abs(entry - sl)
         if risk_dist <= 0:
             return False, "RISK_ZERO", "entry equals SL - zero risk distance"
         # side correctness: for BUY the SL is below and the TP above entry;
-        # for SELL inverted. Catches swapped/wrong-side stops before the broker does.
-        if dirn == "BUY" and not (sl < entry < tp):
-            return (False, "SIDES_INCONSISTENT",
-                    f"BUY requires SL < entry < TP (got SL {sl}, entry {entry}, TP {tp})")
-        if dirn == "SELL" and not (tp < entry < sl):
-            return (False, "SIDES_INCONSISTENT",
-                    f"SELL requires TP < entry < SL (got TP {tp}, entry {entry}, SL {sl})")
+        # for SELL inverted. Catches swapped/wrong-side stops before the
+        # broker does. Trail strategies (no fixed target by rule) are checked
+        # on the stop side only - the exit is the managed trail, never a TP.
+        if allow_no_tp:
+            if tp is not None and _finite_positive(tp):
+                if dirn == "BUY" and not (sl < entry < tp):
+                    return (False, "SIDES_INCONSISTENT",
+                            f"BUY requires SL < entry < TP (got SL {sl}, entry {entry}, TP {tp})")
+                if dirn == "SELL" and not (tp < entry < sl):
+                    return (False, "SIDES_INCONSISTENT",
+                            f"SELL requires TP < entry < SL (got TP {tp}, entry {entry}, SL {sl})")
+            elif tp not in (None, 0, 0.0):
+                return False, "PRICES_INVALID", "TP present but invalid - refusing"
+            else:
+                # no-TP order: the STOP side must still be correct
+                if dirn == "BUY" and not sl < entry:
+                    return (False, "SIDES_INCONSISTENT",
+                            f"BUY requires SL < entry (got SL {sl}, entry {entry})")
+                if dirn == "SELL" and not entry < sl:
+                    return (False, "SIDES_INCONSISTENT",
+                            f"SELL requires entry < SL (got entry {entry}, SL {sl})")
+        else:
+            if tp is None or not _finite_positive(tp):
+                return (False, "PRICES_INVALID",
+                        "TP missing or invalid - refusing to send an order without a target")
+            if dirn == "BUY" and not (sl < entry < tp):
+                return (False, "SIDES_INCONSISTENT",
+                        f"BUY requires SL < entry < TP (got SL {sl}, entry {entry}, TP {tp})")
+            if dirn == "SELL" and not (tp < entry < sl):
+                return (False, "SIDES_INCONSISTENT",
+                        f"SELL requires TP < entry < SL (got TP {tp}, entry {entry}, SL {sl})")
         if pip_size and abs(entry - sl) < min_stop_pips * pip_size:
             return (False, "STOP_TOO_TIGHT",
                     f"stop distance {abs(entry - sl) / pip_size:.1f} pips < broker "
@@ -138,11 +161,16 @@ def validate_order(
         #    the configured RR. Multi-TP signals: the TP-level picker may
         #    choose among the signal's OWN declared targets - so the rule is
         #    "the submitted TP is one the strategy defined", never invented.
-        rr = planned_rr(entry, sl, tp)
-        if rr is None:
-            return False, "RR_INVALID", "could not compute reward/risk from order prices"
+        #    Trail strategies (allow_no_tp, no target by rule): no R:R exists
+        #    to compute - the exits are the managed trail + time exit.
         multi = len([t for t in (declared_tps or []) if t]) >= 2
-        if multi:
+        _no_tp_order = (tp is None or tp in (0, 0.0))
+        rr = planned_rr(entry, sl, tp)
+        if allow_no_tp and not multi and _no_tp_order:
+            pass                       # trail strategy: no fixed R:R exists
+        elif rr is None:
+            return False, "RR_INVALID", "could not compute reward/risk from order prices"
+        elif multi:
             if not any(_same_price(tp, t) for t in declared_tps if t):
                 return (False, "TP_NOT_DECLARED",
                         f"order TP {tp} is none of the strategy's declared "
