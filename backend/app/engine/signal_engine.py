@@ -201,8 +201,11 @@ class SignalEngine:
         if todays >= int(risk.get("max_signals_per_day", 6)):
             self._log("Daily signal cap reached. Capital protected.", kind="RISK")
             return False, "daily signal cap reached"
-        if candidate.rr_primary < float(risk.get("min_rr", 1.5)) and \
-                candidate.strategy_id == "strategy_1_zero_lag":
+        # strategy-scoped floor; evaluated id-first with a None guard so
+        # trail-only candidates (no fixed TP, rr_primary None) never crash
+        if candidate.strategy_id == "strategy_1_zero_lag" and \
+                candidate.rr_primary is not None and \
+                candidate.rr_primary < float(risk.get("min_rr", 1.5)):
             return False, f"R:R 1:{candidate.rr_primary:.1f} below minimum"
         # daily loss limit - prop-firm aware (user request 2026-09-17)
         acct_type = str(risk.get("account_type", "personal") or "personal").lower()
