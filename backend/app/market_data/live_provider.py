@@ -258,7 +258,7 @@ class LiveProvider(MarketDataProvider):
         # closed H1 bars) page backwards with before=<oldest ts>. If the
         # bridge ignores the parameter the second window equals the first
         # and stitching stops - we stay honest with whatever depth exists.
-        want = max(int(limit), 300)
+        want = min(max(int(limit), 300), 1500)   # bridge /rates documented cap
         if 0 < len(bars) < want:
             seen = {b.get("ts") for b in bars}
             for _page in range(2):
@@ -322,12 +322,26 @@ class LiveProvider(MarketDataProvider):
         (floor 300 bars) and small callers are served via tail()."""
         key = (market, tf)
         fetch_n = max(int(limit), MIN_CACHE_BARS)
+        want = min(fetch_n, 1500)          # bridge /rates documented cap
         now = time.monotonic()
         with self._lock:
             hit = self._cache.get(key)
             if hit and (now - hit[0]) < TTL.get(tf, 60):
                 df = hit[1]
-                return df.tail(limit).copy() if df is not None and len(df) else None
+                if df is None or not len(df):
+                    return None
+                if len(df) >= want:
+                    return df.tail(limit).copy()
+                # a small first-fill (e.g. higher_frames' 400) must not cap
+                # deep callers (trendbreak_v2 wants 502+ H1 bars): refetch -
+                # but at most once per 10 min per slot, so sources that
+                # genuinely cannot go deeper are never hammered
+                deep_try = getattr(self, "_deep_try", None)
+                if deep_try is None:
+                    deep_try = self._deep_try = {}
+                if now < deep_try.get(key, 0):
+                    return df.tail(limit).copy()
+                deep_try[key] = now + max(TTL.get(tf, 60), 600)
 
         if settings.bridge_url:   # VPS connected: the MT5 terminal IS the feed
             df = self._aligned(market, tf, self._fetch_mt5(market, tf, fetch_n))
