@@ -45,15 +45,23 @@ class _ResearchCandidateStrategy(BaseStrategy):
     entry_tf = ""
     context_tfs: tuple = ()
 
-    def _context(self, df, timeframe, higher_frames):
+    def _context(self, df, timeframe, higher_frames, params=None):
         """Resolve (entry_frame, context_frames) for the entry engine
-        regardless of which scan timeframe triggered the call."""
+        regardless of which scan timeframe triggered the call. The owner's
+        per-strategy timeframe setting (params["entry_tf"]) wins over the
+        class default."""
         hf = higher_frames or {}
-        entry = df if timeframe == self.entry_tf else hf.get(self.entry_tf)
+        entry_tf = self._eff_tf(params)
+        entry = df if timeframe == entry_tf else hf.get(entry_tf)
         ctx = {}
         for tf in self.context_tfs:
             ctx[tf] = df if timeframe == tf else hf.get(tf)
         return entry, ctx
+
+    def _eff_tf(self, params) -> str:
+        """Effective entry timeframe: the owner's per-strategy setting
+        (threaded through scan params) or the class/spec default."""
+        return str((params or {}).get("entry_tf") or self.entry_tf)
 
 
 class TrendBreakStrategy(_ResearchCandidateStrategy):
@@ -84,7 +92,7 @@ class TrendBreakStrategy(_ResearchCandidateStrategy):
                       ) -> Optional[Candidate]:
         if market not in self.markets:
             return None                       # spec rule: the four markets only
-        h1, ctx = self._context(df, timeframe, higher_frames)
+        h1, ctx = self._context(df, timeframe, higher_frames, params)
         h4 = ctx.get("4H")
         if h1 is None or h4 is None or len(h1) < 125 or len(h4) < 200:
             return None
@@ -98,7 +106,8 @@ class TrendBreakStrategy(_ResearchCandidateStrategy):
         sign = 1.0 if direction == "BUY" else -1.0
         sl, tp = entry - sign * risk, entry + sign * risk * self.configured_rr
         return Candidate(
-            strategy_id=self.id, market=market, timeframe="1H",
+            strategy_id=self.id, market=market,
+            timeframe=self._eff_tf(params),
             direction=direction, candle_time=str(res["signal_bar"]),
             entry=entry, entry_zone=[entry, entry], sl=sl, tps=[tp],
             risk=risk, rr_primary=self.configured_rr,
@@ -124,7 +133,8 @@ class TrendBreakStrategy(_ResearchCandidateStrategy):
         entry = float(event.get("entry", df["close"].iloc[i]))
         sl = float(event.get("sl", entry))
         risk = abs(entry - sl) or 1e-9
-        return Candidate(strategy_id=self.id, market=market, timeframe="1H",
+        return Candidate(strategy_id=self.id, market=market,
+                         timeframe=self._eff_tf(params) or timeframe,
                          direction=direction, candle_time=str(df.index[i]),
                          entry=entry, entry_zone=[entry, entry], sl=sl,
                          tps=[entry + sign * risk * self.configured_rr]
@@ -207,7 +217,7 @@ class TrendBreakV2Strategy(_ResearchCandidateStrategy):
             return None
         if self._has_open_position(market):
             return None                 # one position at a time (Pine gate)
-        h1, ctx = self._context(df, timeframe, higher_frames)
+        h1, ctx = self._context(df, timeframe, higher_frames, params)
         h4 = ctx.get("4H")
         if h1 is None or h4 is None:
             return None
@@ -220,7 +230,8 @@ class TrendBreakV2Strategy(_ResearchCandidateStrategy):
         sign = 1.0 if direction == "BUY" else -1.0
         sl = entry - sign * tb2.SPEC["stop_mult"] * atr
         return Candidate(
-            strategy_id=self.id, market=market, timeframe="1H",
+            strategy_id=self.id, market=market,
+            timeframe=self._eff_tf(params),
             direction=direction, candle_time=str(res["signal_bar"]),
             entry=entry, entry_zone=[entry, entry], sl=sl,
             tps=[],                              # trail strategy: NO target
@@ -245,7 +256,8 @@ class TrendBreakV2Strategy(_ResearchCandidateStrategy):
         direction = str(event.get("direction", "BUY"))
         entry = float(event.get("entry", df["close"].iloc[i]))
         sl = float(event.get("sl", entry))
-        return Candidate(strategy_id=self.id, market=market, timeframe="1H",
+        return Candidate(strategy_id=self.id, market=market,
+                         timeframe=self._eff_tf(params) or timeframe,
                          direction=direction, candle_time=str(df.index[i]),
                          entry=entry, entry_zone=[entry, entry], sl=sl,
                          tps=[], risk=abs(entry - sl), rr_primary=None,
@@ -291,7 +303,7 @@ class _PinstripeBase(_ResearchCandidateStrategy):
     context_tfs = ("4H",)
 
     def _candidate(self, engine_res: Dict[str, Any], market: str,
-                   spec_label: str) -> "Candidate":
+                   spec_label: str, entry_tf: str = "") -> "Candidate":
         direction = engine_res["direction"]
         entry = float(engine_res["entry"])
         sl = float(engine_res["sl"])
@@ -299,7 +311,8 @@ class _PinstripeBase(_ResearchCandidateStrategy):
         tp2 = float(engine_res["tp2"])
         rr2 = engine_res.get("rr_primary")
         return Candidate(
-            strategy_id=self.id, market=market, timeframe="1H",
+            strategy_id=self.id, market=market,
+            timeframe=entry_tf or self.entry_tf,
             direction=direction, candle_time=str(engine_res["signal_bar"]),
             entry=entry, entry_zone=[entry, entry], sl=sl,
             tps=[tp1, tp2],             # TP1 = partial 50% + BE; TP2 = final
@@ -344,14 +357,15 @@ class HybridCrtTbsStrategy(_PinstripeBase):
                       higher_frames: Optional[Dict[str, pd.DataFrame]] = None,
                       score_context: Optional[Dict[str, Any]] = None
                       ) -> Optional[Candidate]:
-        h1, ctx = self._context(df, timeframe, higher_frames)
+        h1, ctx = self._context(df, timeframe, higher_frames, params)
         h4 = ctx.get("4H")
         if h1 is None or h4 is None:
             return None
         res = ps1.evaluate(h1, h4, market=market)
         if not isinstance(res, dict) or res.get("status") != ps1.SIGNAL:
             return None
-        return self._candidate(res, market, self.SPEC_LABEL)
+        return self._candidate(res, market, self.SPEC_LABEL,
+                               entry_tf=self._eff_tf(params))
 
     def compute(self, df: pd.DataFrame, params: Dict[str, Any]) -> Dict[str, Any]:
         return {"state": "hybrid crt+tbs engine (detect_signal only)"}
@@ -405,14 +419,15 @@ class FadeCrtExtensionStrategy(_PinstripeBase):
                       higher_frames: Optional[Dict[str, pd.DataFrame]] = None,
                       score_context: Optional[Dict[str, Any]] = None
                       ) -> Optional[Candidate]:
-        h1, ctx = self._context(df, timeframe, higher_frames)
+        h1, ctx = self._context(df, timeframe, higher_frames, params)
         h4 = ctx.get("4H")
         if h1 is None or h4 is None:
             return None
         res = ps2.evaluate(h1, h4, market=market)
         if not isinstance(res, dict) or res.get("status") != ps2.SIGNAL:
             return None
-        return self._candidate(res, market, self.SPEC_LABEL)
+        return self._candidate(res, market, self.SPEC_LABEL,
+                               entry_tf=self._eff_tf(params))
 
     def compute(self, df: pd.DataFrame, params: Dict[str, Any]) -> Dict[str, Any]:
         return {"state": "fade crt extension engine (detect_signal only)"}
@@ -467,7 +482,7 @@ class ZoneSweepStrategy(_ResearchCandidateStrategy):
                       ) -> Optional[Candidate]:
         if market not in self.markets:
             return None                       # spec rule: the four markets only
-        m15, ctx = self._context(df, timeframe, higher_frames)
+        m15, ctx = self._context(df, timeframe, higher_frames, params)
         h1, h4 = ctx.get("1H"), ctx.get("4H")
         if m15 is None or h1 is None or h4 is None:
             return None
@@ -481,7 +496,8 @@ class ZoneSweepStrategy(_ResearchCandidateStrategy):
         if risk <= 0:
             return None
         return Candidate(
-            strategy_id=self.id, market=market, timeframe="15M",
+            strategy_id=self.id, market=market,
+            timeframe=self._eff_tf(params),
             direction="BUY" if res["direction"] == "LONG" else "SELL",
             candle_time=str(res["touch_bar"]),
             entry=entry, entry_zone=[res["zone_bottom"], res["zone_top"]],
@@ -513,7 +529,8 @@ class ZoneSweepStrategy(_ResearchCandidateStrategy):
         sl = float(event.get("sl", entry))
         risk = abs(entry - sl) or 1e-9
         sign = 1.0 if direction == "BUY" else -1.0
-        return Candidate(strategy_id=self.id, market=market, timeframe="15M",
+        return Candidate(strategy_id=self.id, market=market,
+                         timeframe=self._eff_tf(params) or timeframe,
                          direction=direction, candle_time=str(df.index[i]),
                          entry=entry, entry_zone=[entry, entry], sl=sl,
                          tps=[entry + sign * risk * self.configured_rr],

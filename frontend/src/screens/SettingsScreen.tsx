@@ -318,9 +318,16 @@ export function SettingsScreen() {
                 <input className="input-mini" inputMode="decimal" value={propStart} onChange={(e) => setPropStart(e.target.value)} placeholder="0 = use your balance above" aria-label="Account start balance" />
               </div>
             </div>
-            <p className="mt-3 text-[10.5px] leading-relaxed text-txt-faint">
-              PROP MODE: the engine stops suggesting new signals once today's result reaches {propBuffer === "" ? 80 : 100 - (parseFloat(propBuffer) || 20)}% of your {propDaily || 5}% daily drawdown, and fully stops at the {(parseFloat(propTotal) || 10)}% total drawdown wall - so the firm's rule is never breached. Target: {propTarget || 8}%. Signals already tracking always run to completion.
-            </p>
+            <div className="mt-4 flex items-center gap-2.5 rounded-2xl border border-[rgba(var(--gold-rgb),0.3)] bg-[rgba(var(--gold-rgb),0.08)] px-4 py-3">
+              <GlowDot tone="pos" size={7} pulse={true} />
+              <div className="text-[10.5px] leading-relaxed text-txt-low">
+                <span className="font-bold text-txt-hi">PROP PROTECTION ACTIVE.</span>{" "}
+                New signals stop at {propBuffer === "" ? 80 : 100 - (parseFloat(propBuffer) || 20)}% of your {propDaily || 5}% daily
+                drawdown ({(parseFloat(propBuffer) || 20) === 0 ? "at the limit itself" : "before the limit, with a safety buffer"}),
+                hard-stops at the {(parseFloat(propTotal) || 10)}% total drawdown wall - the firm&apos;s rule is never breached.
+                Target: {propTarget || 8}%. Open trades always run to completion.
+              </div>
+            </div>
           </>
         ) : (
           <p className="mt-3 text-[10.5px] leading-relaxed text-txt-faint">
@@ -328,10 +335,11 @@ export function SettingsScreen() {
           </p>
         )}
       </Glass>
-      <p className="mb-1 mt-6 px-1 text-[11px] leading-relaxed text-txt-faint">Entry timeframes - the bot only enters on these</p>
-      <p className="mb-3 mt-1 px-1 text-[11px] text-txt-faint">Signal filtering and guidance - the app never executes.</p>
+      <Eyebrow className="mt-9">Entry timeframes - global scan windows</Eyebrow>
+      <p className="mb-3 mt-1 px-1 text-[11px] leading-relaxed text-txt-faint">
+        The timeframes the agent scans. Per-strategy execution timeframes live on the Strategies screen.
+      </p>
       <Glass>
-        <div className="eyebrow !text-[9px] mb-2.5">Entry timeframes - the bot only enters on these</div>
         <div className="grid grid-cols-4 gap-2">
           {TF_OPTIONS.map((tf) => (
             <button

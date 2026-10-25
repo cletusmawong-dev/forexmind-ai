@@ -1652,3 +1652,38 @@ button, a, [role="button"] {
 
 /* numerals align in tables/stats (professional data feel) */
 .tabular, .font-mono { font-variant-numeric: tabular-nums; }
+
+/* ---------------------------------------------------------------------------
+   owner polish pass (2026-10-25): consistent focus rings everywhere +
+   the per-strategy execution-timeframe selector on the Strategies screen.
+--------------------------------------------------------------------------- */
+:focus-visible {
+  outline: 2px solid rgba(var(--p2-rgb), 0.55);
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+
+.tf-select {
+  appearance: none;
+  -webkit-appearance: none;
+  min-height: 30px;
+  padding: 3px 22px 3px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(var(--warm-rgb), 0.16);
+  background:
+    url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236d7590' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    no-repeat right 9px center / 10px 6px,
+    rgba(var(--p-rgb), 0.08);
+  color: var(--text-primary);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+.tf-select:hover { border-color: rgba(var(--p-rgb), 0.4); }
+.tf-select:focus { outline: none; border-color: rgba(var(--p2-rgb), 0.6); }
+.tf-select:disabled { opacity: 0.55; cursor: default; }
+[data-theme="onyx"] .tf-select,
+[data-theme="navy"] .tf-select,
+[data-theme="slate"] .tf-select { color: var(--text-primary); }

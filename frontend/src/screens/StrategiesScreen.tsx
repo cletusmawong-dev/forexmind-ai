@@ -1,5 +1,5 @@
 import { useState } from "react";
-import {ChevronDown, GitBranch, Layers, Clock} from "lucide-react";
+import {ChevronDown, GitBranch, Layers, Clock, Timer} from "lucide-react";
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
 import type { StrategyDoc, StrategyVersion } from "../lib/types";
@@ -50,6 +50,22 @@ export function StrategiesScreen() {
     await api.patch(endpoints.strategy(sid), { status });
     setBusy("");
     refresh();
+  };
+
+  const setEntryTf = async (st: StrategyDoc, tf: string) => {
+    const value = tf === "__default__" ? null : tf;
+    setBusy(`tf:${st.id}`);
+    try {
+      await api.patch(endpoints.strategy(st.id), { entry_timeframe: value });
+      flash(value
+        ? `${st.short_name}: now executes on ${value} candles`
+        : `${st.short_name}: back to its default timeframe (${st.default_entry_tf || "spec"})`);
+      refresh();
+    } catch (e: any) {
+      flash(e.message || "Could not set the timeframe");
+    } finally {
+      setBusy("");
+    }
   };
 
   const toggleStatus = async (st: StrategyDoc) => {
@@ -127,6 +143,24 @@ export function StrategiesScreen() {
                   <div className="text-[10px] text-txt-faint">
                     {retired ? "Retired - signal history kept" : (st as any).lifecycle === "SLEEPING" ? "Sleeping - signals advisory only (research)" : st.status === "ACTIVE" ? "Live - generating signals" : "Paused - no new signals"}
                   </div>
+                  {!retired && (
+                    <label className="mt-2 flex items-center gap-2 text-[10px] text-txt-faint">
+                      <Timer size={11} className="shrink-0" aria-hidden="true" />
+                      <span className="shrink-0">Executes on</span>
+                      <select
+                        value={st.entry_timeframe || "__default__"}
+                        onChange={(e) => setEntryTf(st, e.target.value)}
+                        disabled={busy.startsWith("tf:")}
+                        aria-label={`${st.short_name || st.id} execution timeframe`}
+                        className="tf-select"
+                      >
+                        <option value="__default__">Default{st.default_entry_tf ? ` (${st.default_entry_tf})` : ""}</option>
+                        {(st.allowed_entry_tfs ?? ["15M", "1H", "4H", "1D"]).map((tf) => (
+                          <option key={tf} value={tf}>{tf}</option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
                 </div>
                 {retired ? (
                   <span className="shrink-0 rounded-full border border-[rgba(var(--warm-rgb),0.14)] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-txt-faint">Retired</span>
@@ -156,7 +190,9 @@ export function StrategiesScreen() {
           ))}
 
         <p className="mt-1 text-[10px] leading-relaxed text-txt-faint">
-          Applies to new signals only. Signals already tracking always run to completion.
+          <span className="font-semibold text-txt-low">Executes on</span> sets the candle timeframe each strategy
+          runs its entry logic on (your per-strategy setting, saved instantly). Applies to new signals only -
+          signals already tracking always run to completion. Values marked Default are each strategy&apos;s spec.
         </p>
       </Glass>
 
@@ -169,6 +205,8 @@ export function StrategiesScreen() {
                 <div className="text-[14.5px] font-medium tracking-tight text-txt-hi">{s.short_name}</div>
                 <div className="mt-0.5 text-[11px] text-txt-faint">
                   Strategy {idx + 1} - <span className="font-mono">v{s.active_version}</span> - {s.status.toLowerCase()}
+                  {" - executes on "}
+                  <span className="font-semibold text-txt-low">{s.entry_timeframe || s.default_entry_tf || "scan"}</span>
                 </div>
               </div>
               <span className="mr-1 hidden shrink-0 items-center gap-1 rounded-full border border-[rgba(var(--warm-rgb),0.14)] px-2.5 py-1 text-[9.5px] font-bold uppercase tracking-[0.14em] text-txt-faint sm:flex">

@@ -21,6 +21,12 @@ def test_the_four_categories_are_telegram_worthy():
         assert _telegram_worthy(t, None) is True, t
 
 
+def test_execution_failed_is_telegram_worthy_again():
+    """Owner approval 2026-10-25: entry failures are loud on Telegram."""
+    from app.notifications.service import _telegram_worthy
+    assert _telegram_worthy("EXECUTION_FAILED", None) is True
+
+
 def test_live_tp_hits_are_telegram_worthy():
     from app.notifications.service import _telegram_worthy
     assert _telegram_worthy("TP1_HIT", None)
@@ -30,7 +36,7 @@ def test_live_tp_hits_are_telegram_worthy():
 def test_everything_else_is_silenced():
     from app.notifications.service import _telegram_worthy
     for t in ("NEW_SIGNAL", "EXTRA_SIGNAL", "EXTRA_SIGNAL_TAKEN",
-              "EXECUTION_SKIPPED", "EXECUTION_FAILED", "SIGNAL_SKIPPED",
+              "EXECUTION_SKIPPED", "SIGNAL_SKIPPED",
               "MANAGEMENT_EVENT", "REGIME_CHANGE", "APPROVAL_REQUIRED",
               "RESEARCH_REVIEW", "STRATEGY_VERSION_UPDATED",
               "AI_ESCALATION_DOWN", "TELEGRAM_TEST", "MY_CUSTOM_TYPE"):
@@ -80,18 +86,21 @@ def _tg(monkeypatch, tmp_path):
     return sent
 
 
-def test_funnel_sends_only_the_four(_tg):
+def test_funnel_sends_the_approved_set(_tg):
+    """The owner's four categories + EXECUTION_FAILED (owner approval
+    2026-10-25: entry failures are loud again)."""
     from app.notifications import service as svc
-    for t in ("MORNING_BRIEF", "NEWS_ALERT", "TRADE_ENTERED", "TRADE_COMPLETED"):
+    for t in ("MORNING_BRIEF", "NEWS_ALERT", "TRADE_ENTERED", "TRADE_COMPLETED",
+              "EXECUTION_FAILED"):
         svc.notify("boss", t, f"go {t}", "body")
-    for t in ("NEW_SIGNAL", "EXECUTION_FAILED", "MANAGEMENT_EVENT",
+    for t in ("NEW_SIGNAL", "MANAGEMENT_EVENT",
               "REGIME_CHANGE", "RESEARCH_REVIEW", "APPROVAL_REQUIRED"):
         svc.notify("boss", t, f"stay {t}", "body")
     svc.notify("boss", "TP2_HIT_LIVE", "TP2 reached", "body")
     types = [x[1] for x in _tg]
-    assert len(_tg) == 5, types
+    assert len(_tg) == 6, types
     for t in ("go MORNING_BRIEF", "go NEWS_ALERT", "go TRADE_ENTERED",
-              "go TRADE_COMPLETED", "TP2 reached"):
+              "go TRADE_COMPLETED", "go EXECUTION_FAILED", "TP2 reached"):
         assert any(t in x for x in types), (t, types)
     assert not any("stay" in x for x in types)
 

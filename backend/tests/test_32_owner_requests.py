@@ -22,12 +22,13 @@ def test_telegram_only_the_four_owner_messages(monkeypatch, tmp_path):
     from app.config import settings
     monkeypatch.setattr(settings, "telegram_bot_token", "fake-token")
 
-    # the four wanted messages (+ live TP hits): SENT
+    # the four wanted messages (+ live TP hits + EXECUTION_FAILED, owner
+    # approval 2026-10-25): SENT
     for t in ("MORNING_BRIEF", "NEWS_ALERT", "TRADE_ENTERED", "TRADE_COMPLETED",
-              "TP2_HIT_LIVE", "TP1_HIT"):
+              "TP2_HIT_LIVE", "TP1_HIT", "EXECUTION_FAILED"):
         svc.notify("boss", t, f"wanted {t}", "body")
     # everything else: NOT sent (but persisted in-app)
-    for t in ("NEW_SIGNAL", "EXECUTION_FAILED", "APPROVAL_REQUIRED",
+    for t in ("NEW_SIGNAL", "APPROVAL_REQUIRED",
               "REGIME_CHANGE", "RESEARCH_REVIEW", "EXECUTION_SKIPPED",
               "SIGNAL_SKIPPED", "EXTRA_SIGNAL", "EXTRA_SIGNAL_TAKEN",
               "STRATEGY_VERSION_UPDATED", "TELEGRAM_TEST", "ANY_RANDOM_TYPE"):
@@ -35,9 +36,9 @@ def test_telegram_only_the_four_owner_messages(monkeypatch, tmp_path):
 
     types = [x[1].split("\n")[0] for x in sent]
     for t in ("MORNING_BRIEF", "NEWS_ALERT", "TRADE_ENTERED", "TRADE_COMPLETED",
-              "TP2_HIT_LIVE", "TP1_HIT"):
+              "TP2_HIT_LIVE", "TP1_HIT", "EXECUTION_FAILED"):
         assert any(t in x for x in types), (t, types)
-    assert len(sent) == 6, types
+    assert len(sent) == 7, types
     # everything is still persisted in-app
     from app.db.store import get_store
     notes = get_store().list("notifications", limit=50)
@@ -50,7 +51,7 @@ def test_telegram_only_the_four_owner_messages(monkeypatch, tmp_path):
     svc.notify("boss", "MY_CUSTOM_TYPE", "custom", "body")
     assert not any("bridge offline" in x[1] for x in sent)
     assert not any("custom" in x[1] for x in sent)
-    assert len(sent) == 6
+    assert len(sent) == 7
 
 
 # ------------------------------------------------------------ double signals

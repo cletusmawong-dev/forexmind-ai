@@ -59,7 +59,11 @@ def get_settings(user_id: str = Depends(get_user_id)):
 
 @router.patch("/settings")
 def patch_settings(body: RiskSettings, user_id: str = Depends(get_user_id)):
-    return agent_core.patch_risk(user_id, body.model_dump(exclude_none=True))
+    try:
+        return agent_core.patch_risk(user_id, body.model_dump(exclude_none=True))
+    except ValueError as exc:
+        # owner validation errors are client errors, not server crashes
+        raise HTTPException(status_code=422, detail=str(exc))
 
 
 # ---------------------------------------------------------------- system info

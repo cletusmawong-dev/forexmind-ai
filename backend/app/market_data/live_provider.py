@@ -253,6 +253,29 @@ class LiveProvider(MarketDataProvider):
         if not d or not d.get("ok"):
             return None
         bars = d.get("bars") or []
+        # ---- DEPTH: one /rates call is capped by the bridge (observed at
+        # 400 bars). Callers needing deep history (trendbreak_v2 wants 502
+        # closed H1 bars) page backwards with before=<oldest ts>. If the
+        # bridge ignores the parameter the second window equals the first
+        # and stitching stops - we stay honest with whatever depth exists.
+        want = max(int(limit), 300)
+        if 0 < len(bars) < want:
+            seen = {b.get("ts") for b in bars}
+            for _page in range(2):
+                oldest = min(t for t in seen if t is not None)
+                try:
+                    d2 = bridge_get(f"/rates?market={market}&tf={tfk}"
+                                    f"&count=400&before={int(oldest)}", timeout=25)
+                except Exception:
+                    break
+                bars2 = (d2 or {}).get("bars") or []
+                new = [b for b in bars2 if b.get("ts") not in seen]
+                if not new or max((b.get("ts") for b in bars2), default=0) >= oldest:
+                    break                    # parameter ignored / nothing older
+                bars = sorted(bars + new, key=lambda b: b["ts"])
+                seen.update(b.get("ts") for b in new)
+                if len(bars) >= want:
+                    break
         if len(bars) < 60:
             return None
         df = pd.DataFrame(bars)

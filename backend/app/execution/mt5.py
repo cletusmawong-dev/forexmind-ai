@@ -1154,6 +1154,16 @@ def apply_deals(user_id: str, deals: List[dict]) -> int:
         sig_id = (p["entry"].get("comment") or "").strip()
         if not sig_id:
             continue
+        # PARTIAL-EXIT GUARD (PINSTRIPE ladders, 2026-10-25): a TP1 partial
+        # (e.g. 50%) also writes an exit deal. Confirming on it would close
+        # the signal early, report a half-trade P/L as the final result and
+        # permanently skip the REAL close (position_id would be marked
+        # confirmed). A trade is complete only when the exit volume covers
+        # the entry volume (5% tolerance for volume rounding).
+        entry_vol = float(p["entry"].get("volume") or 0)
+        exit_vol = sum(float(e.get("volume") or 0) for e in p["exits"])
+        if entry_vol > 0 and exit_vol + 1e-9 < 0.95 * entry_vol:
+            continue                         # wait for the remaining exits
         docs = store.list("signals", filters={"userId": user_id, "signal_id": sig_id}, limit=1)
         if not docs or docs[0].get("mt5_confirmed"):
             continue

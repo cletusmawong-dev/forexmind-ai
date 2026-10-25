@@ -27,7 +27,10 @@ from ..db.store import get_store
 # the meta force flag and the TELEGRAM_IMPORTANT_TYPES env extension;
 # the s.8 commentary denylist (policy.py) still applies on top.
 _TELEGRAM_ALLOWED_EXACT = {"MORNING_BRIEF", "NEWS_ALERT", "TRADE_ENTERED",
-                           "TRADE_COMPLETED"}
+                           "TRADE_COMPLETED",
+                           # owner approval 2026-10-25: entry failures are
+                           # loud again (3.0 spec: every failure is heard)
+                           "EXECUTION_FAILED"}
 
 
 def _telegram_worthy(type_: str, meta: Optional[Dict[str, Any]]) -> bool:

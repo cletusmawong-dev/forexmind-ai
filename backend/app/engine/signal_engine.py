@@ -85,6 +85,7 @@ def volatility_regime(rank: float) -> str:
 class SignalEngine:
     def __init__(self, provider):
         self.provider = provider
+        self._tf_warn_ts: dict = {}         # (sid, market, tf) -> last warn time
 
     # ------------------------------------------------------------------
     def scan(self, user_id: str, market: str, timeframe: str,
@@ -141,8 +142,33 @@ class SignalEngine:
             if sdoc and not strategy_sessions_allowed(sdoc[0], session):
                 continue    # P7: per-strategy session gate (audited config)
             params = active_params(sid)
+            # PER-STRATEGY ENTRY TIMEFRAME (owner request 2026-10-25): a
+            # strategy doc may override the timeframe the strategy executes
+            # on. The scan fetches that frame (cached - one slot per
+            # (market, tf)) and hands the strategy BOTH the frame and the
+            # hint via params; bridged adapters resolve their context from
+            # it, frame-native strategies simply run on the given bars.
+            scan_df, scan_tf, scan_higher = df, timeframe, higher
+            eff_tf = sdoc[0].get("entry_timeframe") if sdoc else None
+            if eff_tf and eff_tf != timeframe:
+                import time as _time
+                df_e = self.provider.get_candles(market, eff_tf, limit=1600)
+                if df_e is None or len(df_e) < 300:
+                    last = self._tf_warn_ts.get((sid, market, eff_tf), 0)
+                    if _time.time() - last > 21600:      # one row / 6h max
+                        self._log(
+                            f"{sid}: configured timeframe {eff_tf} has no deep "
+                            f"history on {market} yet - skipped this pass.",
+                            kind="DATA", market=market)
+                        self._tf_warn_ts[(sid, market, eff_tf)] = _time.time()
+                    continue
+                scan_higher = self.provider.higher_frames(market, eff_tf)
+                scan_df, scan_tf = df_e, eff_tf
+            if eff_tf:
+                params = {**(params or {}), "entry_tf": eff_tf}
             candidate = strategy.detect_signal(
-                df, market, timeframe, params=params, higher_frames=higher,
+                scan_df, market, scan_tf, params=params,
+                higher_frames=scan_higher,
                 score_context={"session": session})
             if candidate is None:
                 continue

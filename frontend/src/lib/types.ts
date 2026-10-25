@@ -216,6 +216,10 @@ export interface StrategyDoc {
   metadata?: any;
   active_params?: Record<string, any>;
   experiment_variables?: Record<string, any>;
+  /** owner-set execution timeframe (null = the strategy's spec default) */
+  entry_timeframe?: string | null;
+  default_entry_tf?: string | null;
+  allowed_entry_tfs?: string[];
 }
 
 export interface ActivityItem {
