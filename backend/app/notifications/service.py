@@ -12,16 +12,22 @@ from typing import Any, Dict, Optional
 from ..config import settings
 from ..db.store import get_store
 
-# Telegram = important only. TP1_HIT_LIVE / TP2_HIT_LIVE / ... are matched
-# by prefix+suffix; extra one-off types can be forced per call via
-# meta={"telegram_important": True}; operations can extend the set with
-# TELEGRAM_IMPORTANT_TYPES (comma-separated) without a code change.
-_TELEGRAM_IMPORTANT = {
-    "NEW_SIGNAL", "EXECUTION_FAILED", "TP_AUDIT_LEAK",
-    "STRATEGY_VERSION_UPDATED", "APPROVAL_REQUIRED", "RESEARCH_REVIEW",
-    "MORNING_BRIEF", "AI_ESCALATION_DOWN", "TELEGRAM_TEST", "REGIME_CHANGE",
-    "NEWS_ALERT", "TRADE_COMPLETED",
-}
+# Telegram carries EXACTLY the owner's four messages (directive
+# 2026-10-25) - nothing else, and nothing can force its way through:
+#   1. MORNING_BRIEF    - the daily 07:00 brief (every day)
+#   2. NEWS_ALERT       - high-impact news ~15 minutes ahead
+#   3. TRADE_ENTERED    - a REAL broker fill (fired by the executor, never
+#                         by signal creation)
+#   4. TRADE_COMPLETED  - the trade closed (TP / SL / trail / time exit)
+#      + TP{k}_HIT / TP{k}_HIT_LIVE - live TP touches on open positions
+# Everything else - signals without an entry, management/stop updates,
+# execution skips and failures, approvals, research reviews, regime
+# notes, tests - stays IN-APP ONLY (the Notifications screen keeps it
+# all). This supersedes the 2026-10-09/10 important-only sets and removes
+# the meta force flag and the TELEGRAM_IMPORTANT_TYPES env extension;
+# the s.8 commentary denylist (policy.py) still applies on top.
+_TELEGRAM_ALLOWED_EXACT = {"MORNING_BRIEF", "NEWS_ALERT", "TRADE_ENTERED",
+                           "TRADE_COMPLETED"}
 
 
 def _telegram_worthy(type_: str, meta: Optional[Dict[str, Any]]) -> bool:
@@ -31,16 +37,10 @@ def _telegram_worthy(type_: str, meta: Optional[Dict[str, Any]]) -> bool:
             return False
     except Exception:
         pass
-    if meta and meta.get("telegram_important"):
+    if type_ in _TELEGRAM_ALLOWED_EXACT:
         return True
-    if type_ in _TELEGRAM_IMPORTANT:
-        return True
-    if type_.startswith("TP") and type_.endswith(("_HIT", "_HIT_LIVE")):
-        return True          # TP events on real broker tickets
-    for extra in (settings.telegram_important_types or "").split(","):
-        if extra.strip() and type_ == extra.strip():
-            return True
-    return False
+    # live TP events on real broker tickets (TP1_HIT, TP2_HIT_LIVE, ...)
+    return type_.startswith("TP") and type_.endswith(("_HIT", "_HIT_LIVE"))
 
 
 def notify(user_id: Optional[str], type_: str, title: str, body: str,
@@ -57,11 +57,9 @@ def notify(user_id: Optional[str], type_: str, title: str, body: str,
         "meta": meta or {},
         "read": False,
     })
-    # Phone delivery (Telegram): IMPORTANT messages only (owner request
-    # 2026-10-09 - "no random messages"). Signals, TP/SL hits on real
-    # tickets, execution failures, approvals, regime changes, the daily
-    # brief. Everything else stays in-app (Notifications screen still has
-    # it all). meta={"telegram_important": True} forces a one-off through.
+    # Phone delivery (Telegram): the owner's four messages ONLY (directive
+    # 2026-10-25 - see _TELEGRAM_ALLOWED_EXACT). Everything else stays
+    # in-app (the Notifications screen still has it all).
     if settings.telegram_bot_token and user_id and _telegram_worthy(type_, meta):
         try:
             from .telegram import send_telegram

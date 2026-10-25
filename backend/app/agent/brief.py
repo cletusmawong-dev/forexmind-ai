@@ -171,21 +171,10 @@ def maybe_push_daily(user_id: str, now: Optional[datetime] = None) -> bool:
             _pushed_today.add((user_id, day))
             return False
         text = build(user_id)
-        # STRICT MESSAGING (owner brief 2026-10-10, s.8B/C): no routine
-        # summaries - the brief only goes out on days with actionable content
-        # (open positions, management events, or signals in the last 24h).
-        try:
-            from ..notifications.policy import brief_actionable
-            if not brief_actionable(store, user_id):
-                _pushed_today.add((user_id, day))
-                try:
-                    if docs:
-                        store.update("agent_goals", docs[0]["id"], {key: True})
-                except Exception:
-                    pass
-                return False
-        except Exception:
-            pass   # gate failure must not break the push path
+        # OWNER DIRECTIVE (2026-10-25): the morning brief is one of the four
+        # wanted Telegram messages and goes out EVERY day - the old
+        # s.8B "actionable content only" gate is gone. Once-per-day dedup
+        # (process guard + persisted flag) is unchanged.
         notify(user_id, "MORNING_BRIEF", "📰 Morning Brief", text)
         try:   # persist the flag; a failed write must not cause a re-push
             if docs:

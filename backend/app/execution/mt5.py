@@ -808,6 +808,32 @@ def _apply_fill(store, signal: dict, res: dict, lots: float) -> None:
         "mt5_symbol": res.get("symbol"),   # broker-resolved name (suffix/alias included)
         "intended_rr": _int_rr, "executed_rr": _exec_rr, "entry_slippage": _slip,
         "mt5_executed_at": datetime.now(timezone.utc).isoformat()})
+
+    # OWNER DIRECTIVE (2026-10-25): the "trade entered" Telegram message -
+    # fired ONLY here, on a real broker fill (never on signal creation).
+    try:
+        _e = float(res.get("price") or signal.get("entry") or 0)
+        _sl = float(signal.get("sl") or 0)
+        _tp_raw = signal.get("tp1")
+        _tp = float(_tp_raw) if _tp_raw not in (None, "", 0) else None
+        _dir = str(signal.get("direction") or "")
+        _name = (signal.get("strategy_name") or signal.get("strategy_id") or "")
+        _sid = signal.get("signal_id") or signal.get("id") or ""
+        _vol = res.get("volume") or lots
+        _body = (f"{_name} | {_sid}\n"
+                 f"Filled {_vol} lots at {_e:,.5g} - SL {_sl:,.5g}")
+        if _tp is not None:
+            _body += (f" - TP {_tp:,.5g}"
+                      + (f" (RR 1:{_int_rr:.2f})" if _int_rr else "") + ".")
+        else:
+            _body += ".\nNo fixed TP by rule - managed trail + time exit."
+        notify(signal.get("userId") or settings.owner_user_id, "TRADE_ENTERED",
+               f"{'🟢' if _dir.upper() == 'BUY' else '🔴'} ENTERED - "
+               f"{signal.get('market')} {_dir}", _body,
+               signal_id=signal.get("id"))
+    except Exception:
+        pass
+
     _emit(signal.get("userId") or settings.owner_user_id, "ENTRY", "CONFIRMED",
           market=signal.get("market"), signal=signal,
           ticket=res.get("ticket"),

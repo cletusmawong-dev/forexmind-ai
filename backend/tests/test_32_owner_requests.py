@@ -6,7 +6,12 @@ import pytest
 
 
 # ------------------------------------------------------------ telegram filter
-def test_telegram_only_important(monkeypatch, tmp_path):
+def test_telegram_only_the_four_owner_messages(monkeypatch, tmp_path):
+    """OWNER DIRECTIVE 2026-10-25: Telegram carries EXACTLY (1) the morning
+    brief, (2) high-impact news, (3) trade ENTERED, (4) trade hit TP or SL
+    (+ live TP-hit events). Everything else - signals without an entry,
+    execution failures/skips, approvals, research, regime notes - stays
+    in-app only. No force flag and no env extension can bypass this."""
     import app.notifications.service as svc
     sent = []
     monkeypatch.setattr("app.notifications.telegram.send_telegram",
@@ -17,36 +22,35 @@ def test_telegram_only_important(monkeypatch, tmp_path):
     from app.config import settings
     monkeypatch.setattr(settings, "telegram_bot_token", "fake-token")
 
-    # noise: NOT sent to telegram, but persisted in-app
-    for t in ("EXECUTION_SKIPPED", "SIGNAL_SKIPPED", "EXTRA_SIGNAL",
-              "EXTRA_SIGNAL_TAKEN", "ANY_RANDOM_TYPE"):
-        svc.notify("boss", t, f"noise {t}", "body")
-    # important: sent
+    # the four wanted messages (+ live TP hits): SENT
+    for t in ("MORNING_BRIEF", "NEWS_ALERT", "TRADE_ENTERED", "TRADE_COMPLETED",
+              "TP2_HIT_LIVE", "TP1_HIT"):
+        svc.notify("boss", t, f"wanted {t}", "body")
+    # everything else: NOT sent (but persisted in-app)
     for t in ("NEW_SIGNAL", "EXECUTION_FAILED", "APPROVAL_REQUIRED",
-              "REGIME_CHANGE", "MORNING_BRIEF", "NEWS_ALERT",
-              "RESEARCH_REVIEW"):
-        svc.notify("boss", t, f"important {t}", "body")
-    # TP events on real tickets: sent by pattern
-    svc.notify("boss", "TP2_HIT_LIVE", "TP2 hit", "body")
+              "REGIME_CHANGE", "RESEARCH_REVIEW", "EXECUTION_SKIPPED",
+              "SIGNAL_SKIPPED", "EXTRA_SIGNAL", "EXTRA_SIGNAL_TAKEN",
+              "STRATEGY_VERSION_UPDATED", "TELEGRAM_TEST", "ANY_RANDOM_TYPE"):
+        svc.notify("boss", t, f"quiet {t}", "body")
 
     types = [x[1].split("\n")[0] for x in sent]
-    assert any("important NEW_SIGNAL" in t for t in types)
-    assert any("TP2 hit" in t for t in types)
-    assert not any("noise" in t for t in types), types
+    for t in ("MORNING_BRIEF", "NEWS_ALERT", "TRADE_ENTERED", "TRADE_COMPLETED",
+              "TP2_HIT_LIVE", "TP1_HIT"):
+        assert any(t in x for x in types), (t, types)
+    assert len(sent) == 6, types
     # everything is still persisted in-app
     from app.db.store import get_store
     notes = get_store().list("notifications", limit=50)
-    assert len(notes) == 13
+    assert len(notes) == 18
 
-    # one-off override via meta
+    # the old escape hatches are GONE: force flag and env extension
     svc.notify("boss", "EXECUTION_SKIPPED", "bridge offline", "VPS unreachable",
                meta={"telegram_important": True})
-    assert any("bridge offline" in x[1] for x in sent)
-
-    # env extension without code change
     monkeypatch.setattr(settings, "telegram_important_types", "MY_CUSTOM_TYPE")
     svc.notify("boss", "MY_CUSTOM_TYPE", "custom", "body")
-    assert any("custom" in x[1] for x in sent)
+    assert not any("bridge offline" in x[1] for x in sent)
+    assert not any("custom" in x[1] for x in sent)
+    assert len(sent) == 6
 
 
 # ------------------------------------------------------------ double signals

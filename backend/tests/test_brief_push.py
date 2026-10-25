@@ -47,10 +47,11 @@ def test_outside_window_noop(monkeypatch, tmp_path):
     assert sent == []
 
 
-def test_brief_silent_without_actionable_content(monkeypatch, tmp_path):
-    """STRICT MESSAGING (2026-10-10 s.8B): no actionable content -> the
-    daily brief is NOT sent at all."""
+def test_brief_pushes_even_without_actionable_content(monkeypatch, tmp_path):
+    """OWNER DIRECTIVE (2026-10-25): the morning brief is one of the four
+    wanted Telegram messages and goes out EVERY day - the old s.8B
+    actionable-only gate is gone. Dedup (once/day) is unchanged."""
     sent = _setup(monkeypatch, tmp_path, actionable=False)
     now = datetime(2026, 9, 14, 7, 30, tzinfo=timezone.utc)
-    assert B.maybe_push_daily("u1", now=now) is False
-    assert sent == []
+    assert B.maybe_push_daily("u1", now=now) is True
+    assert sent == ["u1"]
