@@ -296,6 +296,19 @@ export function SettingsScreen() {
         />
         {acctType === "propfirm" ? (
           <>
+            <div className="mt-3 rounded-2xl border border-[rgba(var(--warm-rgb),0.1)] bg-[rgba(var(--warm-rgb),0.04)] px-4 py-3">
+              <div className="eyebrow !text-[9px] mb-2">Aqua Funded quick setup (verify against your dashboard)</div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => { setPropDaily("5"); setPropTotal("10"); setPropTarget("8"); setPropBuffer("20"); setPropStart("5000"); flash("Phase 1 template loaded - check the numbers, then Save"); }}
+                  className={`tap min-h-[42px] rounded-2xl border px-2 py-2 text-[10.5px] font-bold ${propTarget === "8" && propStart === "5000" ? "chip-on" : "chip-off"}`}
+                >Phase 1 - pass (8% target)</button>
+                <button
+                  onClick={() => { setPropDaily("5"); setPropTotal("10"); setPropTarget("5"); setPropBuffer("20"); setPropStart("5000"); flash("Phase 2 template loaded - check the numbers, then Save"); }}
+                  className={`tap min-h-[42px] rounded-2xl border px-2 py-2 text-[10.5px] font-bold ${propTarget === "5" && propStart === "5000" ? "chip-on" : "chip-off"}`}
+                >Phase 2 - pass (5% target)</button>
+              </div>
+            </div>
             <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-3">
               <div>
                 <div className="eyebrow !text-[9px] mb-1.5">Daily drawdown %</div>
