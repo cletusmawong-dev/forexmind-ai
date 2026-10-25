@@ -88,8 +88,11 @@ def set_status(strategy_id: str, body: dict, user_id: str = Depends(get_user_id)
     status = body.get("status")
     sessions = body.get("sessions", "__absent__")
     entry_tf = body.get("entry_timeframe", "__absent__")
+    execution = body.get("execution", "__absent__")
     if status is not None and status not in ("ACTIVE", "PAUSED", "DISABLED"):
         raise HTTPException(422, "status must be ACTIVE, PAUSED or DISABLED")
+    if execution != "__absent__" and execution not in ("live", "record_only", None):
+        raise HTTPException(422, "execution must be 'live', 'record_only' or null (= live)")
     if entry_tf != "__absent__" and entry_tf is not None:
         try:
             allowed = allowed_entry_tfs(get_strategy(strategy_id))
@@ -102,14 +105,16 @@ def set_status(strategy_id: str, body: dict, user_id: str = Depends(get_user_id)
         if (not isinstance(sessions, list) or not sessions or
                 any(x not in SESSIONS for x in sessions)):
             raise HTTPException(422, f"sessions must be a non-empty list from {list(SESSIONS)}")
-    if status is None and sessions == "__absent__" and entry_tf == "__absent__":
+    if (status is None and sessions == "__absent__"
+            and entry_tf == "__absent__" and execution == "__absent__"):
         raise HTTPException(422, "nothing to update")
     store = State.store
     doc = store.list("strategies", filters={"id": strategy_id}, limit=1)
     if not doc:
         raise HTTPException(404, "Unknown strategy")
     prev = {"status": doc[0].get("status"), "sessions": doc[0].get("sessions"),
-            "entry_timeframe": doc[0].get("entry_timeframe")}
+            "entry_timeframe": doc[0].get("entry_timeframe"),
+            "execution": doc[0].get("execution")}
     patch = {}
     if status is not None:
         patch["status"] = status
@@ -117,6 +122,8 @@ def set_status(strategy_id: str, body: dict, user_id: str = Depends(get_user_id)
         patch["sessions"] = sessions
     if entry_tf != "__absent__":
         patch["entry_timeframe"] = entry_tf   # None = back to the class default
+    if execution != "__absent__":
+        patch["execution"] = execution        # None = live (the default)
         store.update("strategies", strategy_id,
                      {"proposed_sessions": None, "proposed_change_note": None})
     out = store.update("strategies", strategy_id, patch)

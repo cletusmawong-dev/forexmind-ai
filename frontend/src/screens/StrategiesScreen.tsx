@@ -1,5 +1,5 @@
 import { useState } from "react";
-import {ChevronDown, GitBranch, Layers, Clock, Timer} from "lucide-react";
+import {ChevronDown, GitBranch, Layers, Clock, Timer, FlaskConical} from "lucide-react";
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
 import type { StrategyDoc, StrategyVersion } from "../lib/types";
@@ -63,6 +63,21 @@ export function StrategiesScreen() {
       refresh();
     } catch (e: any) {
       flash(e.message || "Could not set the timeframe");
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const setExecution = async (st: StrategyDoc, mode: "live" | "record_only") => {
+    setBusy(`exec:${st.id}`);
+    try {
+      await api.patch(endpoints.strategy(st.id), { execution: mode });
+      flash(mode === "record_only"
+        ? `${st.short_name}: RECORD ONLY - signals are saved for research, nothing is executed`
+        : `${st.short_name}: LIVE - qualifying signals execute again`);
+      refresh();
+    } catch (e: any) {
+      flash(e.message || "Could not set the execution mode");
     } finally {
       setBusy("");
     }
@@ -141,8 +156,31 @@ export function StrategiesScreen() {
                 <div className="min-w-0">
                   <div className="truncate text-[12.5px] font-semibold text-txt-hi">{st.short_name || st.id}</div>
                   <div className="text-[10px] text-txt-faint">
-                    {retired ? "Retired - signal history kept" : (st as any).lifecycle === "SLEEPING" ? "Sleeping - signals advisory only (research)" : st.status === "ACTIVE" ? "Live - generating signals" : "Paused - no new signals"}
+                    {retired ? "Retired - signal history kept"
+                      : (st as any).lifecycle === "SLEEPING" ? "Sleeping - signals advisory only (research)"
+                      : st.execution === "record_only" ? "Record only - signals saved for research, never executed"
+                      : st.status === "ACTIVE" ? "Live - generating signals" : "Paused - no new signals"}
                   </div>
+                  {!retired && (
+                    <label className="mt-2 flex items-center gap-2 text-[10px] text-txt-faint">
+                      <FlaskConical size={11} className={`shrink-0 ${st.execution === "record_only" ? "text-acc-cyan" : ""}`} aria-hidden="true" />
+                      <span className="shrink-0">Trades</span>
+                      <span className={`flex overflow-hidden rounded-full border ${st.execution === "record_only" ? "border-[rgba(var(--gold-rgb),0.45)]" : "border-[rgba(var(--warm-rgb),0.16)]"}`} role="group" aria-label={`${st.short_name || st.id} execution mode`}>
+                        <button
+                          onClick={() => st.execution === "record_only" && setExecution(st, "live")}
+                          disabled={busy.startsWith("exec:")}
+                          aria-pressed={st.execution !== "record_only"}
+                          className={`px-2.5 py-[3px] text-[9.5px] font-bold ${st.execution !== "record_only" ? "chip-on !rounded-none" : "text-txt-faint"}`}
+                        >Live</button>
+                        <button
+                          onClick={() => st.execution !== "record_only" && setExecution(st, "record_only")}
+                          disabled={busy.startsWith("exec:")}
+                          aria-pressed={st.execution === "record_only"}
+                          className={`px-2.5 py-[3px] text-[9.5px] font-bold ${st.execution === "record_only" ? "chip-on !rounded-none" : "text-txt-faint"}`}
+                        >Record only</button>
+                      </span>
+                    </label>
+                  )}
                   {!retired && (
                     <label className="mt-2 flex items-center gap-2 text-[10px] text-txt-faint">
                       <Timer size={11} className="shrink-0" aria-hidden="true" />
@@ -190,9 +228,11 @@ export function StrategiesScreen() {
           ))}
 
         <p className="mt-1 text-[10px] leading-relaxed text-txt-faint">
-          <span className="font-semibold text-txt-low">Executes on</span> sets the candle timeframe each strategy
-          runs its entry logic on (your per-strategy setting, saved instantly). Applies to new signals only -
-          signals already tracking always run to completion. Values marked Default are each strategy&apos;s spec.
+          <span className="font-semibold text-txt-low">Trades</span> switches between LIVE execution and RECORD
+          ONLY (research): a record-only strategy keeps generating and scoring signals so you can judge them before
+          enabling execution - nothing touches MT5. <span className="font-semibold text-txt-low">Executes on</span>{" "}
+          sets the candle timeframe each strategy runs its entry logic on. Both save instantly and apply to new
+          signals only - signals already tracking always run to completion.
         </p>
       </Glass>
 
@@ -207,6 +247,9 @@ export function StrategiesScreen() {
                   Strategy {idx + 1} - <span className="font-mono">v{s.active_version}</span> - {s.status.toLowerCase()}
                   {" - executes on "}
                   <span className="font-semibold text-txt-low">{s.entry_timeframe || s.default_entry_tf || "scan"}</span>
+                  {s.execution === "record_only" && (
+                    <span className="ml-1 rounded-full border border-[rgba(var(--gold-rgb),0.4)] px-1.5 py-[1px] text-[9px] font-bold uppercase tracking-wider text-acc-cyan">record only</span>
+                  )}
                 </div>
               </div>
               <span className="mr-1 hidden shrink-0 items-center gap-1 rounded-full border border-[rgba(var(--warm-rgb),0.14)] px-2.5 py-1 text-[9.5px] font-bold uppercase tracking-[0.14em] text-txt-faint sm:flex">

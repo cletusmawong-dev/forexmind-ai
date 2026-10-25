@@ -333,3 +333,91 @@ def test_personal_account_uses_its_own_limit(env):
     from app.engine.signal_engine import SignalEngine
     ok, reason = SignalEngine(None)._guards("boss", _candidate(), "London")
     assert ok is True, reason
+
+
+# ===========================================================================
+# 6. per-strategy RECORD-ONLY (research) execution mode
+# ===========================================================================
+def test_execution_mode_patch_roundtrip(env):
+    c, store, monkeypatch = env
+    r = c.patch("/api/strategies/strategy_gold_orb", json={"execution": "record_only"})
+    assert r.status_code == 200, r.text
+    assert r.json()["strategy"]["execution"] == "record_only"
+    r = c.patch("/api/strategies/strategy_gold_orb", json={"execution": None})
+    assert r.status_code == 200
+    assert r.json()["strategy"]["execution"] is None      # None = live
+    r = c.patch("/api/strategies/strategy_gold_orb", json={"execution": "yolo"})
+    assert r.status_code == 422
+
+
+def test_record_only_strategy_signals_are_recorded_not_executed(env):
+    """The owner's research pipeline: signals are created + tracked, but the
+    executor refuses them server-side (never client-trusted)."""
+    c, store, monkeypatch = env
+    import json as _json
+    from app.config import settings as _s
+    monkeypatch.setattr(_s, "execution_mode", "mt5_bridge")
+    monkeypatch.setattr(_s, "bridge_url", "http://fake-bridge:8700")
+    store.create("strategies", {"id": "strategy_gold_orb", "status": "ACTIVE",
+                                "execution": "record_only"})
+    from app.execution import mt5 as X
+
+    def boom(path, timeout=8):
+        raise AssertionError("bridge MUST NOT be called in record-only mode")
+    monkeypatch.setattr(X, "bridge_get", boom)
+    monkeypatch.setattr(X, "bridge_post", boom)
+    monkeypatch.setattr(X, "execution_enabled", lambda uid: True)
+
+    from app.db import store as store_mod
+    real_store = store
+    monkeypatch.setattr(X, "get_store", lambda: real_store)
+    sig = {"id": "sig_ro1", "userId": "boss", "signal_id": "SIG-RO1",
+           "strategy_id": "strategy_gold_orb", "market": "XAUUSD",
+           "direction": "BUY", "timeframe": "15M", "entry": 2400.0,
+           "sl": 2390.0, "tp1": 2430.0, "risk": 10.0, "status": "ACTIVE",
+           "candle_time": "2026-10-25T10:00:00"}
+    store.create("signals", dict(sig))
+    X.execute_signal(dict(sig), "boss")
+    doc = store.get("signals", "sig_ro1")
+    assert doc["execution_status"] == "SKIPPED_RECORD_ONLY"
+    assert "record-only" in (doc.get("mt5_note") or "")
+
+
+def test_virtual_signal_outcomes_never_hit_telegram():
+    """Standing rule: TP/completion announcements come from REAL tickets.
+    Record-only research outcomes stay in-app under VIRTUAL_* types."""
+    from app.engine.tracker import _is_real
+    assert _is_real({"mt5_ticket": 123}) is True
+    assert _is_real({"mt5_command_id": "c1"}) is True
+    assert _is_real({"mt5_ticket": None}) is False
+    assert _is_real({}) is False
+
+    from app.notifications.service import _telegram_worthy
+    assert _telegram_worthy("VIRTUAL_TRADE_COMPLETED", None) is False
+    assert _telegram_worthy("TP1_HIT_VIRTUAL", None) is False
+    assert _telegram_worthy("TRADE_COMPLETED", None) is True
+    assert _telegram_worthy("TP2_HIT", None) is True
+
+
+def test_tracker_completes_virtual_signal_with_silent_type(env):
+    c, store, monkeypatch = env
+    store.create("signals", {"id": "sig_v1", "userId": "boss",
+                             "signal_id": "SIG-V1", "strategy_name": "Gold ORB",
+                             "market": "XAUUSD",
+                             "direction": "BUY", "timeframe": "15M",
+                             "entry": 2400.0, "sl": 2390.0, "tp1": 2430.0,
+                             "risk": 10.0, "status": "TP1_HIT", "tp_hits": 0,
+                             "completed": False})
+    from app.engine.tracker import SignalTracker
+    st = SignalTracker.__new__(SignalTracker)   # no provider needed
+    st._exc = {}
+    sig = store.get("signals", "sig_v1")
+    SignalTracker._complete(st, sig, status="SL_HIT", r=-1.0, exit_price=2390.0,
+                            outcome="LOSS")
+    doc = store.get("signals", "sig_v1")
+    assert doc["completed"] and doc["outcome"] == "LOSS"
+    notes = store.list("notifications",
+                       filters={"type": "VIRTUAL_TRADE_COMPLETED"}, limit=5)
+    assert len(notes) == 1 and notes[0]["userId"] == "boss"
+    assert not store.list("notifications",
+                          filters={"type": "TRADE_COMPLETED"}, limit=5)

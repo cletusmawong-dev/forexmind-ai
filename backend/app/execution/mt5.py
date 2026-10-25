@@ -427,6 +427,24 @@ def execute_signal(signal: dict, user_id: str) -> None:
               detail=f"strategy lifecycle {_life}")
         return
 
+    # Owner directive 2026-10-25: per-strategy RECORD-ONLY (research) mode.
+    # The strategy keeps generating + recording signals so the owner can
+    # judge validity, but NOTHING is sent to MT5 until it is switched back
+    # to live - server-side, per strategy, never client-trusted.
+    _sdoc = store.list("strategies",
+                       filters={"id": signal.get("strategy_id")}, limit=1)
+    if _sdoc and _sdoc[0].get("execution") == "record_only":
+        if signal.get("id"):
+            store.update("signals", signal["id"], {
+                "execution_status": "SKIPPED_RECORD_ONLY",
+                "mt5_note": "Strategy is in record-only research mode - "
+                            "signal recorded, not executed"})
+        _log(f"Execution blocked - {signal.get('strategy_id')} is in "
+             "record-only research mode. Signal recorded for review.", market)
+        _emit(user_id, "ENTRY", "SKIPPED", market=market, signal=signal,
+              detail="strategy record-only (research)")
+        return
+
     # SS22/SS26: daily walls block automatic NEW entries only - the signal was
     # already generated, recorded and notified (EXTRA SIGNAL). Never the reverse.
     try:

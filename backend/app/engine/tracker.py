@@ -18,6 +18,13 @@ ACTIVE_STATUSES = ("ACTIVE", "TP1_HIT", "TP2_HIT")
 TF_MINUTES = {"5M": 5, "15M": 15, "1H": 60, "4H": 240, "1D": 1440}
 
 
+def _is_real(sig: dict) -> bool:
+    """True only when the signal carries a REAL broker ticket/command (the
+    outcome is broker truth). Advisory, record-only research and demo
+    signals are virtual: their outcomes stay in-app and off Telegram."""
+    return bool(sig.get("mt5_ticket") or sig.get("mt5_command_id"))
+
+
 class SignalTracker:
     def __init__(self, provider):
         self.provider = provider
@@ -113,7 +120,12 @@ class SignalTracker:
                         patch_tp["mfe_r"] = round(e["mfe"], 3)
                         patch_tp["mae_r"] = round(e["mae"], 3)
                     store.update("signals", sig["id"], patch_tp)
-                    notify(sig.get("userId"), f"TP{k}_HIT",
+                    # Standing rule: TP events on Telegram come from REAL MT5
+                    # tickets only. A virtually-tracked signal (advisory,
+                    # record-only research, demo) stays in-app.
+                    _tp_type = (f"TP{k}_HIT" if _is_real(sig)
+                                else f"TP{k}_HIT_VIRTUAL")
+                    notify(sig.get("userId"), _tp_type,
                            f"TP{k} hit - {sig['market']} {sig['direction']}",
                            f"{sig['strategy_name']} | {sig['signal_id']}\n"
                            f"Price reached TP{k} ({tp:,.5g}). Tracking TP{k+1}...",
@@ -149,7 +161,12 @@ class SignalTracker:
             patch["mae_r"] = round(e["mae"], 3)
         updated = store.update("signals", sig["id"], patch)
 
-        notify(sig.get("userId"), "TRADE_COMPLETED",
+        # broker-truth rule: only a real ticket announces the completion;
+        # virtual outcomes (record-only research, advisory, demo) are
+        # recorded in-app under a silent type - never on Telegram.
+        _type = ("TRADE_COMPLETED" if _is_real(sig)
+                 else "VIRTUAL_TRADE_COMPLETED")
+        notify(sig.get("userId"), _type,
                f"{outcome} - {sig['market']} {sig['direction']}",
                f"{sig['strategy_name']} | {sig['signal_id']}\nResult: {status} "
                f"({r:+.1f}R).",

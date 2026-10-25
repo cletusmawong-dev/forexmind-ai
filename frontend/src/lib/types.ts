@@ -220,6 +220,8 @@ export interface StrategyDoc {
   entry_timeframe?: string | null;
   default_entry_tf?: string | null;
   allowed_entry_tfs?: string[];
+  /** owner-set execution mode: live trading or record-only research */
+  execution?: "live" | "record_only" | null;
 }
 
 export interface ActivityItem {
