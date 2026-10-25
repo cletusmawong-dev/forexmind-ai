@@ -275,6 +275,16 @@ class TradeManager:
                             None, True, v2.get("verdict", "TB2_TRAIL"),
                             execution=v2, snapshot_ts=now)
             return out
+        _ps_ids = ("strategy_hybrid_crt_tbs", "strategy_fade_crt_ext")
+        if (sig or {}).get("strategy_id") in _ps_ids:
+            ps = self._pinstripe_manage(user_id, pos, sig)
+            out["actions"].extend(ps.get("actions", []))
+            st["last_review"] = now
+            st["last_pl"] = float(pos.get("profit") or 0)
+            recorder.record(user_id, pos, trigger, "deterministic", "local",
+                            None, True, ps.get("verdict", "PINSTRIPE_LADDER"),
+                            execution=ps, snapshot_ts=now)
+            return out
 
         # 0) TP-ladder deterministic layer FIRST (SS14-16): hard rules run
         #    regardless of AI availability/decisions (implemented in P9)
@@ -444,6 +454,61 @@ class TradeManager:
     # ==================================================================
     # TP ladder (SS14/SS15/SS16) - deterministic, AI-independent
     # ==================================================================
+    def _pinstripe_manage(self, user_id: str, pos: dict,
+                          sig: Optional[dict]) -> Dict[str, Any]:
+        """PINSTRIPE V6 common settings (owner locked rules, 2025) - the
+        strategy IS the management plan, so this deterministic ladder runs
+        INSTEAD of the generic TP ladder / position policy / AI:
+          TP1 reached -> close exactly 50% of the position, then move the
+                         SL to the exact entry price (breakeven);
+          TP2 reached -> close the remaining 50% (final target).
+        State (ps_tp_state) is restart-safe: the level is recomputed from
+        the live price and re-issue is idempotent via the state."""
+        actions: List[Dict[str, Any]] = []
+        try:
+            tp1 = (sig or {}).get("tp1")
+            tp2 = (sig or {}).get("tp2")
+            if not tp1 or not tp2:
+                return {"actions": [], "verdict": "PINSTRIPE_NO_TP_CONTEXT",
+                        "skip_ai": True}
+            price = float(pos.get("price_current") or 0)
+            entry = float(pos.get("price_open") or 0)
+            tp1, tp2 = float(tp1), float(tp2)
+            # PINSTRIPE TPs are CRT-derived: TP1/TP2 can sit on EITHER side
+            # of the entry (e.g. a buy whose CRT midpoint is below it) - a
+            # level is reached when price crosses it FROM THE ENTRY SIDE,
+            # not merely by direction.
+            hit1 = (price >= tp1) if tp1 > entry else (price <= tp1)
+            hit2 = (price >= tp2) if tp2 > entry else (price <= tp2)
+            crossed = 2 if hit2 else (1 if hit1 else 0)
+            prev = int(self._state.get(int(pos["ticket"]), {}).get("ps_tp_state") or 0)
+            if crossed <= prev:
+                return {"actions": actions, "verdict": "PINSTRIPE_LADDER",
+                        "tp_state": prev, "skip_ai": True}
+            self._state.setdefault(int(pos["ticket"]), {})["ps_tp_state"] = crossed
+            if crossed == 1:
+                res = risk_gate.execute_plan(
+                    user_id, pos, {"partial_fraction": 0.5},
+                    reason="PINSTRIPE: TP1 -> close exactly 50% (locked spec)")
+                actions.append(res)
+                if entry > 0:
+                    res2 = risk_gate.execute_plan(
+                        user_id, pos, {"modify_sl": entry},
+                        reason="PINSTRIPE: after the partial -> SL to breakeven")
+                    actions.append(res2)
+            elif crossed == 2:
+                # TP2: close the remainder (if TP1 was never applied - e.g. a
+                # gap straight to TP2 - the full close is the honest outcome)
+                res = risk_gate.execute_plan(
+                    user_id, pos, {"close_full": True},
+                    reason="PINSTRIPE: TP2 -> final target (remainder closed)")
+                actions.append(res)
+            return {"actions": actions, "verdict": "PINSTRIPE_LADDER",
+                    "tp_state": crossed, "tp1": tp1, "tp2": tp2, "skip_ai": True}
+        except Exception as exc:
+            return {"actions": actions, "verdict": "PINSTRIPE_ERROR",
+                    "error": type(exc).__name__, "skip_ai": True}
+
     def _trendbreak_v2_manage(self, user_id: str, pos: dict,
                               sig: Optional[dict]) -> Dict[str, Any]:
         """TrendBreak v2 (H1) deterministic exits (owner Pine 2026-10-24):

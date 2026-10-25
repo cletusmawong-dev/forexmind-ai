@@ -30,6 +30,9 @@ import pandas as pd
 from ..base import BaseStrategy, Candidate
 from . import trendbreak as tb
 from . import trendbreak_v2 as tb2
+from . import hybrid_crt_tbs as ps1
+from . import fade_crt_extension as ps2
+from . import pinstripe_common as psc
 from . import zonesweep as zs
 from .trendbreak import SPEC as TB_SPEC
 from .zonesweep import SPEC as ZS_SPEC
@@ -269,6 +272,171 @@ class TrendBreakV2Strategy(_ResearchCandidateStrategy):
                             "breakout (Pine defaults, unmodified)"}],
                 "TrendBreak v2: H1 breakout, 2.5xATR stop, 5xATR trail, "
                 "no fixed target.")
+
+
+class _PinstripeBase(_ResearchCandidateStrategy):
+    """Shared plumbing for the PINSTRIPE V6 pair (spec: locked rules 2025).
+    Instrument-agnostic (markets=None - the spec lists no instruments; the
+    owner's Settings market selection rules). Both strategies run
+    independently and MAY trade the same pair at the same time (spec rule 7)
+    - the duplicate-setup guard is per-strategy."""
+    version = "1.0"
+    markets = None                       # no instrument pin in the spec
+    timeframes = ["15M", "1H", "4H", "1D"]
+    min_bars = 340
+    base_params: Dict[str, Any] = {}
+    experiment_variables: Dict[str, Dict[str, Any]] = {}
+    configured_rr = None                 # RR is structure-derived per setup
+    entry_tf = "1H"
+    context_tfs = ("4H",)
+
+    def _candidate(self, engine_res: Dict[str, Any], market: str,
+                   spec_label: str) -> "Candidate":
+        direction = engine_res["direction"]
+        entry = float(engine_res["entry"])
+        sl = float(engine_res["sl"])
+        tp1 = float(engine_res["tp1"])
+        tp2 = float(engine_res["tp2"])
+        rr2 = engine_res.get("rr_primary")
+        return Candidate(
+            strategy_id=self.id, market=market, timeframe="1H",
+            direction=direction, candle_time=str(engine_res["signal_bar"]),
+            entry=entry, entry_zone=[entry, entry], sl=sl,
+            tps=[tp1, tp2],             # TP1 = partial 50% + BE; TP2 = final
+            risk=abs(entry - sl), rr_primary=(float(rr2) if rr2 else None),
+            score=60, score_components={"pinstripe_rule": 60.0},
+            checks=list(engine_res.get("checks") or []),
+            analysis=(f"PINSTRIPE V6 {spec_label}: entry on the 1H close per "
+                      "spec; TP1 = CRT midpoint (50% partial + breakeven), "
+                      "TP2 = opposite CRT side (final)."),
+            params={}, params_version=self.version,
+            extra={"spec_id": "PINSTRIPE V6", "spec_strategy": spec_label,
+                   "entry_rule": "ON_1H_CLOSE",
+                   "management": {"partial_fraction": 0.5,
+                                  "breakeven_after_partial": True,
+                                  "final_tp": "TP2"},
+                   "crt": engine_res.get("crt"),
+                   "session": None})
+
+
+class HybridCrtTbsStrategy(_PinstripeBase):
+    """PINSTRIPE V6 - Hybrid_CRT_TBS (Secondary Strategy), live 2026-10-25.
+    Valid 4H CRT (hybrid rule) -> 1H liquidity sweep (TBS) -> Model #1
+    candle (body >= 0.58, CRT direction) -> entry on the 1H close beyond
+    the M1 extreme. SL beyond the M1 extreme AND the sweep extreme.
+    TP1 = CRT midpoint (50% partial + breakeven), TP2 = opposite CRT side."""
+    id = "strategy_hybrid_crt_tbs"
+    name = "Hybrid CRT + TBS"
+    short_name = "Hybrid CRT"
+    description = (
+        "PINSTRIPE V6 Hybrid_CRT_TBS (secondary strategy, owner locked "
+        "rules): 4H CRT candle (body >= 0.65, range > 0.85 x 20-avg) with "
+        "the hybrid validity rule (5-candle high/low sweep or body >= "
+        "0.75); 1H liquidity sweep of a recent swing, Model #1 candle "
+        "(body >= 0.58, CRT direction), entry on the 1H close beyond the "
+        "M1 extreme; SL beyond the M1 + sweep extremes; TP1 = CRT midpoint "
+        "(50% partial, SL to breakeven), TP2 = opposite CRT side. Runs "
+        "independently; may trade the same pair as Fade CRT Extension.")
+    SPEC_LABEL = "Hybrid_CRT_TBS"
+
+    def detect_signal(self, df: Optional[pd.DataFrame], market: str,
+                      timeframe: str, params: Optional[Dict[str, Any]] = None,
+                      higher_frames: Optional[Dict[str, pd.DataFrame]] = None,
+                      score_context: Optional[Dict[str, Any]] = None
+                      ) -> Optional[Candidate]:
+        h1, ctx = self._context(df, timeframe, higher_frames)
+        h4 = ctx.get("4H")
+        if h1 is None or h4 is None:
+            return None
+        res = ps1.evaluate(h1, h4, market=market)
+        if not isinstance(res, dict) or res.get("status") != ps1.SIGNAL:
+            return None
+        return self._candidate(res, market, self.SPEC_LABEL)
+
+    def compute(self, df: pd.DataFrame, params: Dict[str, Any]) -> Dict[str, Any]:
+        return {"state": "hybrid crt+tbs engine (detect_signal only)"}
+
+    def detect_on_bar(self, state, i):
+        return None
+
+    def build_candidate(self, state, i, event, df, market, timeframe, params,
+                        higher_frames, score_context) -> Candidate:
+        return None
+
+    def calculate_risk(self, df, state, i, direction, params):
+        return {"entry": float(df["close"].iloc[i]), "sl": float(df["close"].iloc[i]),
+                "risk": 0.0}
+
+    def calculate_targets(self, entry: float, risk: float, direction: str, params):
+        return []
+
+    def explain_signal(self, state, i, direction, params, extra):
+        return ([{"label": "PINSTRIPE V6 hybrid rule", "ok": True,
+                  "detail": "valid 4H CRT -> 1H sweep -> Model #1 -> close "
+                            "beyond M1 (locked spec values)"}],
+                "Hybrid CRT + TBS: entry on 1H close; TP1 CRT midpoint "
+                "(50% + BE), TP2 opposite side.")
+
+
+class FadeCrtExtensionStrategy(_PinstripeBase):
+    """PINSTRIPE V6 - Fade_CRT_Extension (PRIMARY Strategy), live 2026-10-25.
+    4H CRT -> price extends beyond the range by >= 15% of the CRT size ->
+    1H close back inside -> confirmation candle (body >= 0.55) OPPOSITE the
+    CRT -> entry on the 1H close beyond the confirmation extreme. SL beyond
+    the furthest extension extreme. TP1 = CRT midpoint (50% + BE),
+    TP2 = opposite CRT side."""
+    id = "strategy_fade_crt_ext"
+    name = "Fade CRT Extension"
+    short_name = "Fade CRT"
+    description = (
+        "PINSTRIPE V6 Fade_CRT_Extension (PRIMARY strategy, owner locked "
+        "rules): 4H CRT candle (body >= 0.65, range > 0.85 x 20-avg); "
+        "price extends beyond the CRT range by >= 15% of the CRT size; a "
+        "1H candle closes back inside the range; a confirmation candle "
+        "(body >= 0.55) opposes the CRT; entry on the 1H close beyond the "
+        "confirmation extreme; SL beyond the furthest extension extreme; "
+        "TP1 = CRT midpoint (50% partial, SL to breakeven), TP2 = opposite "
+        "CRT side. Runs independently; may trade the same pair as Hybrid "
+        "CRT + TBS.")
+    SPEC_LABEL = "Fade_CRT_Extension"
+
+    def detect_signal(self, df: Optional[pd.DataFrame], market: str,
+                      timeframe: str, params: Optional[Dict[str, Any]] = None,
+                      higher_frames: Optional[Dict[str, pd.DataFrame]] = None,
+                      score_context: Optional[Dict[str, Any]] = None
+                      ) -> Optional[Candidate]:
+        h1, ctx = self._context(df, timeframe, higher_frames)
+        h4 = ctx.get("4H")
+        if h1 is None or h4 is None:
+            return None
+        res = ps2.evaluate(h1, h4, market=market)
+        if not isinstance(res, dict) or res.get("status") != ps2.SIGNAL:
+            return None
+        return self._candidate(res, market, self.SPEC_LABEL)
+
+    def compute(self, df: pd.DataFrame, params: Dict[str, Any]) -> Dict[str, Any]:
+        return {"state": "fade crt extension engine (detect_signal only)"}
+
+    def detect_on_bar(self, state, i):
+        return None
+
+    def build_candidate(self, state, i, event, df, market, timeframe, params,
+                        higher_frames, score_context) -> Candidate:
+        return None
+
+    def calculate_risk(self, df, state, i, direction, params):
+        return {"entry": float(df["close"].iloc[i]), "sl": float(df["close"].iloc[i]),
+                "risk": 0.0}
+
+    def calculate_targets(self, entry: float, risk: float, direction: str, params):
+        return []
+
+    def explain_signal(self, state, i, direction, params, extra):
+        return ([{"label": "PINSTRIPE V6 fade rule", "ok": True,
+                  "detail": "4H CRT -> >=15% extension -> close back inside "
+                            "-> confirm (body>=0.55) -> close beyond conf"}],
+                "Fade CRT Extension: entry on 1H close; TP1 CRT midpoint "
+                "(50% + BE), TP2 opposite side.")
 
 
 class ZoneSweepStrategy(_ResearchCandidateStrategy):

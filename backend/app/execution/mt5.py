@@ -85,6 +85,9 @@ LOT_MODE_MULT = {"low": 0.5, "medium": 1.0, "high": 1.5}
 # by rule (owner Pine 2026-10-24). Orders for these go out without a TP
 # (the bridge sends tp=0.0 to MT5) and the trade manager owns the exits.
 TRAIL_ONLY_STRATEGIES = {"strategy_trendbreak_v2"}
+# PINSTRIPE V6 (owner locked rules 2025): TP1 partials are ladder-managed;
+# the broker ticket carries the FINAL target TP2.
+PINSTRIPE_TP2_STRATEGIES = {"strategy_hybrid_crt_tbs", "strategy_fade_crt_ext"}
 MIN_STOP_PIPS = float(os.getenv("EXECUTION_MIN_STOP_PIPS", "6"))
 MAX_LOTS = float(os.getenv("EXECUTION_MAX_LOTS", "1.0"))
 
@@ -316,8 +319,14 @@ def _setup_already_sent(store, signal: dict) -> Optional[str]:
     candle_time = str(signal.get("candle_time") or "")
     if not market or not direction or not candle_time:
         return None     # incomplete key -> never block on guesses
+    # PINSTRIPE V6 rule 7 (owner 2026-10-25): strategies run INDEPENDENTLY
+    # and may trade the same pair at the same time - the dedup key is
+    # therefore per STRATEGY (same-setup re-sends of one strategy's signal
+    # remain blocked; a different strategy's setup on the same candle is a
+    # legitimate independent trade).
     docs = store.list("signals", filters={
-        "market": market, "direction": direction, "candle_time": candle_time},
+        "market": market, "direction": direction, "candle_time": candle_time,
+        "strategy_id": signal.get("strategy_id")},
         limit=20)
     for s in docs:
         if s.get("id") == signal.get("id"):
@@ -512,6 +521,10 @@ def execute_signal(signal: dict, user_id: str) -> None:
         _tp2, _tp3 = signal.get("tp2"), signal.get("tp3")
         if _tp2 in (None, "", 0) and _tp3 in (None, "", 0):
             tp_level = fallback_level = 1     # the strategy's own target
+        elif signal.get("strategy_id") in PINSTRIPE_TP2_STRATEGIES:
+            # PINSTRIPE V6: TP1 is the ladder-managed partial (50% + BE);
+            # the broker ticket carries TP2 = the final target (locked spec)
+            tp_level = fallback_level = 2
         else:
             tp_level = fallback_level = 2
             raw = str(settings.execution_tp_level).strip().upper()
@@ -622,7 +635,7 @@ def execute_signal(signal: dict, user_id: str) -> None:
                                  "no trustworthy live price for the entry-drift check")
                 return
             store.update("signals", signal["id"],
-                         {"order_rr": _planned_rr(entry, sl, tp)})
+                         {"order_rr": _planned_rr(entry, sl, tp), "order_tp": tp})
             _ok, _code, _why = validate_order(
                 market=market, direction=signal.get("direction"),
                 entry=entry, sl=sl, tp=tp, lots=lots,
@@ -732,7 +745,7 @@ def execute_signal(signal: dict, user_id: str) -> None:
             _ref = None
             if signal.get("id"):
                 store.update("signals", signal["id"],
-                             {"order_rr": _planned_rr(entry, sl, tp)})
+                             {"order_rr": _planned_rr(entry, sl, tp), "order_tp": tp})
             _ok, _code, _why = validate_order(
                 market=market, direction=signal.get("direction"),
                 entry=entry, sl=sl, tp=tp, lots=lots,
@@ -789,7 +802,10 @@ def _apply_fill(store, signal: dict, res: dict, lots: float) -> None:
     levels measured from the ACTUAL fill; entry_slippage = fill - entry."""
     _int_rr = _exec_rr = _slip = None
     try:
-        _tp_raw = signal.get("tp1")
+        # the R:R truth follows the ORDER: the ticket TP (order_tp - equals
+        # tp1 for single-target strategies, TP2 for the PINSTRIPE pair),
+        # falling back to tp1; rr_primary was validated against that level
+        _tp_raw = signal.get("order_tp") or signal.get("tp1")
         _tp = float(_tp_raw) if _tp_raw not in (None, "", 0) else None
         e, sl = float(signal["entry"]), float(signal["sl"])
         fill = res.get("price")

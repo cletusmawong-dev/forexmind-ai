@@ -27,7 +27,9 @@ from .base import BaseStrategy, Candidate
 # PAUSED (see learning.versions.START_PAUSED) - activation is an explicit
 # owner step after tests, historical validation and forward demo testing.
 from .gold_specs import GoldOrbStrategy, H1TrendBreakoutStrategy
-from .research_only.live import (TrendBreakStrategy,
+from .research_only.live import (FadeCrtExtensionStrategy,
+                                      HybridCrtTbsStrategy,
+                                      TrendBreakStrategy,
                                       TrendBreakV2Strategy,
                                       ZoneSweepStrategy)
 from .tpc15.live import TPC15PullbackStrategy
@@ -50,6 +52,13 @@ STRATEGY_CLASSES: Dict[str, Type[BaseStrategy]] = {
     # rule); exits = 5xATR tighten-only trail + 240-bar time exit,
     # maintained by the trade manager's strategy-owned block (engine 0a).
     TrendBreakV2Strategy.id: TrendBreakV2Strategy,
+    # Owner directive 2026-10-25: PINSTRIPE V6 (locked rules) - the two
+    # strategies run independently and may trade the same pair at the same
+    # time (spec rule 7). Deterministic common management (50% partial at
+    # TP1, SL to breakeven, remainder exits TP2) lives in the trade
+    # manager's strategy-owned block; the broker ticket carries TP2.
+    HybridCrtTbsStrategy.id: HybridCrtTbsStrategy,
+    FadeCrtExtensionStrategy.id: FadeCrtExtensionStrategy,
 }
 
 _INSTANCES: Dict[str, BaseStrategy] = {}

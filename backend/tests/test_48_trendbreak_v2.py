@@ -514,7 +514,7 @@ def test_registry_six_strategies_v2_active():
     from app.learning.versions import START_PAUSED, lifecycle_of
     from app.strategies.research_only.live import TrendBreakV2Strategy
     assert reg.STRATEGY_CLASSES["strategy_trendbreak_v2"] is TrendBreakV2Strategy
-    assert len(reg.STRATEGY_CLASSES) == 6
+    assert len(reg.STRATEGY_CLASSES) == 8
     assert "strategy_trendbreak_v2" not in START_PAUSED
     assert lifecycle_of("strategy_trendbreak_v2") == "LIVE"
 

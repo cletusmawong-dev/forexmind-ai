@@ -31,7 +31,10 @@ def run_shadow_cycle(user_id: str) -> dict:
         from ..strategies import all_strategies
         from ..market_data import candle_store
 
-        docs = store.list("strategies", limit=10)
+        # listing cap: the registry grew (8 live strategies + docs created
+        # for registered-at-test-time ids) - a tiny limit cut the shadow
+        # docs out of the window entirely. Scan the full collection.
+        docs = store.list("strategies", limit=1000)
         shadow_ids = [d["id"] for d in docs if d.get("shadow")]
         if not shadow_ids:
             out["note"] = "no strategies in shadow mode - no-op"
