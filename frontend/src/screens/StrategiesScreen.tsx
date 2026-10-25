@@ -8,7 +8,7 @@ import { useAsyncAction } from "../lib/useAsyncAction";
 
 
 export function StrategiesScreen() {
-  const { data, loading, refresh } = usePolling<{ strategies: StrategyDoc[] }>(() => api.get(endpoints.strategies), 8000);
+  const { data, loading, refresh, setData } = usePolling<{ strategies: StrategyDoc[] }>(() => api.get(endpoints.strategies), 8000);
   const [versions, setVersions] = useState<Record<string, StrategyVersion[]>>({});
   const [openId, setOpenId] = useState<string | null>(null);
   const [toast, setToast] = useState("");
@@ -20,11 +20,21 @@ export function StrategiesScreen() {
     setTimeout(() => setToast(""), 4000);
   };
 
+  // optimistic in-place row update: the control reflects the tap the moment
+  // it succeeds (the poll then reconciles with server truth)
+  const patchLocal = (sid: string, fields: Partial<StrategyDoc>) => {
+    setData((prev) => prev ? {
+      ...prev,
+      strategies: prev.strategies.map((s) => s.id === sid ? { ...s, ...fields } : s),
+    } : prev);
+  };
+
   const setParam = async (sid: string, variable: string, value: string) => {
     setBusy(`param:${variable}`);
     try {
       await api.patch(endpoints.strategyParams(sid), { variable, value });
       flash(`Saved - ${variable} = ${value} (new version created, old version kept)`);
+      patchLocal(sid, { active_params: { ...(data?.strategies.find((s) => s.id === sid)?.active_params ?? {}), [variable]: value } });
       refresh();
     } catch (e: any) {
       flash(e.message || "Could not save setting");
@@ -57,6 +67,7 @@ export function StrategiesScreen() {
     setBusy(`tf:${st.id}`);
     try {
       await api.patch(endpoints.strategy(st.id), { entry_timeframe: value });
+      patchLocal(st.id, { entry_timeframe: value });
       flash(value
         ? `${st.short_name}: now executes on ${value} candles`
         : `${st.short_name}: back to its default timeframe (${st.default_entry_tf || "spec"})`);
@@ -72,6 +83,7 @@ export function StrategiesScreen() {
     setBusy(`exec:${st.id}`);
     try {
       await api.patch(endpoints.strategy(st.id), { execution: mode });
+      patchLocal(st.id, { execution: mode });
       flash(mode === "record_only"
         ? `${st.short_name}: RECORD ONLY - signals are saved for research, nothing is executed`
         : `${st.short_name}: LIVE - qualifying signals execute again`);
@@ -88,6 +100,7 @@ export function StrategiesScreen() {
     setBusy(`toggle:${st.id}`);
     try {
       await api.patch(endpoints.strategy(st.id), { status: next });
+      patchLocal(st.id, { status: next as StrategyDoc["status"] });
       flash(`${st.short_name}: ${next === "ACTIVE" ? "ON - generating signals" : "OFF - paused"}`);
       refresh();
     } catch (e: any) {

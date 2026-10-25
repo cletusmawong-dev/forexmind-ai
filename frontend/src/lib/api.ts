@@ -22,7 +22,10 @@ async function request<T = any>(path: string, options: RequestInit = {}): Promis
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   const token = getToken();
   if (token) headers["Authorization"] = `Bearer ${token}`;
-  const res = await fetch(path, { ...options, headers });
+  // WebView/API-cache guard (owner bug report 2026-10-25): a heuristically
+  // cached GET made freshly-saved settings "revert" on screen - the poll
+  // kept reading the stale cached response. Every API call is now no-store.
+  const res = await fetch(path, { ...options, headers, cache: "no-store" });
   let data: any = null;
   try {
     data = await res.json();
