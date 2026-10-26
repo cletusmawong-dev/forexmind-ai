@@ -2,5 +2,6 @@
 # ONE LINE TO EDIT: replace forexmind-ai-api.onrender.com with your live
 # backend host, e.g. forexmind-ai-api.onrender.com
 
-/api/*  https://forexmind-ai-api.onrender.com/api/:splat  200
+# Backend moved to the owner's VPS (2026-10-25) - Render retired.
+/api/*  http://169.58.98.139:8000/api/:splat  200
 /*      /index.html                                         200

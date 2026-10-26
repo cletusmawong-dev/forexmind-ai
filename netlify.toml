@@ -8,9 +8,10 @@
   publish = "frontend/dist"
 
 # Proxy API calls to the always-on FastAPI backend (same origin, no CORS).
+# Backend moved to the owner's VPS (2026-10-25) - Render retired.
 [[redirects]]
   from = "/api/*"
-  to = "https://forexmind-ai-api.onrender.com/api/:splat"
+  to = "http://169.58.98.139:8000/api/:splat"
   status = 200
   force = true
 
