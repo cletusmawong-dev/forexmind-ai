@@ -1,0 +1,26 @@
+# ForexMind AI backend on the bridge VPS (owner decision 2026-10-25).
+# The backend lives next to the MT5 bridge - same box, no card, no invoices,
+# no cold starts. Bridge stays untouched on :8700.
+services:
+  forexmind-api:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    container_name: forexmind-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      # fixed for this host (override in .env if ever needed)
+      - PORT=8000
+      - MT5_BRIDGE_URL=http://169.58.98.139:8700
+      - REPLAY_ENABLED=0
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
