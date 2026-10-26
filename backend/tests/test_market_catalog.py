@@ -42,7 +42,8 @@ def test_every_catalog_symbol_maps_in_provider():
     from app.config import MARKET_CATALOG, MARKET_CATALOG_ALL
     from app.market_data.live_provider import SYMBOL_MAP
     assert len(MARKET_CATALOG_ALL) >= 20
-    assert set(MARKET_CATALOG_ALL) == set(MARKET_CATALOG["Majors"]) \
+    assert set(MARKET_CATALOG_ALL) == set(MARKET_CATALOG["Indices"]) \
+        | set(MARKET_CATALOG["Majors"]) \
         | set(MARKET_CATALOG["Crosses"]) | set(MARKET_CATALOG["Metals"]) \
         | set(MARKET_CATALOG["Crypto"])
     missing = [m for m in MARKET_CATALOG_ALL if m not in SYMBOL_MAP]
