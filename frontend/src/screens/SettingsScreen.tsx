@@ -7,8 +7,8 @@ import { BtnSpinner, DemoTag, Divider, Eyebrow, Glass, GlowDot, Pill, Segmented,
 import { Logo } from "../components/Logo";
 
 export function SettingsScreen() {
-  const goals = usePolling<any>(() => api.get(endpoints.goals), 60000);
-  const risk = usePolling<any>(() => api.get(endpoints.settings), 60000);
+  const goals = usePolling<any>(() => api.get(endpoints.goals), 3600000);   // load-once + refresh() after saves
+  const risk = usePolling<any>(() => api.get(endpoints.settings), 3600000); // load-once + refresh() after saves - the old 60s poll wiped unsaved edits mid-typing
   const info = usePolling<any>(() => api.get(endpoints.systemInfo), 30000);
   const me = usePolling<any>(() => api.get(endpoints.me), 30000);
   const [toast, setToast] = useState("");
@@ -159,6 +159,28 @@ export function SettingsScreen() {
     setTimeout(() => setToast(""), 3000);
   };
 
+  // account type saves THE MOMENT it is tapped (owner report: the toggle
+  // snapped back to personal before Save) - rules numbers still come from
+  // the Save button
+  const saveAcctType = async (k: string) => {
+    try {
+      await api.patch(endpoints.settings, {
+        account_type: k,
+        ...(k === "personal" ? { prop_rules: null } : {}),
+      });
+      setPopup({
+        kind: "ok",
+        title: k === "propfirm" ? "Prop-firm mode ON" : "Personal mode",
+        text: k === "propfirm"
+          ? "Guard mode armed. Check the Aqua numbers below and press Save settings to lock them in."
+          : "Back to personal guard rules.",
+      });
+      risk.refresh();
+    } catch (e: any) {
+      setPopup({ kind: "fail", title: "Could not switch", text: e?.message || "Try again in a moment." });
+    }
+  };
+
   const saveGoals = async () => {
     setSavingGoals(true);
     try {
@@ -288,7 +310,7 @@ export function SettingsScreen() {
         <div className="eyebrow !text-[9px] mb-2.5">Account type - how should the engine guard this account?</div>
         <Segmented
           value={acctType}
-          onChange={(k) => setAcctType(k as "personal" | "propfirm")}
+          onChange={(k) => { setAcctType(k as "personal" | "propfirm"); saveAcctType(k); }}
           options={[
             { key: "personal", label: "Personal" },
             { key: "propfirm", label: "Prop firm" },

@@ -132,10 +132,11 @@ class Settings:
 
 settings = Settings()
 
-# NAS100 off by default: the free TwelveData tier covers it only through the
-# QQQ proxy, which tracks the index loosely - signals on thin data mislead.
-# Set MARKETS_EXTRA=+NAS100 to re-enable when a real index feed is available.
-_markets = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY"]
+# NAS100 is a first-class market since the VPS bridge became the primary
+# feed (2026-10-25): candles come straight from the broker CFD (USTEC/US100
+# aliases on the bridge), not the old loose QQQ proxy. The Aqua account
+# allows index CFDs - owner directive: scan + trade NAS100.
+_markets = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "NAS100"]
 INITIAL_MARKETS = _markets + ([m.lstrip("+") for m in os.getenv("MARKETS_EXTRA", "").split(",") if m] if os.getenv("MARKETS_EXTRA") else [])
 
 # The full market catalog a user can pick from (Settings -> Allowed markets).
@@ -146,6 +147,7 @@ INITIAL_MARKETS = _markets + ([m.lstrip("+") for m in os.getenv("MARKETS_EXTRA",
 # (TwelveData credits) is never blown - the cap is surfaced in Admin,
 # never silently exceeded.
 MARKET_CATALOG = {
+    "Indices": ["NAS100"],
     "Majors": ["EURUSD", "GBPUSD", "USDJPY", "USDCHF", "USDCAD", "AUDUSD", "NZDUSD"],
     "Crosses": ["EURGBP", "EURJPY", "EURCHF", "EURAUD", "GBPJPY", "GBPCHF",
                  "AUDJPY", "CHFJPY", "CADJPY", "AUDCAD", "NZDJPY"],
