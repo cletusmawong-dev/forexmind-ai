@@ -79,7 +79,14 @@ def _s2_overlays(symbol: str, tf: str, df: pd.DataFrame) -> dict:
     if tf not in {"15M", "30M", "1H"}:
         return out
     from ..learning.versions import active_params
-    params = active_params("strategy_2_supply_demand_fvg")
+    try:
+        params = active_params("strategy_2_supply_demand_fvg")
+    except KeyError:
+        # Owner wipe (2026-10-10): strategy_2_supply_demand_fvg is NOT in the
+        # registry - only its historical signals remain. The chart overlay must
+        # degrade to EMA-only instead of 500-ing (2026-10-27 charts 500 fix).
+        # If the strategy is ever re-registered, overlays come back automatically.
+        return out
 
     a = s2_machine.atr(df, int(params.get("atr_length", 14)))
     if a is None or len(a) == 0 or pd.isna(a.iloc[-1]):

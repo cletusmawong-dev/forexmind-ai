@@ -137,6 +137,39 @@ def test_chart_overlays_causal_no_lookahead(env, monkeypatch):
     assert len(before["ema21"]) > 0
 
 
+def test_chart_overlays_survives_unregistered_s2(env, monkeypatch):
+    """Owner wipe (2026-10-10): strategy_2_supply_demand_fvg is NOT in the
+    registry, so /charts/overlays must degrade to EMA-only on S2 timeframes
+    instead of 500-ing (prod bug seen 2026-10-27 on 15M/30M/1H)."""
+    app, store, mp = env
+    import pandas as pd
+    from app.strategies import STRATEGY_CLASSES
+
+    n = 120
+    idx = pd.date_range("2026-09-01", periods=n, freq="15min", tz="UTC")
+    close = pd.Series([100 + (i % 13) * 0.4 for i in range(n)], index=idx)
+    df = pd.DataFrame({"open": close, "high": close + 1, "low": close - 1,
+                       "close": close, "volume": 10.0}, index=idx)
+
+    class _Prov:
+        is_demo = True
+
+        def get_candles(self, market, tf, limit=600):
+            return df.tail(limit)
+
+    from app.state import State
+    mp.setattr(State, "provider", _Prov())
+    mp.delitem(STRATEGY_CLASSES, "strategy_2_supply_demand_fvg", raising=False)
+
+    c = client_as(app, "boss")
+    r = c.get("/api/charts/overlays",
+              params={"symbol": "XAUUSD", "tf": "15M", "limit": 100})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert len(body["ema9"]) > 0 and len(body["ema21"]) > 0
+    assert body["s2"] == {"enabled": False, "live": None, "zones": []}
+
+
 def test_chart_overlays_rejects_bad_tf(env):
     app, store, mp = env
     c = client_as(app, "boss")
