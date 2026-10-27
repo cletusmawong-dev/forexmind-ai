@@ -92,7 +92,7 @@ export function SignalDetailScreen() {
                 borderColor: buy ? "rgba(var(--p-rgb),0.4)" : "rgba(var(--neg-rgb),0.4)",
                 color: buy ? "var(--accent-green)" : "var(--accent-red)",
                 background: buy ? "rgba(var(--p-rgb),0.1)" : "rgba(var(--neg-rgb),0.1)",
-                boxShadow: buy ? "0 0 22px rgba(var(--p-rgb),0.2)" : "0 0 22px rgba(var(--neg-rgb),0.2)",
+                
               }}
             >
               <StatusDot tone={buy ? "green" : "red"} size={6} pulse={false} />
@@ -464,7 +464,7 @@ export function SignalDetailScreen() {
             </div>
             <div className="text-right">
               <div className={`num text-[34px] font-light leading-none ${s.adaptive.score >= 75 ? "text-pos" : s.adaptive.score >= 55 ? "text-warn" : "text-neg"}`}
-                   style={{ textShadow: s.adaptive.score >= 75 ? "0 0 28px rgba(62,207,142,0.35)" : "none" }}>
+                   >
                 {s.adaptive.score}<span className="text-[14px] text-txt-faint">/100</span>
               </div>
               <div className="mt-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-txt-faint">

@@ -60,7 +60,7 @@ export function JournalScreen() {
               <div className="mt-2 flex items-baseline gap-3">
                 <span
                   className={`num text-[42px] font-extrabold leading-none tracking-[-0.03em] lg:text-[48px] ${weekR >= 0 ? "text-pos" : "text-neg"}`}
-                  style={{ textShadow: weekR >= 0 ? "0 0 34px rgba(var(--p-rgb),0.45)" : "0 0 34px rgba(var(--neg-rgb),0.4)" }}
+                  
                 >
                   {fmtR(weekR)}
                 </span>

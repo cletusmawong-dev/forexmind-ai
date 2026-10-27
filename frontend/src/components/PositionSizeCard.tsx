@@ -57,7 +57,7 @@ export function PositionSizeCard({ signal: s }: { signal: Signal }) {
           <div className="mt-4 flex items-end justify-between rounded-2xl border border-[rgba(var(--p-rgb),0.25)] bg-[rgba(var(--p-rgb),0.08)] px-4 py-3.5">
             <div>
               <div className="text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Trade this size</div>
-              <div className="num mt-1 text-[30px] font-extrabold leading-none text-[var(--text-primary)]" style={{ textShadow: "0 0 24px rgba(var(--p-rgb),0.5)" }}>
+              <div className="num mt-1 text-[30px] font-extrabold leading-none text-[var(--text-primary)]">
                 {r.lots.toFixed(2)} <span className="text-[14px] font-semibold text-[var(--text-secondary)]">lots</span>
               </div>
             </div>

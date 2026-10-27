@@ -48,7 +48,7 @@ export function Sidebar() {
             >
               {({ isActive }) => (
                 <>
-                  <Icon size={17.5} strokeWidth={isActive ? 2.1 : 1.7} style={isActive ? { filter: "drop-shadow(0 0 6px rgba(var(--p-rgb),0.8))" } : undefined} />
+                  <Icon size={17.5} strokeWidth={isActive ? 2.1 : 1.7} style={isActive ? { color: "var(--accent-blue)" } : undefined} />
                   {label}
                 </>
               )}

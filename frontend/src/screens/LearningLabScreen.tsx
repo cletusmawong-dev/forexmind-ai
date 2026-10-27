@@ -600,7 +600,7 @@ export function LearningLabScreen() {
                       <ArrowRight size={18} className="mt-3 text-acc-cyan" />
                       <div className="text-center">
                         <div className="eyebrow !text-[9px]">Proposed</div>
-                        <div className="num mt-1.5 text-[30px] font-light text-txt-hi" style={{ textShadow: "0 0 24px rgba(124,213,242,0.4)" }}>{String(h.new_value)}</div>
+                        <div className="num mt-1.5 text-[30px] font-light text-txt-hi">{String(h.new_value)}</div>
                       </div>
                     </div>
                     <p className="mt-3 text-center text-[10.5px] text-txt-faint">
