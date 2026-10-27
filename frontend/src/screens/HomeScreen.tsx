@@ -8,27 +8,9 @@ import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
 import type { MarketCard, Signal } from "../lib/types";
 import {
-  AnimatedNumber, DemoTag, Glass, Logo, ProgressBar, SectionHeader, Spinner,
-  StatusDot, HeroArt, ConnectionState, Pill,
+  AnimatedNumber, DemoTag, Glass, ProgressBar, SectionHeader, Spinner,
+  StatusDot, ConnectionState, Pill,
 } from "../components/ui";
-import { AccountSwitcher } from "../components/AccountSwitcher";
-import bullIvory from "../assets/hero-bull.webp";
-import bullNavy from "../assets/bull-navy.png";
-import bullOnyx from "../assets/bull-onyx.png";
-import bullSlate from "../assets/bull-slate.png";
-
-/* each theme has its own bull design (user request 2026-09-17) */
-const BULLS: Record<string, string> = {
-  ivory: bullIvory,
-  navy: bullNavy,
-  onyx: bullOnyx,
-  slate: bullSlate,
-};
-
-/* blend tuned per bull art: dark-bg bulls screen in; navy's light-bg bull multiplies in */
-const HERO_BLEND: Record<string, "screen" | "multiply"> = {
-  ivory: "screen", navy: "multiply", onyx: "screen", slate: "screen",
-};
 import { fmtPct, fmtPrice, greeting } from "../lib/format";
 import { SignalRow } from "../components/SignalRow";
 import { notEnteredReason as notEnteredSignal } from "../lib/execution";
@@ -47,17 +29,6 @@ type Overview = {
   ai?: { message: string; at?: string; symbol?: string; action?: string; confidence?: number } | null;
   ts?: string;
 };
-
-function useActiveTheme() {
-  const [t, setT] = useState(document.documentElement.getAttribute("data-theme") ?? "ivory");
-  useEffect(() => {
-    const mo = new MutationObserver(() =>
-      setT(document.documentElement.getAttribute("data-theme") ?? "ivory"));
-    mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-    return () => mo.disconnect();
-  }, []);
-  return t;
-}
 
 /* S2 machine word -> visual tone (honest words, never manufactured) */
 const S2_TONE: Record<string, "pos" | "neg" | "warn" | "acc" | "neutral"> = {
@@ -79,8 +50,6 @@ const S1_TONE = (s1?: { active?: boolean; direction?: string; outcome?: string }
   s1?.active ? (s1.direction === "SELL" ? "neg" : "pos") : "neutral";
 
 export function HomeScreen() {
-  const activeTheme = useActiveTheme();
-  const heroBull = BULLS[activeTheme] ?? bullIvory;
   const navigate = useNavigate();
   const [refreshKey, setRefreshKey] = useState(0);
   const refresh = useCallback(() => setRefreshKey((k) => k + 1), []);
@@ -153,9 +122,8 @@ export function HomeScreen() {
       </div>
 
       <div className="lg:col-span-7">
-        {/* header */}
-        <header className="page-head mb-4 flex items-center justify-between gap-2">
-          <span className="lg:hidden"><Logo size={36} /></span>
+        {/* header - mobile version lives in AppHeader (compact, no duplicate brand) */}
+        <header className="page-head mb-4 hidden items-center justify-between gap-2 lg:flex">
           <div className="relative flex min-w-0 items-center gap-2">
             <div className="sm:block">
               <DemoTag />
@@ -184,17 +152,12 @@ export function HomeScreen() {
             </div>
           </div>
         </header>
-        <div className="page-head-divider mb-3" aria-hidden="true" />
+        <div className="page-head-divider mb-3 hidden lg:block" aria-hidden="true" />
 
         {/* active trading account */}
-        <div className="mb-4 flex justify-end"><AccountSwitcher /></div>
 
         {/* ---- hero: ANSWER 1 - your account -------------------------------- */}
         <Glass className="hero-card relative overflow-hidden" pad={false} data-reveal>
-          <img src={heroBull} alt="" aria-hidden="true"
-               className="pointer-events-none absolute right-0 top-0 h-full w-[74%] object-cover object-right opacity-80"
-               style={{ mixBlendMode: HERO_BLEND[activeTheme] ?? "screen", maskImage: "linear-gradient(to right, transparent 8%, black 52%)", WebkitMaskImage: "linear-gradient(to right, transparent 8%, black 52%)" }} />
-          <HeroArt className="right-0 top-0 h-full w-[46%] opacity-75 [mask-image:linear-gradient(to_right,transparent,black_55%)] [-webkit-mask-image:linear-gradient(to_right,transparent,black_55%)]" />
           <div className="relative p-6">
             <div className="flex items-center justify-between gap-2">
               <p className="text-[13px] font-medium text-[var(--text-secondary)]">{greeting()}</p>
@@ -215,30 +178,30 @@ export function HomeScreen() {
 
             {/* account facts: today / open / drawdown / week - broker truth or honest empty */}
             <div className="mt-4 grid grid-cols-4 gap-2">
-              <div className="rounded-2xl border border-[rgba(var(--warm-rgb),0.09)] bg-[rgba(var(--bg-primary-rgb,20,24,33),0.35)] px-3 py-2.5">
-                <div className="text-[8.5px] font-bold uppercase tracking-[0.14em] text-txt-faint">Today P/L</div>
+              <div className="rounded-xl border border-[var(--glass-border-soft)] bg-[var(--bg-secondary)] px-2 py-2.5 text-center">
+                <div className="whitespace-nowrap text-[8px] font-bold uppercase tracking-[0.1em] text-txt-faint">Today P/L</div>
                 <div className={`num mt-1 text-[14px] font-extrabold ${upToday ? "text-pos" : "text-neg"}`}>
                   {acct.today_pl_usd != null
                     ? `${acct.today_pl_usd >= 0 ? "+" : ""}$${Math.abs(acct.today_pl_usd).toLocaleString(undefined, { maximumFractionDigits: 2 })}`
                     : acct.daily_pl_pct != null ? fmtPct(acct.daily_pl_pct) : "-"}
                 </div>
               </div>
-              <div className="rounded-2xl border border-[rgba(var(--warm-rgb),0.09)] bg-[rgba(var(--bg-primary-rgb,20,24,33),0.35)] px-3 py-2.5">
-                <div className="text-[8.5px] font-bold uppercase tracking-[0.14em] text-txt-faint">Open P/L</div>
+              <div className="rounded-xl border border-[var(--glass-border-soft)] bg-[var(--bg-secondary)] px-2 py-2.5 text-center">
+                <div className="whitespace-nowrap text-[8px] font-bold uppercase tracking-[0.1em] text-txt-faint">Open P/L</div>
                 <div className={`num mt-1 text-[14px] font-extrabold ${Number(acct.open_pl ?? 0) >= 0 ? "text-pos" : "text-neg"}`}>
                   {acct.open_pl != null
                     ? `${acct.open_pl >= 0 ? "+" : "-"}$${Math.abs(acct.open_pl).toLocaleString(undefined, { maximumFractionDigits: 2 })}`
                     : "-"}
                 </div>
               </div>
-              <div className="rounded-2xl border border-[rgba(var(--warm-rgb),0.09)] bg-[rgba(var(--bg-primary-rgb,20,24,33),0.35)] px-3 py-2.5">
-                <div className="text-[8.5px] font-bold uppercase tracking-[0.14em] text-txt-faint">Drawdown</div>
+              <div className="rounded-xl border border-[var(--glass-border-soft)] bg-[var(--bg-secondary)] px-2 py-2.5 text-center">
+                <div className="whitespace-nowrap text-[8px] font-bold uppercase tracking-[0.1em] text-txt-faint">Drawdown</div>
                 <div className="num mt-1 text-[14px] font-extrabold text-neg">
                   {acct.drawdown_pct != null && acct.drawdown_pct > 0 ? `${acct.drawdown_pct.toFixed(2)}%` : "0.00%"}
                 </div>
               </div>
-              <div className="rounded-2xl border border-[rgba(var(--warm-rgb),0.09)] bg-[rgba(var(--bg-primary-rgb,20,24,33),0.35)] px-3 py-2.5">
-                <div className="text-[8.5px] font-bold uppercase tracking-[0.14em] text-txt-faint">Week Trades</div>
+              <div className="rounded-xl border border-[var(--glass-border-soft)] bg-[var(--bg-secondary)] px-2 py-2.5 text-center">
+                <div className="whitespace-nowrap text-[8px] font-bold uppercase tracking-[0.1em] text-txt-faint">Week Trades</div>
                 <div className="num mt-1 text-[14px] font-extrabold">
                   {acct.week_trades != null ? acct.week_trades : "-"}
                 </div>

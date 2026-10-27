@@ -28,15 +28,19 @@ export const TEXT = {
 export function LogoMark({ size = 34 }: { size?: number }) {
   return (
     <div
-      className="flex items-center justify-center rounded-[30%] border border-[rgba(var(--warm-rgb),0.14)]"
+      className="flex shrink-0 items-center justify-center rounded-[26%] font-black"
+      aria-hidden="true"
       style={{
         width: size,
         height: size,
-        background: "linear-gradient(145deg, rgba(var(--p-rgb),0.35), rgba(35,42,59,0.7))",
-        boxShadow: "0 6px 20px rgba(62,124,250,0.3), inset 0 1px 0 rgba(255,255,255,0.15)",
+        background: "linear-gradient(150deg, #dcb84e 0%, #c39a33 55%, #a87f24 100%)",
+        color: "#ffffff",
+        fontSize: Math.round(size * 0.5),
+        letterSpacing: "-0.02em",
+        boxShadow: "0 1px 3px rgba(16,24,40,0.16)",
       }}
     >
-      <Brain size={size * 0.62} className="text-[var(--c-ink2)]" strokeWidth={2} />
+      F
     </div>
   );
 }
@@ -46,8 +50,8 @@ export function Logo({ size = 34, subtitle }: { size?: number; subtitle?: string
     <div className="flex shrink-0 items-center gap-2.5">
       <LogoMark size={size} />
       <div className="whitespace-nowrap leading-tight">
-        <div className="txt-aurora text-[15px] font-bold tracking-[0.06em]">
-          FOREXMIND <span className="font-black">AI</span>
+        <div className="text-[15px] font-extrabold tracking-[0.04em] text-[var(--text-primary)]">
+          FOREXMIND <span className="font-black text-[var(--accent-gold)]">AI</span>
         </div>
         {subtitle && <div className="text-[9px] tracking-[0.18em] text-[var(--text-muted)]">{subtitle}</div>}
       </div>
@@ -84,12 +88,12 @@ export function Divider({ className = "" }: { className?: string }) {
 export function PageHeader({ title, sub, right, icon, tone = "blue" }: { title: string; sub?: string; right?: React.ReactNode; icon?: React.ReactNode; tone?: "blue" | "cyan" | "violet" }) {
   const chip = tone === "cyan" ? "icon-chip icon-chip-cyan" : tone === "violet" ? "icon-chip icon-chip-violet" : "icon-chip";
   return (
-    <header className="mb-6 flex items-start justify-between gap-3">
-      <div className="flex items-center gap-3.5">
-        {icon && <span className={chip} aria-hidden="true">{icon}</span>}
-        <div>
-          <h1 className="text-[27px] font-bold leading-tight tracking-[-0.02em]">{title}</h1>
-          {sub && <p className="mt-1 text-[12.5px] text-[var(--text-secondary)]">{sub}</p>}
+    <header className="mb-4 flex items-center justify-between gap-3">
+      <div className="flex min-w-0 items-center gap-2.5">
+        {icon && <span className={`${chip} !h-9 !w-9 !rounded-xl`} aria-hidden="true">{icon}</span>}
+        <div className="min-w-0">
+          <h1 className="truncate text-[21px] font-bold leading-tight tracking-[-0.02em]">{title}</h1>
+          {sub && <p className="mt-0.5 truncate text-[11.5px] text-[var(--text-muted)]">{sub}</p>}
         </div>
       </div>
       {right}

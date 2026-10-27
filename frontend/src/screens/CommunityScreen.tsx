@@ -19,7 +19,7 @@ type Post = {
   hidden?: boolean; createdAt: string;
 };
 
-const TAG_IDEAS = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "Strategy 2", "9/21 EMA"];
+const TAG_IDEAS = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "H1 Trend Breakout", "Gold ORB"];
 
 export function CommunityScreen() {
   const feed = usePolling<{ posts: Post[]; next_before: string | null }>(
@@ -118,7 +118,7 @@ export function CommunityScreen() {
         <textarea value={text} onChange={(e) => setText(e.target.value)}
           rows={3} maxLength={2000}
           placeholder="Analysis, a setup you're watching, a lesson…"
-          className="mt-2 w-full rounded-2xl border border-[rgba(var(--p-rgb),0.25)] bg-[rgba(var(--p-rgb),0.06)] px-3.5 py-2.5 text-[12.5px] text-txt-hi placeholder:text-txt-faint focus:outline-none" />
+          className="input-mini mt-2 w-full !rounded-2xl text-left text-[12.5px]" />
         <div className="mt-2.5 flex flex-wrap gap-1.5">
           {TAG_IDEAS.map((t) => (
             <button key={t} onClick={() => setTags((p) => p.includes(t) ? p.filter((x) => x !== t) : [...p, t])}

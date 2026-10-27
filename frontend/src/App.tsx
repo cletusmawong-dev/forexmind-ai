@@ -20,6 +20,7 @@ import { NewsScreen } from "./screens/NewsScreen";
 import { AdminScreen } from "./screens/AdminScreen";
 import { PositionsScreen } from "./screens/PositionsScreen";
 import { ExecutionScreen } from "./screens/ExecutionScreen";
+import { AppHeader } from "./components/AppHeader";
 import { BottomNav } from "./components/BottomNav";
 import { Sidebar } from "./components/Sidebar";
 import { Splash } from "./screens/SplashScreen";
@@ -129,14 +130,13 @@ export default function App() {
 
   return (
     <div className="min-h-screen">
-      <div className="ambient" />
-      <div className="noise" />
       <ConnBanner />
       <ErrorBoundary>
+        <AppHeader />
         <div className="mx-auto flex w-full max-w-[1180px]">
           <Sidebar />
-          <main className="min-h-screen min-w-0 flex-1 pb-32 lg:pb-12">
-            <div className="mx-auto w-full max-w-[560px] px-5 pt-6 lg:max-w-none lg:px-10 lg:pt-10">
+          <main className="min-h-screen min-w-0 flex-1 pb-24 lg:pb-12">
+            <div className="mx-auto w-full max-w-[560px] px-4 pb-4 pt-4 lg:max-w-none lg:px-10 lg:pt-10">
               <Routes>
                 <Route path="/" element={<HomeScreen />} />
                 <Route path="/signals" element={<SignalsScreen />} />

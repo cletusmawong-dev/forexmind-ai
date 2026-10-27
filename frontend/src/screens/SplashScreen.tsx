@@ -4,33 +4,20 @@ export function Splash() {
       <div className="ambient" />
       <div className="noise" />
       <div className="flex flex-col items-center gap-7 animate-fadeIn">
-        <div className="relative">
-          <div
-            className="absolute -inset-10 rounded-full blur-3xl opacity-40 animate-breathe"
-            style={{ background: "conic-gradient(from 200deg, #4d7cfe, #f2695c, #33d6f6, #4d7cfe)" }}
-          />
-          <svg width="76" height="76" viewBox="0 0 48 48" fill="none">
-            <defs>
-              <linearGradient id="slg" x1="0" y1="0" x2="48" y2="48">
-                <stop stopColor="#33d6f6" />
-                <stop offset="1" stopColor="#4d7cfe" />
-              </linearGradient>
-            </defs>
-            <circle cx="24" cy="24" r="21" stroke="url(#slg)" strokeWidth="1.8" />
-            <path
-              d="M17 34v-4.6c-2.5-1.8-4-4.7-4-7.9C13 16 17.6 11.5 23.5 11.5c5.6 0 10.2 4 10.8 9.4l2.7 2.6-2.7 1v2.9c0 1.7-1.4 3.1-3.1 3.1H28V34"
-              stroke="url(#slg)"
-              strokeWidth="1.9"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path d="M17.5 26.5l4.6-4.6 3 3 5.4-5.4" stroke="#2fd98a" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M30.5 19.5h-4.4M30.5 19.5v4.4" stroke="#2fd98a" strokeWidth="1.9" strokeLinecap="round" />
-          </svg>
+        <div
+          className="flex h-[74px] w-[74px] items-center justify-center rounded-[22px] text-[38px] font-black text-white"
+          style={{
+            background: "linear-gradient(150deg, #dcb84e 0%, #c39a33 55%, #a87f24 100%)",
+            boxShadow: "0 2px 8px rgba(16,24,40,0.14)",
+            letterSpacing: "-0.02em",
+          }}
+          aria-hidden="true"
+        >
+          F
         </div>
         <div className="text-center">
-          <div className="text-[21px] font-semibold tracking-tight text-txt-hi">
-            ForexMind <span className="text-acc">AI</span>
+          <div className="text-[21px] font-extrabold tracking-tight text-[var(--text-primary)]">
+            FOREXMIND <span className="font-black text-[var(--accent-gold)]">AI</span>
           </div>
           <div className="mt-1.5 text-[11.5px] font-normal tracking-wide text-txt-low">Your Personal AI Trading Research Agent</div>
         </div>

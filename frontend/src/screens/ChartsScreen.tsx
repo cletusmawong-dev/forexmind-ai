@@ -14,9 +14,9 @@ import {
   createChart, ColorType, CrosshairMode, LineStyle,
   type IChartApi, type ISeriesApi, type CandlestickData, type IPriceLine,
 } from "lightweight-charts";
-import { CandlestickChart, Sparkles, ShieldQuestion, RefreshCw } from "lucide-react";
+import { Sparkles, ShieldQuestion, RefreshCw } from "lucide-react";
 import { api, endpoints } from "../lib/api";
-import { Eyebrow, Glass, PageHeader } from "../components/ui";
+import { Eyebrow, Glass } from "../components/ui";
 
 const TFS = ["1M", "5M", "15M", "30M", "1H", "4H", "1D"] as const;
 type Tf = (typeof TFS)[number];
@@ -93,10 +93,10 @@ export function ChartsScreen() {
       .getPropertyValue("--txt-low-rgb").trim() || "122,132,150";
     const chart = createChart(boxRef.current, {
       layout: { background: { type: ColorType.Solid, color: "transparent" }, textColor: `rgb(${_txtRgb})`, fontSize: 11 },
-      grid: { vertLines: { color: "rgba(212,175,55,0.05)" }, horzLines: { color: "rgba(212,175,55,0.05)" } },
+      grid: { vertLines: { color: "#f2f4f7" }, horzLines: { color: "#f2f4f7" } },
       crosshair: { mode: CrosshairMode.Normal },
-      rightPriceScale: { borderColor: "rgba(212,175,55,0.15)" },
-      timeScale: { borderColor: "rgba(212,175,55,0.15)", timeVisible: true, secondsVisible: false },
+      rightPriceScale: { borderColor: "#e7e9ee" },
+      timeScale: { borderColor: "#e7e9ee", timeVisible: true, secondsVisible: false },
       autoSize: true,
     });
     const candleSeries = chart.addCandlestickSeries({
@@ -105,8 +105,8 @@ export function ChartsScreen() {
     });
     const volSeries = chart.addHistogramSeries({ priceScaleId: "vol", priceFormat: { type: "volume" } });
     chart.priceScale("vol").applyOptions({ scaleMargins: { top: 0.85, bottom: 0 } });
-    const e9 = chart.addLineSeries({ color: "#f0c85c", lineWidth: 1, priceLineVisible: false, lastValueVisible: false, title: "EMA9" });
-    const e21 = chart.addLineSeries({ color: GOLD, lineWidth: 1, priceLineVisible: false, lastValueVisible: false, title: "EMA21" });
+    const e9 = chart.addLineSeries({ color: "#eab308", lineWidth: 1, priceLineVisible: false, lastValueVisible: false, title: "EMA9" });
+    const e21 = chart.addLineSeries({ color: "#2563eb", lineWidth: 1, priceLineVisible: false, lastValueVisible: false, title: "EMA21" });
     Object.assign(chartRef, { current: chart });
     candleRef.current = candleSeries; volRef.current = volSeries;
     e9Ref.current = e9; e21Ref.current = e21;
@@ -221,40 +221,103 @@ export function ChartsScreen() {
     try { candleRef.current?.setMarkers(markers as any); } catch { /* older builds */ }
   }, [markers]);
 
+  const last = candles.length ? candles[candles.length - 1] : null;
+  const first = candles.length ? candles[0] : null;
+  const lastEma9 = ov.ema9.length ? ov.ema9[ov.ema9.length - 1].value : null;
+  const lastEma21 = ov.ema21.length ? ov.ema21[ov.ema21.length - 1].value : null;
+  const fmt = (v: number | null | undefined, dp = 2) =>
+    v == null ? "—" : v >= 1000 ? v.toLocaleString("en-US", { maximumFractionDigits: 2 }) : v.toFixed(dp);
+  const up = !!(last && first) && last.close >= first.close;
+
   return (
     <div className="animate-fadeUp">
-      <PageHeader title="Charts" sub="Real market data · EMA9/21 · your signals" icon={<CandlestickChart size={20} />} right={<button onClick={loadData} className="btn-ghost flex items-center gap-1.5 !px-3 !py-2 text-[11px]">     <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> Refresh   </button>} />
+      {/* symbol selector - reference-style chips */}
+      <div className="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {SYMBOLS.map((sym) => (
+          <button key={sym} onClick={() => setSymbol(sym)} aria-pressed={symbol === sym}
+            className={`tap shrink-0 rounded-full border px-3.5 py-2 text-[12px] font-bold ${symbol === sym ? "chip-on" : "chip-off"}`}>
+            {sym}
+          </button>
+        ))}
+      </div>
 
-      <Glass pad={false} className="overflow-hidden">
-        <div className="flex gap-1.5 overflow-x-auto px-3 pt-2.5">
-          {SYMBOLS.map((s) => (
-            <button key={s} onClick={() => setSymbol(s)} aria-pressed={symbol === s}
-              className={`tap shrink-0 rounded-xl border px-3 py-1.5 text-[11px] font-bold ${symbol === s ? "chip-on" : "chip-off"}`}>
-              {s}
-            </button>
+      {/* price strip - real OHLC from the loaded series */}
+      <section className="glass mb-3 !rounded-2xl px-4 py-3.5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="truncate text-[15px] font-extrabold tracking-tight">{symbol}</div>
+            <div className="text-[10.5px] text-[var(--text-muted)]">
+              {tf} candles · {candles.length || 0} bars · live feed
+            </div>
+          </div>
+          <span className="flex shrink-0 items-center gap-1.5 rounded-full border border-[rgba(18,160,92,0.3)] bg-[rgba(18,160,92,0.08)] px-2.5 py-1 text-[10px] font-bold text-[var(--accent-green)]">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--accent-green)]" /> LIVE
+          </span>
+        </div>
+        <div className="mt-2 flex items-end justify-between gap-3">
+          <div className="num text-[30px] font-extrabold leading-none tracking-tight">
+            {last ? fmt(last.close) : "—"}
+          </div>
+          <div className={`num text-right text-[12px] font-bold ${up ? "text-pos" : "text-neg"}`}>
+            {last && first && (
+              <>
+                {up ? "+" : ""}{fmt(last.close - first.close)}{" "}
+                ({up ? "+" : ""}{first.close ? (((last.close - first.close) / first.close) * 100).toFixed(2) : "0.00"}%)
+              </>
+            )}
+          </div>
+        </div>
+        <div className="mt-3 grid grid-cols-3 gap-2 border-t border-[var(--glass-border-soft)] pt-2.5 text-center">
+          {[["High", last?.high], ["Low", last?.low], ["Volume", last?.volume]].map(([k, v]) => (
+            <div key={k as string}>
+              <div className="text-[9.5px] font-semibold uppercase tracking-[0.1em] text-txt-faint">{k as string}</div>
+              <div className="num mt-0.5 text-[12.5px] font-bold text-[var(--text-secondary)]">
+                {v == null ? "—" : fmt(v as number, k === "Volume" ? 0 : 2)}
+              </div>
+            </div>
           ))}
         </div>
-        <div className="flex gap-1.5 px-3 py-3">
-          {TFS.map((t) => (
-            <button key={t} onClick={() => setTf(t)} aria-pressed={tf === t}
-              className={`tap flex-1 rounded-lg border px-1 py-1.5 text-[10.5px] font-bold ${tf === t ? "chip-on" : "chip-off"}`}>
-              {t}
-            </button>
-          ))}
+      </section>
+
+      {/* timeframes */}
+      <div className="mb-2 flex gap-1.5">
+        {TFS.map((t) => (
+          <button key={t} onClick={() => setTf(t)} aria-pressed={tf === t}
+            className={`tap flex-1 rounded-full border px-1 py-2 text-[11.5px] font-bold ${tf === t ? "chip-on" : "chip-off"}`}>
+            {t}
+          </button>
+        ))}
+      </div>
+
+      {/* chart card */}
+      <Glass pad={false} className="overflow-hidden !rounded-2xl">
+        <div className="flex items-center justify-between gap-2 px-3.5 pt-3">
+          <div className="flex items-center gap-3 text-[10.5px] font-bold">
+            <span className="text-[var(--text-secondary)]">EMA 9 <span className="num text-[#ca9a06]">{lastEma9 ? fmt(lastEma9, lastEma9 >= 1000 ? 2 : 3) : "—"}</span></span>
+            <span className="text-[var(--text-secondary)]">EMA 21 <span className="num text-[#2563eb]">{lastEma21 ? fmt(lastEma21, lastEma21 >= 1000 ? 2 : 3) : "—"}</span></span>
+          </div>
+          <button onClick={loadData} aria-label="Refresh chart"
+            className="tap flex h-7 w-7 items-center justify-center rounded-full border border-[var(--glass-border)] bg-white text-[var(--text-secondary)]">
+            <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
+          </button>
         </div>
-        <div className="flex flex-wrap items-center gap-1.5 border-t border-[rgba(var(--warm-rgb),0.06)] px-3 py-2">
-          <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-txt-faint">Overlays</span>
-          {([["S/D zones", showZones, setShowZones], ["FVG", showFvg, setShowFvg],
-             ["Entry/SL/TP", showLive, setShowLive]] as const).map(([label, on, set]) => (
-            <button key={label} onClick={() => set(!on)} aria-pressed={on}
-              className={`tap rounded-full border px-2.5 py-1 text-[9.5px] font-bold ${on ? "chip-on" : "chip-off"}`}>
-              {label}
-            </button>
-          ))}
-        </div>
-        <div ref={boxRef} className="h-[340px] w-full" />
+        {(s2o?.enabled || (s2o?.zones?.length ?? 0) > 0 || s2o?.live) && (
+          <div className="flex flex-wrap items-center gap-1.5 px-3.5 pb-2">
+            {([["S/D zones", showZones, setShowZones], ["FVG", showFvg, setShowFvg],
+               ["Entry/SL/TP", showLive, setShowLive]] as const).map(([label, on, set]) => (
+              <button key={label} onClick={() => set(!on)} aria-pressed={on}
+                className={`tap rounded-full border px-2.5 py-1 text-[9.5px] font-bold ${on ? "chip-on" : "chip-off"}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+        <div ref={boxRef} className="h-[360px] w-full" />
+        {loading && !candles.length && (
+          <p className="px-4 pb-4 text-center text-[11.5px] text-txt-faint">Loading {symbol} candles…</p>
+        )}
         {setup && setup.state !== "NO_SETUP" && (
-          <div className="border-t border-[rgba(var(--warm-rgb),0.08)] px-4 py-3">
+          <div className="border-t border-[var(--glass-border-soft)] px-4 py-3">
             <Eyebrow>Strategy 2 · Supply & Demand + FVG · {symbol} · 15M</Eyebrow>
             <p className="mt-1 text-[11.5px] text-txt-mid">
               State <span className="font-bold text-txt-hi">{setup.state}</span>
@@ -271,9 +334,9 @@ export function ChartsScreen() {
         )}
       </Glass>
 
-      {err && <p className="mt-3 text-[11.5px] text-neg">⚠ {err}</p>}
+      {err && <p className="mt-3 text-[11.5px] font-semibold text-neg">{err}</p>}
 
-      <div className="mt-4 grid grid-cols-2 gap-2.5">
+      <div className="mt-3 grid grid-cols-2 gap-2.5">
         <button onClick={askWhy} className="btn-ghost flex items-center justify-center gap-2 !py-3 text-[12px]">
           <ShieldQuestion size={14} /> Why no trade?
         </button>
@@ -295,7 +358,7 @@ export function ChartsScreen() {
           <div className="mt-2 space-y-2">
             {annots.slice(0, 3).map((a) => (
               <Link key={a.signal_id} to={`/signals/${a.signal_id}`}
-                className="flex items-center justify-between rounded-xl bg-[rgba(var(--p-rgb),0.05)] px-3 py-2.5">
+                className="flex items-center justify-between rounded-xl border border-[var(--glass-border-soft)] bg-[var(--bg-secondary)] px-3 py-2.5">
                 <span className="text-[11.5px] font-semibold">
                   <span className={a.direction === "BUY" ? "text-pos" : "text-neg"}>{a.direction}</span>{" "}
                   {a.status}

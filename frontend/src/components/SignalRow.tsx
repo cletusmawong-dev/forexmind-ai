@@ -13,11 +13,11 @@ export function CircleDirIcon({ dir, size = 44 }: { dir: "BUY" | "SELL"; size?: 
       style={{
         width: size,
         height: size,
-        border: `1.5px solid ${buy ? "rgba(var(--p-rgb),0.55)" : "rgba(var(--neg-rgb),0.55)"}`,
+        border: `1.5px solid ${buy ? "rgba(var(--pos-rgb),0.45)" : "rgba(var(--neg-rgb),0.45)"}`,
         background: buy
-          ? "radial-gradient(circle at 35% 30%, rgba(var(--p-rgb),0.22), rgba(var(--p-rgb),0.05) 70%)"
-          : "radial-gradient(circle at 35% 30%, rgba(var(--neg-rgb),0.22), rgba(var(--neg-rgb),0.05) 70%)",
-        boxShadow: buy ? "0 0 22px rgba(var(--p-rgb),0.3)" : "0 0 22px rgba(var(--neg-rgb),0.3)",
+          ? "rgba(var(--pos-rgb),0.1)"
+          : "rgba(var(--neg-rgb),0.1)",
+
       }}
       aria-hidden="true"
     >

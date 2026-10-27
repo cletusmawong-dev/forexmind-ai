@@ -105,21 +105,16 @@ export function AgentScreen() {
           <div className="lg:col-span-7">
             {/* ---- AI status card ---- */}
             <Glass className="relative overflow-hidden" pad={false}>
-              <div
-                className="pointer-events-none absolute -right-16 -top-24 h-60 w-60 rounded-full opacity-25 blur-3xl anim-drift"
-                style={{ background: "conic-gradient(from 180deg, #3e7bfa, #f2695c, #33d6f6, #3e7bfa)" }}
-              />
               <div className="relative p-6">
                 <div className="flex items-start gap-4">
                   <div
-                    className="flex h-[76px] w-[76px] shrink-0 items-center justify-center rounded-full"
+                    className="flex h-[64px] w-[64px] shrink-0 items-center justify-center rounded-[20px]"
                     style={{
-                      border: "1.5px solid rgba(var(--p-rgb),0.35)",
-                      background: "radial-gradient(circle at 32% 28%, rgba(31,90,70,0.55), rgba(8,14,30,0.95) 74%)",
-                      boxShadow: "0 0 30px rgba(var(--p-rgb),0.22), inset 0 1px 0 rgba(255,255,255,0.1)",
+                      border: "1px solid rgba(var(--pos-rgb),0.3)",
+                      background: "rgba(var(--pos-rgb),0.08)",
                     }}
                   >
-                    <LineChart size={26} style={{ color: "#3ee6a0", filter: "drop-shadow(0 0 8px rgba(var(--p-rgb),0.8))" }} strokeWidth={2.1} />
+                    <LineChart size={24} style={{ color: "var(--accent-green)" }} strokeWidth={2.1} />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 text-[12px] text-[var(--text-secondary)]">
@@ -353,15 +348,16 @@ export function AgentScreen() {
                 <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"} anim-fadeUp`}>
                   {m.role === "agent" && (
                     <div
-                      className="mr-2.5 mt-1.5 h-6 w-6 shrink-0 rounded-full border border-[rgba(var(--p-rgb),0.4)]"
-                      style={{ background: "radial-gradient(circle at 30% 30%, rgba(var(--p-rgb),0.7), rgba(12,18,38,0.95))", boxShadow: "0 0 14px rgba(62,124,250,0.4)" }}
-                    />
+                      className="mr-2.5 mt-1.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[var(--glass-border)] bg-[var(--bg-secondary)]"
+                    >
+                      <Bot size={12} className="text-[var(--text-secondary)]" />
+                    </div>
                   )}
                   <div
                     className={`max-w-[82%] whitespace-pre-wrap rounded-[20px] px-4 py-3 text-[12.5px] leading-relaxed ${
                       m.role === "user" ? "rounded-br-md text-[var(--text-primary)]" : "rounded-bl-md border border-[rgba(var(--warm-rgb),0.09)] bg-[rgba(var(--warm-rgb),0.055)] text-[var(--text-secondary)]"
                     }`}
-                    style={m.role === "user" ? { background: "linear-gradient(120deg,#3e7bfa,#2bb8ec)", boxShadow: "0 8px 24px rgba(62,124,250,0.3)" } : undefined}
+                    style={m.role === "user" ? { background: "rgb(var(--p-rgb))" } : undefined}
                   >
                     {m.text}
                   </div>

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, Plus, ShieldCheck } from "lucide-react";
+import { ChevronDown, Plus } from "lucide-react";
 import { api } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
 
@@ -60,15 +60,10 @@ export function AccountSwitcher() {
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-label="Switch trading account"
-        className="flex max-w-full items-center gap-1.5 rounded-xl border border-[rgba(var(--warm-rgb),0.12)] bg-[rgba(var(--warm-rgb),0.05)] px-3 py-1.5 text-left">
-        <ShieldCheck size={13} className={`shrink-0 ${active?.trading_enabled ? "text-pos" : "text-txt-faint"}`} />
-        <span className="min-w-0">
-          <span className="block text-[9px] uppercase tracking-[0.14em] text-txt-faint">
-            {active ? `Account` : "No account"}
-          </span>
-          <span className="block truncate text-[11.5px] font-semibold text-txt-hi">
-            {active ? active.label : "Signals only"}
-          </span>
+        className="tap flex max-w-full items-center gap-1.5 rounded-full border border-[var(--glass-border)] bg-white px-3 py-2 text-left">
+        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${active?.trading_enabled ? "bg-pos" : "bg-[var(--text-faint)]"}`} />
+        <span className="min-w-0 truncate text-[11.5px] font-semibold text-txt-hi">
+          {active ? active.label : "No account"}
         </span>
         <ChevronDown size={13} className={`shrink-0 text-txt-faint transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
