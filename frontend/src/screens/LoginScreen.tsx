@@ -1,3 +1,4 @@
+import logoMark from "../assets/logo-mark.png";
 import { useState } from "react";
 import { api, endpoints, setToken } from "../lib/api";
 import { BUILD_STAMP } from "../lib/version";
@@ -46,13 +47,8 @@ export function LoginScreen({ onAuthed }: { onAuthed: () => void }) {
       <div className="w-full max-w-[380px] animate-fadeUp">
         {/* hero */}
         <div className="mb-10 flex flex-col items-center text-center">
-          <div
-            className="mb-7 flex h-[64px] w-[64px] items-center justify-center rounded-[20px] text-[34px] font-black text-white"
-            style={{ background: "linear-gradient(150deg, #dcb84e 0%, #c39a33 55%, #a87f24 100%)", boxShadow: "0 2px 8px rgba(16,24,40,0.14)", letterSpacing: "-0.02em" }}
-            aria-hidden="true"
-          >
-            F
-          </div>
+          <img src={logoMark} alt="ForexMind AI" className="mb-7 h-[72px] w-[72px] rounded-[20px] object-cover"
+               style={{ boxShadow: "0 2px 10px rgba(16,24,40,0.18)" }} />
           <h1 className="text-[24px] font-extrabold tracking-tight text-[var(--text-primary)]">
             FOREXMIND <span className="font-black text-[var(--accent-gold)]">AI</span>
           </h1>

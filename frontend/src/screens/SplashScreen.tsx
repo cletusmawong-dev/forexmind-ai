@@ -1,20 +1,12 @@
+import logoMark from "../assets/logo-mark.png";
 export function Splash() {
   return (
     <div className="relative flex min-h-screen items-center justify-center">
       <div className="ambient" />
       <div className="noise" />
       <div className="flex flex-col items-center gap-7 animate-fadeIn">
-        <div
-          className="flex h-[74px] w-[74px] items-center justify-center rounded-[22px] text-[38px] font-black text-white"
-          style={{
-            background: "linear-gradient(150deg, #dcb84e 0%, #c39a33 55%, #a87f24 100%)",
-            boxShadow: "0 2px 8px rgba(16,24,40,0.14)",
-            letterSpacing: "-0.02em",
-          }}
-          aria-hidden="true"
-        >
-          F
-        </div>
+        <img src={logoMark} alt="ForexMind AI" className="h-[84px] w-[84px] rounded-[22px] object-cover"
+             style={{ boxShadow: "0 2px 10px rgba(16,24,40,0.18)" }} />
         <div className="text-center">
           <div className="text-[21px] font-extrabold tracking-tight text-[var(--text-primary)]">
             FOREXMIND <span className="font-black text-[var(--accent-gold)]">AI</span>

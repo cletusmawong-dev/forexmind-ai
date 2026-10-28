@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Brain, ChevronDown, Crown } from "lucide-react";
+import logoMark from "../assets/logo-mark.png";
 import { GraduationCap } from "lucide-react";
 
 /* ================= brand ================= */
@@ -27,21 +28,13 @@ export const TEXT = {
 
 export function LogoMark({ size = 34 }: { size?: number }) {
   return (
-    <div
-      className="flex shrink-0 items-center justify-center rounded-[26%] font-black"
+    <img
+      src={logoMark}
+      alt=""
       aria-hidden="true"
-      style={{
-        width: size,
-        height: size,
-        background: "linear-gradient(150deg, #dcb84e 0%, #c39a33 55%, #a87f24 100%)",
-        color: "#ffffff",
-        fontSize: Math.round(size * 0.5),
-        letterSpacing: "-0.02em",
-        boxShadow: "0 1px 3px rgba(16,24,40,0.16)",
-      }}
-    >
-      F
-    </div>
+      className="shrink-0 rounded-[26%] object-cover"
+      style={{ width: size, height: size }}
+    />
   );
 }
 

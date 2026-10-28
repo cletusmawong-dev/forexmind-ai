@@ -1,15 +1,16 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Crosshair, Radio } from "lucide-react";
+import { Crosshair, SlidersHorizontal } from "lucide-react";
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
 import type { Signal } from "../lib/types";
-import { Chip, DemoTag, Empty, PageHeader, Segmented, Spinner } from "../components/ui";
+import { DemoTag, Empty, Eyebrow, Segmented, Spinner } from "../components/ui";
 import { SignalRow } from "../components/SignalRow";
 
 export function SignalsScreen() {
   const [filter, setFilter] = useState("open");
   const [market, setMarket] = useState("all");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const navigate = useNavigate();
 
   const qs = useMemo(() => {
@@ -47,12 +48,18 @@ export function SignalsScreen() {
 
   return (
     <div className="anim-fadeUp">
-      <PageHeader title="Signals" icon={<Radio size={20} />} tone="cyan" sub="Every setup explained. You decide." right={<DemoTag />} />
+      <header className="mb-4 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-[30px] font-extrabold leading-[1.1] tracking-[-0.03em]">Signals</h1>
+          <p className="mt-1 text-[13px] text-[var(--text-muted)]">AI-powered trade ideas with full analysis</p>
+        </div>
+        <div className="mt-1.5 shrink-0"><DemoTag /></div>
+      </header>
 
       {/* live settings gates - exactly what the engine enforces on new signals */}
       {(riskQ.data || stratQ.data) && (
-        <div className="glass-2 mb-4 flex items-center gap-2.5 px-4 py-2.5 text-[11px] font-medium text-[var(--accent-cyan)]" role="status">
-          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--accent-cyan)]" style={{ boxShadow: "0 0 8px rgba(var(--gold-rgb),0.9)" }} />
+        <div className="glass-2 mb-4 flex items-center gap-2.5 px-4 py-2.5 text-[11px] font-medium text-[var(--text-secondary)]" role="status">
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--accent-green)]" />
           {gateLine}
         </div>
       )}
@@ -65,27 +72,38 @@ export function SignalsScreen() {
         </div>
       )}
 
-      <Segmented
-        className="mb-4"
-        value={filter}
-        onChange={setFilter}
-        options={[
-          { key: "open", label: "Open" },
-          { key: "closed", label: "Closed" },
-          { key: "all", label: "All" },
-        ]}
-      />
-
-      <div className="no-scrollbar -mx-5 mb-5 flex gap-2 overflow-x-auto px-5 pb-1 lg:mx-0 lg:px-0">
-        <Chip active={market === "all"} onClick={() => setMarket("all")}>
-          All markets
-        </Chip>
+      <div className="no-scrollbar -mx-4 mb-2.5 flex items-center gap-2 overflow-x-auto px-4 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <button onClick={() => setMarket("all")} aria-pressed={market === "all"}
+          className={`tap shrink-0 rounded-full px-4 py-2 text-[12px] font-bold ${market === "all" ? "bg-[#101828] text-white" : "chip-off"}`}>
+          All
+        </button>
         {(marketsQ.data?.markets ?? []).map((m) => (
-          <Chip key={m.symbol} active={market === m.symbol} onClick={() => setMarket(m.symbol)}>
+          <button key={m.symbol} onClick={() => setMarket(m.symbol)} aria-pressed={market === m.symbol}
+            className={`tap shrink-0 rounded-full border px-4 py-2 text-[12px] font-bold ${market === m.symbol ? "bg-[#101828] text-white border-transparent" : "chip-off"}`}>
             {m.symbol}
-          </Chip>
+          </button>
         ))}
+        <button onClick={() => setFiltersOpen((o) => !o)} aria-expanded={filtersOpen}
+          className={`tap ml-auto flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-[12px] font-bold ${filtersOpen ? "border-transparent bg-[#101828] text-white" : "chip-off"}`}>
+          <SlidersHorizontal size={13} /> Filters
+        </button>
       </div>
+
+      {filtersOpen && (
+        <div className="glass-2 mb-3 !rounded-2xl px-3.5 py-3">
+          <Eyebrow>Status</Eyebrow>
+          <Segmented
+            className="mb-1 mt-1.5"
+            value={filter}
+            onChange={setFilter}
+            options={[
+              { key: "open", label: "Open" },
+              { key: "closed", label: "Closed" },
+              { key: "all", label: "All" },
+            ]}
+          />
+        </div>
+      )}
 
       {filter === "closed" && wins + losses > 0 && (
         <p className="mb-4 px-1 text-[12px] text-[var(--text-secondary)]">

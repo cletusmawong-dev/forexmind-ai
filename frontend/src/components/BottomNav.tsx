@@ -28,8 +28,8 @@ export function BottomNav() {
             to={to}
             end={to === "/"}
             className={({ isActive }) =>
-              `tap relative flex min-w-0 flex-1 flex-col items-center justify-center gap-[3px] pb-[7px] pt-[9px] ${
-                isActive ? "text-[var(--accent-blue)]" : "text-[var(--text-faint)]"
+              `tap mx-0.5 my-[5px] flex min-w-0 flex-1 flex-col items-center justify-center gap-[2px] rounded-2xl py-[6px] ${
+                isActive ? "bg-[rgba(var(--p-rgb),0.10)] text-[var(--accent-blue)]" : "text-[var(--text-faint)]"
               }`
             }
             aria-label={label}
@@ -37,10 +37,9 @@ export function BottomNav() {
             {({ isActive }) => (
               <>
                 <Icon size={20} strokeWidth={isActive ? 2.2 : 1.7} />
-                <span className="max-w-full truncate px-0.5 text-[8.5px] font-semibold tracking-wide">
+                <span className="max-w-full whitespace-nowrap px-0.25 text-[8px] font-semibold tracking-[-0.01em]">
                   {label}
                 </span>
-                {isActive && <span className="absolute bottom-[2px] h-[3px] w-4 rounded-full bg-[var(--accent-blue)]" />}
               </>
             )}
           </NavLink>
