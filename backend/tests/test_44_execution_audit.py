@@ -391,17 +391,21 @@ def test_rr_mismatch_blocks_the_order(exec_env, fresh_store):
     assert "RR_MISMATCH" in (doc.get("mt5_note") or "")
 
 
-def test_stale_entry_blocks_the_order(exec_env, fresh_store):
-    """The broker price has moved >0.25R from the intended entry: refuse,
-    never re-anchor (the 0.31-0.71 fillRR incidents, regression-tested)."""
+def test_stale_entry_enters_without_quote(exec_env, fresh_store):
+    """Owner directive 2026-10-28 (supersedes the drift refusal): a market
+    that moved past the entry is entered ANYWAY. Without a live quote the
+    signal's own levels are kept (test_52 covers the re-anchor-with-quote
+    path). The old reject-on-drift behavior skipped real signals - EURUSD
+    08:01 and NAS100 12:03 on 2026-10-28 - and is retired."""
     m5, sent, uid = exec_env
     sig = _signal_doc(fresh_store)
-    REF = sent["ref"]; REF["price"] = 2393.0       # $7 through a $10 stop = 0.7R
+    REF = sent["ref"]; REF["price"] = 2393.0       # moved far from entry 2400
     m5.execute_signal(sig, uid)
-    assert "path" not in sent
+    assert sent.get("path") == "/execute", "stale entry was refused - directive violated"
+    p = sent["payload"]
+    assert p["sl"] == 2410.0 and p["tp"] == 2385.0  # no quote -> signal levels
     doc = fresh_store.list("signals", filters={"id": sig["id"]}, limit=1)[0]
-    assert doc["execution_status"] == "REJECTED_PRETRADE"
-    assert "ENTRY_STALE" in (doc.get("mt5_note") or "")
+    assert doc["execution_status"] == "SUBMITTED"
 
 
 def test_buy_direction_validated_end_to_end(exec_env, fresh_store):
@@ -428,18 +432,22 @@ def test_unsupported_symbol_is_refused_loudly(exec_env, fresh_store):
     assert "SYMBOL_UNSUPPORTED" in (doc.get("mt5_note") or "")
 
 
-def test_no_price_reference_fails_closed(exec_env, fresh_store, monkeypatch):
+def test_no_price_reference_still_enters_bridge_is_final_guard(exec_env, fresh_store, monkeypatch):
+    """Owner directive 2026-10-28: a missing cloud-side reference price no
+    longer refuses the order. If the broker genuinely cannot quote/fill,
+    the bridge itself fails the POST and the loud FAILED path records it."""
     m5, sent, uid = exec_env
     sig = _signal_doc(fresh_store)
     REF = sent["ref"]
 
     def no_rates(path, timeout=8):
         return {"balance": 10_000.0} if path == "/account" else None
-    monkeypatch.setattr(m5, "bridge_get", no_rates)   # account up, rates down
+    monkeypatch.setattr(m5, "bridge_get", no_rates)   # account up, rates/quote down
     m5.execute_signal(sig, uid)
-    assert "path" not in sent
+    assert sent.get("path") == "/execute", "order was refused without a reference price"
     doc = fresh_store.list("signals", filters={"id": sig["id"]}, limit=1)[0]
-    assert doc["execution_status"] == "REJECTED_PRETRADE"
+    assert doc["execution_status"] == "SUBMITTED"
+    assert doc["sl"] == 2410.0 and doc["order_tp"] == 2385.0   # signal levels kept
 
 
 def test_order_rr_recorded_even_on_refusal(exec_env, fresh_store):

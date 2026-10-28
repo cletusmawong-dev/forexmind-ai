@@ -1,13 +1,18 @@
-"""SPREAD GUARD (owner brief 2026-10-28, after SIG-20261028-014 filled
-1.57 above the signal entry on gold and the ticket rode a 0.66 R:R):
+"""ALWAYS-ENTER + RE-ANCHOR execution (owner directive 2026-10-28).
+
+"Once the signal is generated it should be entered. The app should just make
+sure to calculate the SL and TP the right way." Strategies fire rarely - a
+generated signal is never refused and never cancelled for market movement:
 
   1. lot size is computed from the LIVE ask/bid (the price the order will
-     actually fill at), not the signal price;
-  2. a live spread that already squeezes the structural R:R below
-     EXECUTION_MIN_FILL_RR refuses the order BEFORE submission;
-  3. a fill that slips past the floor is auto-closed immediately;
-  4. no quote available -> old behaviour (never block the flow);
-  5. SL/TP levels are NEVER moved (reject, don't repair).
+     actually fill at) - the $ risk stays exactly the configured risk-%;
+  2. SL/TP are re-anchored to that live price with the strategy's stop and
+     TP distances preserved EXACTLY (structure + R:R untouched);
+  3. a slipped fill is recorded honestly and the trade STAYS OPEN - no
+     auto-close, no cancellation after entry;
+  4. no quote available -> signal's own levels, old behaviour;
+  5. big market drift does NOT refuse the order anymore (ENTRY_STALE is
+     superseded by re-anchoring - the 2026-10-28 EURUSD/NAS100 refusals).
 """
 import pytest
 
@@ -16,7 +21,7 @@ REF = {"price": 2400.0}
 
 @pytest.fixture()
 def exec_env(fresh_store, monkeypatch):
-    """Same harness as test_44_execution_audit, plus a controllable /quote."""
+    """Same harness family as test_44_execution_audit, plus a controllable /quote."""
     from app.execution import mt5 as m5
     uid = "u1"
     monkeypatch.setattr(m5, "user_mode", lambda u: "vps")
@@ -37,7 +42,7 @@ def exec_env(fresh_store, monkeypatch):
     import app.risk_checks as rc
     monkeypatch.setattr(rc, "check_entry", lambda *a, **k: (True, None, None))
 
-    state = {"quote": None, "calls": []}
+    state = {"quote": None, "fill_price": None, "calls": []}
 
     def fake_bridge_get(path, timeout=8):
         if path == "/account":
@@ -52,7 +57,7 @@ def exec_env(fresh_store, monkeypatch):
         state["calls"].append((path, dict(payload)))
         if path == "/execute":
             return {"ok": True, "ticket": 900001, "position_id": 900001,
-                    "volume": payload["lots"], "price": state.get("fill_price", REF["price"]),
+                    "volume": payload["lots"], "price": state.get("fill_price") or REF["price"],
                     "symbol": "BROKERSYMBOL.m"}
         if path == "/close":
             return {"ok": True}
@@ -79,73 +84,90 @@ def _doc(store, sig):
     return store.list("signals", filters={"id": sig["id"]}, limit=1)[0]
 
 
+def _orders(state):
+    return [p for pth, p in state["calls"] if pth == "/execute"]
+
+
 def test_sizing_uses_the_live_ask(exec_env, fresh_store):
     """BUY sized from the ask: wider quote -> smaller lot, same $ risk."""
     m5, state, uid = exec_env
-    # ask 1.0 above entry on a 10.0 stop -> risk distance grows 10%, so the
-    # lot must shrink ~10% vs sizing at the signal price.
+    # ask +1.0 on a 10.0 stop -> risk distance grows 10%, lot must shrink ~10%.
     state["quote"] = {"bid": 2399.0, "ask": 2401.0}
     REF["price"] = 2400.0
     sig = _signal_doc(fresh_store)
     m5.execute_signal(sig, uid)
-    sent = [p for pth, p in state["calls"] if pth == "/execute"]
-    assert sent, f"order not sent: {_doc(fresh_store, sig).get('execution_status')}"
-    lots_at_quote = sent[0]["lots"]
-    state["quote"] = None                       # no quote -> old behaviour
+    lots_at_quote = _orders(state)[-1]["lots"]
+    state["quote"] = None                       # no quote -> signal-price sizing
     sig2 = _signal_doc(fresh_store, signal_id="SIG-20261028-901",
                        candle_time="2026-10-28T10:10:00+00:00")
     m5.execute_signal(sig2, uid)
-    sent2 = [p for pth, p in state["calls"] if pth == "/execute"]
-    lots_at_entry = sent2[-1]["lots"]
+    lots_at_entry = _orders(state)[-1]["lots"]
     assert lots_at_quote < lots_at_entry, "ask-based sizing did not shrink the lot"
     assert lots_at_entry * 10.0 == pytest.approx(lots_at_quote * 11.0, rel=0.02), \
         "risk is not conserved at ~$risk across the spread"
 
 
-def test_spread_broken_rr_refused_before_broker(exec_env, fresh_store):
-    """Quote sits so close to the SL that R:R from the live price < floor:
-    no order reaches the broker; status SKIPPED_SPREAD_RR; levels untouched."""
+def test_sl_tp_reanchored_to_the_live_price(exec_env, fresh_store):
+    """Spread/movement never skips the entry: SL/TP shift by the same delta
+    as the anchor - distances, sides and R:R are preserved exactly."""
     m5, state, uid = exec_env
-    # entry 2400, SL 2390 (10R dist), TP 2415 (15 up). Ask 2406.5 ->
-    # risk 16.5, reward 8.5 -> RR 0.51 < 0.80.
+    # entry 2400, SL 2390 (10.0 stop), TP 2415 (15.0 target, 1.5R).
+    # Live ask 2406.5 (a gold-spike style print): the old code refused here.
     state["quote"] = {"bid": 2405.5, "ask": 2406.5}
     REF["price"] = 2400.0
     sig = _signal_doc(fresh_store)
     m5.execute_signal(sig, uid)
-    assert not [p for pth, _ in state["calls"] if pth == "/execute"], \
-        "a spread-broken order reached the broker"
+    orders = _orders(state)
+    assert orders, f"order not sent: {_doc(fresh_store, sig).get('execution_status')}"
+    p = orders[-1]
+    assert p["sl"] == pytest.approx(2396.5)     # 2390 + 6.5
+    assert p["tp"] == pytest.approx(2421.5)     # 2415 + 6.5
+    assert (p["tp"] - 2406.5) / (2406.5 - p["sl"]) == pytest.approx(1.5), \
+        "re-anchoring changed the strategy R:R"
     doc = _doc(fresh_store, sig)
-    assert doc["execution_status"] == "SKIPPED_SPREAD_RR"
-    assert "spread guard" in (doc.get("mt5_note") or "")
-    assert doc["sl"] == 2390.0 and doc["tp1"] == 2415.0   # never re-anchored
+    assert doc["execution_status"] == "SUBMITTED"
+    assert "re-anchored" in (doc.get("mt5_note") or "")
 
 
-def test_slipped_fill_autocloses(exec_env, fresh_store):
-    """The order passes the pre-trade quote but FILLS past the floor:
-    the position is closed immediately, status EXECUTION_FAILED_SLIPPAGE."""
+def test_far_drift_still_enters_reanchored(exec_env, fresh_store):
+    """The ENTRY_STALE refusals from 2026-10-28 (EURUSD 08:01, NAS100 12:03)
+    must never happen again: the market running away re-anchors, not refuses."""
     m5, state, uid = exec_env
-    state["quote"] = {"bid": 2399.2, "ask": 2400.2}       # fine -> RR ~1.43
+    state["quote"] = {"bid": 2429.0, "ask": 2430.0}     # +30 = 3x the stop distance
+    REF["price"] = 2430.0
+    sig = _signal_doc(fresh_store)
+    m5.execute_signal(sig, uid)
+    p = _orders(state)[-1]
+    assert p["sl"] == pytest.approx(2420.0)     # stop distance preserved
+    assert p["tp"] == pytest.approx(2445.0)     # TP distance preserved
+    assert _doc(fresh_store, sig)["execution_status"] == "SUBMITTED"
+
+
+def test_slipped_fill_stays_open_no_autoclose(exec_env, fresh_store):
+    """A fill beyond the quote is recorded honestly; the trade is NEVER
+    auto-closed (owner: no cancellation once the signal enters)."""
+    m5, state, uid = exec_env
+    state["quote"] = {"bid": 2399.2, "ask": 2400.2}     # re-anchor: SL 2390.2, TP 2415.2
+    state["fill_price"] = 2409.2                        # broker filled 9.0 above the quote
     REF["price"] = 2400.0
     sig = _signal_doc(fresh_store)
-    # the broker fills 2409.2: risk 19.2, reward 5.8 -> executed RR 0.30
-    state["fill_price"] = 2409.2
-    state["calls"] = []
     m5.execute_signal(sig, uid)
     paths = [pth for pth, _ in state["calls"]]
-    assert "/execute" in paths and "/close" in paths, paths
+    assert "/execute" in paths and "/close" not in paths, paths
     doc = _doc(fresh_store, sig)
-    assert doc["execution_status"] == "EXECUTION_FAILED_SLIPPAGE"
-    assert "auto-closed" in (doc.get("mt5_note") or "")
-    closed_payload = [p for pth, p in state["calls"] if pth == "/close"][-1]
-    assert closed_payload["ticket"] == 900001
+    assert doc["execution_status"] == "SUBMITTED"
+    assert doc["mt5_ticket"] == 900001
+    assert doc["executed_rr"] is not None               # honest record
 
 
-def test_no_quote_falls_back_to_old_behaviour(exec_env, fresh_store):
-    """Bridge without /quote (pre-update) must NOT block the flow."""
+def test_no_quote_keeps_signal_levels(exec_env, fresh_store):
+    """Bridge without /quote (pre-update) must NOT block the flow and keeps
+    the signal's own levels exactly."""
     m5, state, uid = exec_env
     state["quote"] = None
     REF["price"] = 2400.0
     sig = _signal_doc(fresh_store)
     m5.execute_signal(sig, uid)
-    assert [p for pth, p in state["calls"] if pth == "/execute"]
+    p = _orders(state)[-1]
+    assert p["sl"] == 2390.0 and p["tp"] == 2415.0
     assert _doc(fresh_store, sig)["execution_status"] == "SUBMITTED"

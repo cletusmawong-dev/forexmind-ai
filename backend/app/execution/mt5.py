@@ -267,10 +267,16 @@ def bridge_post(path: str, payload: dict, timeout: int = 15) -> Optional[dict]:
 _exec_lock = threading.Lock()
 
 
-# SPREAD GUARD (owner brief 2026-10-28): an entry whose R:R is already
-# broken by the live spread at submission time must never reach the broker,
-# and a fill that slips past this floor is auto-closed immediately.
-MIN_FILL_RR = float(os.getenv("EXECUTION_MIN_FILL_RR", "0.80"))
+# OWNER DIRECTIVE 2026-10-28 (supersedes the reject-don't-repair drift rule
+# for market movement): "Once the signal is generated it should be entered.
+# The app should just make sure to calculate the SL and TP the right way."
+# Strategies fire rarely, so a generated signal is NEVER refused and NEVER
+# cancelled for spread/slippage/market drift: the entry is re-anchored to
+# the live price with the strategy's stop/TP distances preserved exactly
+# (structure + R:R intact), and the lot is sized from the real fill price
+# so the $ risk matches the configured risk-% precisely. Structural
+# validation (sides, spec R:R, strategy lifecycle, caps) still refuses
+# genuinely broken orders - that is correctness, not a missed trade.
 
 
 def _live_quote(market: str) -> Optional[dict]:
@@ -677,20 +683,34 @@ def execute_signal(signal: dict, user_id: str) -> None:
                 _log(f"Prop-firm cap check failed ({type(_pf_exc).__name__}) - "
                      "continuing with the standard risk math.", market,
                      kind="EXEC_WARN")
-            # UNIVERSAL PRE-TRADE VALIDATION (owner brief 2026-10-24, s.3):
-            # the composed order must match the strategy's own rules exactly -
-            # direction, sides, configured R:R, sizing - and the live market
-            # must still sit near the intended entry. Refuse, never repair.
-            _ref = _reference_price(market)
-            if _ref is None:
-                _reject_pretrade(store, signal, user_id, market, "NO_PRICE_REFERENCE",
-                                 "no trustworthy live price for the entry-drift check")
-                return
+            # RE-ANCHOR (owner directive 2026-10-28): enter ALWAYS - anchor
+            # the order to the live price, preserving the strategy's stop and
+            # TP distances exactly (structure, R:R and side are untouched).
+            # Movement/spread changes WHERE the trade starts, never WHETHER.
+            _anchor = _fill_px or entry
+            _delta = _anchor - entry
+            sl_eff = sl + _delta
+            tp_eff = (tp + _delta) if tp else None
+            if _delta:
+                _log(f"Re-anchored {market} {signal['direction']} to the live "
+                     f"{'ask' if signal['direction'].upper() == 'BUY' else 'bid'} {_anchor} "
+                     f"(signal entry {entry}): SL {sl}->{sl_eff}, TP {tp}->{tp_eff} "
+                     "- distances preserved.", market)
+                store.update("signals", signal["id"], {
+                    "order_entry": _anchor,
+                    "mt5_note": (f"entered at live {'ask' if signal['direction'].upper() == 'BUY' else 'bid'} "
+                                 f"{_anchor} (signal entry {entry}); SL/TP re-anchored, "
+                                 "strategy distances preserved")[:250]})
+            # UNIVERSAL PRE-TRADE VALIDATION (owner brief 2026-10-24, s.3,
+            # amended 2026-10-28: market movement is re-anchored above, never
+            # refused): the composed order must match the strategy's own rules
+            # exactly - direction, sides, configured R:R, sizing. Refuse
+            # genuinely broken orders, never repair their structure.
             store.update("signals", signal["id"],
-                         {"order_rr": _planned_rr(entry, sl, tp), "order_tp": tp})
+                         {"order_rr": _planned_rr(_anchor, sl_eff, tp_eff), "order_tp": tp_eff})
             _ok, _code, _why = validate_order(
                 market=market, direction=signal.get("direction"),
-                entry=entry, sl=sl, tp=tp, lots=lots,
+                entry=_anchor, sl=sl_eff, tp=tp_eff, lots=lots,
                 intended_rr=signal.get("rr_primary"),
                 declared_tps=[signal.get("tp1"), signal.get("tp2"), signal.get("tp3")],
                 symbol_known=market in PIP_SIZE,
@@ -701,43 +721,17 @@ def execute_signal(signal: dict, user_id: str) -> None:
                 eff_risk_pct=risk_pct * LOT_MODE_MULT.get(_mode, 1.0),
                 lots_cap=MAX_LOTS, dup_checked=True, budgets_allowed=True,
                 allow_no_tp=signal.get("strategy_id") in TRAIL_ONLY_STRATEGIES,
-                reference_price=_ref)
+                reference_price=None)   # drift is re-anchored, never refused (owner 2026-10-28)
             if not _ok:
                 _reject_pretrade(store, signal, user_id, market, _code, _why)
                 return
-            # FILL-RR GUARD: refuse the entry when the live spread already
-            # squeezes the structural TP/SL below the acceptable floor.
-            # Reject, never repair - the levels stay exactly as specified.
-            if _fill_px is not None and tp:
-                _r_px = abs(_fill_px - sl)
-                _proj_rr = (abs(tp - _fill_px) / _r_px) if _r_px > 0 else None
-                if _proj_rr is not None and _proj_rr < MIN_FILL_RR:
-                    _note = (f"live {'ask' if signal['direction'].upper() == 'BUY' else 'bid'} "
-                             f"{_fill_px} vs entry {entry}: R:R would be {_proj_rr:.2f} "
-                             f"(< {MIN_FILL_RR}) with SL {sl} / TP {tp} - spread guard refused")
-                    store.update("signals", signal["id"], {
-                        "execution_status": "SKIPPED_SPREAD_RR",
-                        "mt5_note": _note[:250],
-                        "proj_fill_rr": round(_proj_rr, 4),
-                        "proj_fill_price": _fill_px})
-                    _log(f"Execution skipped - spread guard: {_note}", market, kind="EXEC_WARN")
-                    _emit(user_id, "ENTRY", "SKIPPED", market=market, signal=signal,
-                          detail=_note[:160])
-                    notify(user_id, "EXECUTION_SKIPPED",
-                           f"NOT EXECUTED - {signal.get('market')} {signal.get('direction')}",
-                           f"Spread guard: the live price already breaks this setup's R:R "
-                           f"({_proj_rr:.2f} < {MIN_FILL_RR}). No order was sent. "
-                           "The signal stays as research only.",
-                           meta={"telegram_important": True},
-                           signal_id=signal.get("id"))
-                    return
             _emit(user_id, "ENTRY", "REQUESTED", market=market, signal=signal,
-                  detail=f"{signal['direction']} {lots} lots @ {entry}, SL {sl}, TP {tp}")
+                  detail=f"{signal['direction']} {lots} lots @ {_anchor}, SL {sl_eff}, TP {tp_eff}")
             _t0 = time.time()
             res = bridge_post("/execute", {
                 "signal_id": signal["signal_id"], "symbol": market,
-                "direction": signal["direction"], "lots": lots, "sl": sl, "tp": tp,
-                "magic": MAGIC})
+                "direction": signal["direction"], "lots": lots,
+                "sl": sl_eff, "tp": tp_eff, "magic": MAGIC})
             _lat = (time.time() - _t0) * 1000.0
             if res and res.get("ok"):
                 _apply_fill(store, signal, res, lots)
@@ -903,40 +897,16 @@ def _apply_fill(store, signal: dict, res: dict, lots: float) -> None:
         "intended_rr": _int_rr, "executed_rr": _exec_rr, "entry_slippage": _slip,
         "mt5_executed_at": datetime.now(timezone.utc).isoformat()})
 
-    # POST-FILL NET (owner brief 2026-10-28): if the ACTUAL fill slipped far
-    # enough to break the R:R floor, close the position at once - never hold
-    # a trade whose math died between the quote and the fill (requotes/gaps).
-    if _exec_rr is not None and _exec_rr < MIN_FILL_RR and res.get("position_id"):
-        _close = bridge_post("/close", {"ticket": res.get("position_id")}, timeout=15)
-        _closed = bool(_close and _close.get("ok"))
-        store.update("signals", signal["id"], {
-            "execution_status": "EXECUTION_FAILED_SLIPPAGE",
-            "mt5_note": (f"auto-closed on fill: executed R:R {_exec_rr} < {MIN_FILL_RR} "
-                         f"(fill {res.get('price')} vs entry {signal.get('entry')}); "
-                         f"close {'confirmed' if _closed else 'REQUEST FAILED - CHECK TERMINAL'}")[:250]})
-        _log(f"SLIPPAGE GUARD auto-close {signal.get('market')} ticket {res.get('position_id')} - "
-             f"executed R:R {_exec_rr} < {MIN_FILL_RR} (close ok={_closed}).",
-             signal.get("market"), kind="EXEC_WARN")
-        _owner_id = signal.get("userId") or settings.owner_user_id
-        _emit(_owner_id, "ENTRY", "FAILED", market=signal.get("market"), signal=signal,
-              detail=f"slippage guard: executed_rr {_exec_rr} < {MIN_FILL_RR}, auto-close ok={_closed}")
-        try:
-            notify(_owner_id, "EXECUTION_FAILED",
-                   f"ENTRY FAILED - {signal.get('market')} {signal.get('direction')}",
-                   f"Slippage guard: the fill ({res.get('price')}) pushed R:R to {_exec_rr} "
-                   f"(< {MIN_FILL_RR}). The position was "
-                   + ("closed immediately." if _closed else "NOT closed - check the terminal!")
-                   + " No stop was moved, no level repaired.",
-                   signal_id=signal.get("id"))
-        except Exception:
-            pass
+    # Owner directive 2026-10-28: a filled trade is NEVER auto-closed for
+    # slippage. The fill is recorded with its honest executed_rr; the live
+    # SL/TP on the ticket (re-anchored at submission) manage the trade.
 
     # OWNER DIRECTIVE (2026-10-25): the "trade entered" Telegram message -
     # fired ONLY here, on a real broker fill (never on signal creation).
     try:
         _e = float(res.get("price") or signal.get("entry") or 0)
         _sl = float(signal.get("sl") or 0)
-        _tp_raw = signal.get("tp1")
+        _tp_raw = signal.get("order_tp") or signal.get("tp1")
         _tp = float(_tp_raw) if _tp_raw not in (None, "", 0) else None
         _dir = str(signal.get("direction") or "")
         _name = (signal.get("strategy_name") or signal.get("strategy_id") or "")
