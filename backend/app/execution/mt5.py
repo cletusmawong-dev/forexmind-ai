@@ -293,22 +293,6 @@ def _live_quote(market: str) -> Optional[dict]:
     return None
 
 
-def _reference_price(market: str) -> Optional[float]:
-    """Last closed BROKER-terminal candle close - the execution ground truth
-    (the bridge just answered /account, so its own feed is authoritative).
-    The cloud provider feed is deliberately NOT a fallback: a lagging or
-    synthetic upstream price must never gate a broker order. None -> the vps
-    path refuses (NO_PRICE_REFERENCE); manual mode skips the drift check."""
-    try:
-        r = bridge_get(f"/rates?market={market}&tf=5M&count=2") or {}
-        bars = r.get("bars") or []
-        if bars:
-            return float(bars[-1]["c"])
-    except Exception:
-        pass
-    return None
-
-
 def _reject_pretrade(store, signal: dict, user_id: str, market: str,
                      code: str, reason: str) -> None:
     """Record a pre-trade refusal loudly: signal status, ledger, activity,
