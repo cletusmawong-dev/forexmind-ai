@@ -44,6 +44,16 @@ export function AccountSwitcher() {
     }
   };
 
+  const setTrading = async (id: string, want: boolean) => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await api.post(`/api/accounts/${id}/trading`, { enabled: want });
+      refresh();   // optimistic UI: dropdown re-renders from fresh poll
+    } catch { /* surfaced by the request layer */ }
+    setBusy(false);
+  };
+
   const add = async () => {
     if (!label.trim() || busy) return;
     setBusy(true);
@@ -71,18 +81,28 @@ export function AccountSwitcher() {
       {open && (
         <div className="glass-float absolute right-0 top-[calc(100%+8px)] z-50 w-64 rounded-2xl p-2 animate-fadeUp">
           {accounts.map((a) => (
-            <button key={a.id} disabled={busy} onClick={() => select(a.id)}
-                    className="flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-left hover:bg-[rgba(var(--p-rgb),0.06)]">
-              <span className="min-w-0">
+            <div key={a.id} className="flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 hover:bg-[rgba(var(--p-rgb),0.05)]">
+              <button disabled={busy} onClick={() => select(a.id)}
+                      className="min-w-0 flex-1 text-left"
+                      aria-label={`Switch to ${a.label}`}>
                 <span className="block truncate text-[12px] font-semibold text-txt-hi">{a.label}</span>
-                <span className="block text-[9.5px] text-txt-faint">
-                  {a.mode.replace("_", " ")} · {a.trading_enabled ? "trading ON" : "trading OFF"}
-                </span>
-              </span>
+                <span className="block text-[9.5px] text-txt-faint">{a.mode.replace("_", " ")}</span>
+              </button>
+              <button
+                onClick={() => setTrading(a.id, !a.trading_enabled)}
+                disabled={busy}
+                aria-label={`${a.trading_enabled ? "Disable" : "Enable"} trading for ${a.label}`}
+                className={`shrink-0 rounded-full border px-2 py-1 text-[9px] font-bold transition-colors ${
+                  a.trading_enabled
+                    ? "border-[rgba(18,160,92,0.4)] bg-[rgba(18,160,92,0.1)] text-[#0d8a4e]"
+                    : "border-[var(--glass-border)] bg-[var(--bg-secondary)] text-[var(--text-muted)]"
+                }`}>
+                {a.trading_enabled ? "TRADING ON" : "TRADING OFF"}
+              </button>
               {a.is_active && (
                 <span className="shrink-0 rounded-full bg-[rgba(var(--pos-rgb),0.15)] px-2 py-0.5 text-[8.5px] font-bold uppercase tracking-wide text-pos">Active</span>
               )}
-            </button>
+            </div>
           ))}
           {!adding ? (
             <button onClick={() => setAdding(true)} disabled={busy}
