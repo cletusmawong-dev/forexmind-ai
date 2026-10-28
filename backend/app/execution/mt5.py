@@ -267,6 +267,26 @@ def bridge_post(path: str, payload: dict, timeout: int = 15) -> Optional[dict]:
 _exec_lock = threading.Lock()
 
 
+# SPREAD GUARD (owner brief 2026-10-28): an entry whose R:R is already
+# broken by the live spread at submission time must never reach the broker,
+# and a fill that slips past this floor is auto-closed immediately.
+MIN_FILL_RR = float(os.getenv("EXECUTION_MIN_FILL_RR", "0.80"))
+
+
+def _live_quote(market: str) -> Optional[dict]:
+    """Live bid/ask from the terminal, read at execution time (bridge /quote).
+    None -> the caller falls back to signal-price sizing (old behaviour);
+    a missing quote must never block the flow, the post-fill net still holds."""
+    try:
+        q = bridge_get(f"/quote?market={market}", timeout=5) or {}
+        bid, ask = float(q.get("bid") or 0), float(q.get("ask") or 0)
+        if bid > 0 and ask > 0 and ask >= bid:
+            return {"bid": bid, "ask": ask}
+    except Exception:
+        pass
+    return None
+
+
 def _reference_price(market: str) -> Optional[float]:
     """Last closed BROKER-terminal candle close - the execution ground truth
     (the bridge just answered /account, so its own feed is authoritative).
@@ -595,7 +615,21 @@ def execute_signal(signal: dict, user_id: str) -> None:
                            signal_id=signal.get("id"))
                     return
                 store.update("signals", signal["id"], {"execution_status": "EXECUTING"})
-            lots = calc_lot(market, entry, sl, float(acct["balance"]) or 0.0, risk_pct)
+            # SPREAD-AWARE SIZING (owner brief 2026-10-28): the order
+            # fills at the live ask (BUY) / bid (SELL), so risk is
+            # measured from THAT price, not the signal price. Levels are
+            # never moved - sizing adapts, and a spread-broken R:R is
+            # refused below instead of "repaired".
+            _quote = _live_quote(market)
+            _fill_px = None
+            if _quote:
+                _is_buy = signal["direction"].upper() == "BUY"
+                _fill_px = _quote["ask"] if _is_buy else _quote["bid"]
+                _spread = _fill_px - _quote["bid"] if _is_buy else _quote["ask"] - _fill_px
+                _log(f"Live quote {market}: bid {_quote['bid']} / ask {_quote['ask']} "
+                     f"(spread {_spread:.5g}) - sizing + R:R measured from the "
+                     f"{'ask' if _is_buy else 'bid'}.", market)
+            lots = calc_lot(market, _fill_px or entry, sl, float(acct["balance"]) or 0.0, risk_pct)
             _mode = _lot_mode(user_id)
             lots = apply_lot_mode(lots, _mode)
             if lots > MAX_LOTS:
@@ -618,7 +652,7 @@ def execute_signal(signal: dict, user_id: str) -> None:
                 if _acct_doc:
                     _pip = PIP_SIZE.get(market, 0.1)
                     _pipv = PIP_VALUE.get(market, 10.0)
-                    _stop_usd_per_lot = (abs(entry - sl) / _pip) * _pipv
+                    _stop_usd_per_lot = (abs((_fill_px or entry) - sl) / _pip) * _pipv
                     _d = _daily_state(user_id)
                     _pf = _pf_cap(_acct_doc, {
                         "daily_pl": float(_d.get("total_usd") or 0.0),
@@ -671,6 +705,32 @@ def execute_signal(signal: dict, user_id: str) -> None:
             if not _ok:
                 _reject_pretrade(store, signal, user_id, market, _code, _why)
                 return
+            # FILL-RR GUARD: refuse the entry when the live spread already
+            # squeezes the structural TP/SL below the acceptable floor.
+            # Reject, never repair - the levels stay exactly as specified.
+            if _fill_px is not None and tp:
+                _r_px = abs(_fill_px - sl)
+                _proj_rr = (abs(tp - _fill_px) / _r_px) if _r_px > 0 else None
+                if _proj_rr is not None and _proj_rr < MIN_FILL_RR:
+                    _note = (f"live {'ask' if signal['direction'].upper() == 'BUY' else 'bid'} "
+                             f"{_fill_px} vs entry {entry}: R:R would be {_proj_rr:.2f} "
+                             f"(< {MIN_FILL_RR}) with SL {sl} / TP {tp} - spread guard refused")
+                    store.update("signals", signal["id"], {
+                        "execution_status": "SKIPPED_SPREAD_RR",
+                        "mt5_note": _note[:250],
+                        "proj_fill_rr": round(_proj_rr, 4),
+                        "proj_fill_price": _fill_px})
+                    _log(f"Execution skipped - spread guard: {_note}", market, kind="EXEC_WARN")
+                    _emit(user_id, "ENTRY", "SKIPPED", market=market, signal=signal,
+                          detail=_note[:160])
+                    notify(user_id, "EXECUTION_SKIPPED",
+                           f"NOT EXECUTED - {signal.get('market')} {signal.get('direction')}",
+                           f"Spread guard: the live price already breaks this setup's R:R "
+                           f"({_proj_rr:.2f} < {MIN_FILL_RR}). No order was sent. "
+                           "The signal stays as research only.",
+                           meta={"telegram_important": True},
+                           signal_id=signal.get("id"))
+                    return
             _emit(user_id, "ENTRY", "REQUESTED", market=market, signal=signal,
                   detail=f"{signal['direction']} {lots} lots @ {entry}, SL {sl}, TP {tp}")
             _t0 = time.time()
@@ -842,6 +902,34 @@ def _apply_fill(store, signal: dict, res: dict, lots: float) -> None:
         "mt5_symbol": res.get("symbol"),   # broker-resolved name (suffix/alias included)
         "intended_rr": _int_rr, "executed_rr": _exec_rr, "entry_slippage": _slip,
         "mt5_executed_at": datetime.now(timezone.utc).isoformat()})
+
+    # POST-FILL NET (owner brief 2026-10-28): if the ACTUAL fill slipped far
+    # enough to break the R:R floor, close the position at once - never hold
+    # a trade whose math died between the quote and the fill (requotes/gaps).
+    if _exec_rr is not None and _exec_rr < MIN_FILL_RR and res.get("position_id"):
+        _close = bridge_post("/close", {"ticket": res.get("position_id")}, timeout=15)
+        _closed = bool(_close and _close.get("ok"))
+        store.update("signals", signal["id"], {
+            "execution_status": "EXECUTION_FAILED_SLIPPAGE",
+            "mt5_note": (f"auto-closed on fill: executed R:R {_exec_rr} < {MIN_FILL_RR} "
+                         f"(fill {res.get('price')} vs entry {signal.get('entry')}); "
+                         f"close {'confirmed' if _closed else 'REQUEST FAILED - CHECK TERMINAL'}")[:250]})
+        _log(f"SLIPPAGE GUARD auto-close {signal.get('market')} ticket {res.get('position_id')} - "
+             f"executed R:R {_exec_rr} < {MIN_FILL_RR} (close ok={_closed}).",
+             signal.get("market"), kind="EXEC_WARN")
+        _owner_id = signal.get("userId") or settings.owner_user_id
+        _emit(_owner_id, "ENTRY", "FAILED", market=signal.get("market"), signal=signal,
+              detail=f"slippage guard: executed_rr {_exec_rr} < {MIN_FILL_RR}, auto-close ok={_closed}")
+        try:
+            notify(_owner_id, "EXECUTION_FAILED",
+                   f"ENTRY FAILED - {signal.get('market')} {signal.get('direction')}",
+                   f"Slippage guard: the fill ({res.get('price')}) pushed R:R to {_exec_rr} "
+                   f"(< {MIN_FILL_RR}). The position was "
+                   + ("closed immediately." if _closed else "NOT closed - check the terminal!")
+                   + " No stop was moved, no level repaired.",
+                   signal_id=signal.get("id"))
+        except Exception:
+            pass
 
     # OWNER DIRECTIVE (2026-10-25): the "trade entered" Telegram message -
     # fired ONLY here, on a real broker fill (never on signal creation).

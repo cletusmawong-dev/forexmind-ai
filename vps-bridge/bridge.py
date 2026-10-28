@@ -164,6 +164,30 @@ def account(x_bridge_token: Optional[str] = Header(None)):
             "margin_free": a.margin_free}
 
 
+@app.get("/quote")
+def quote(market: str, x_bridge_token: Optional[str] = Header(None)):
+    """Live bid/ask straight from the terminal (symbol_info_tick).
+
+    The cloud reads this immediately BEFORE submitting an order so lot size
+    is computed against the price the order will actually fill at, and so a
+    spread-widened entry that would break the setup's R:R is refused before
+    it reaches the broker (owner brief 2026-10-28)."""
+    _auth(x_bridge_token)
+    symbol = resolve_symbol(market)
+    with _mt5_lock:
+        _ensure()
+        info = mt5.symbol_info(symbol)
+        if info is None:
+            raise HTTPException(404, f"symbol_info failed for {symbol}")
+        if not info.visible:
+            mt5.symbol_select(symbol, True)
+        tick = mt5.symbol_info_tick(symbol)
+        if tick is None or not tick.bid or not tick.ask:
+            raise HTTPException(503, f"no tick for {symbol} (market closed?)")
+        return {"symbol": symbol, "bid": float(tick.bid), "ask": float(tick.ask),
+                "time": int(getattr(tick, "time", 0) or 0)}
+
+
 @app.post("/execute")
 def execute(order: OrderIn, x_bridge_token: Optional[str] = Header(None)):
     _auth(x_bridge_token)
