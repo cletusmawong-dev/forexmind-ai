@@ -22,6 +22,17 @@ def env(monkeypatch, tmp_path):
     return store
 
 
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _no_live_news_window(monkeypatch):
+    """The news guard reads the LIVE calendar - a real high-impact window
+    (e.g. ECB rate day) must not flip these tests on/off by wall clock."""
+    import app.market_data.calendar as _cal
+    monkeypatch.setattr(_cal, "is_blackout", lambda m: (False, None))
+
+
 SIG = {"id": "sig1", "userId": "u1", "signal_id": "SIG-20260914-001", "market": "EURUSD",
        "direction": "SELL", "entry": 1.1000, "sl": 1.1020,
        "tp1": 1.0950, "tp2": 1.0900, "tp3": 1.0850}   # 20 pip SL

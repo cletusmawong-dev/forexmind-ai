@@ -619,7 +619,37 @@ def execute_signal(signal: dict, user_id: str) -> None:
                 _log(f"Live quote {market}: bid {_quote['bid']} / ask {_quote['ask']} "
                      f"(spread {_spread:.5g}) - sizing + R:R measured from the "
                      f"{'ask' if _is_buy else 'bid'}.", market)
-            lots = calc_lot(market, _fill_px or entry, sl, float(acct["balance"]) or 0.0, risk_pct)
+            # ANCHOR FIRST (postmortem SIG-20261029-030, owner directive):
+            # the stop the trade will actually CARRY must drive the lot size.
+            # Sizing against the signal's original SL while the fill has
+            # drifted toward it invents a tiny stop and explodes the size
+            # (17-pip drift on GBPUSD sized 4.25 lots against a 1.2-pip gap
+            # and got capped into a $182 refusal). Anchor, stop and ladder
+            # are computed HERE, before any sizing math.
+            _anchor = _fill_px or entry
+            _delta = _anchor - entry
+            sl_eff = sl + _delta
+            # OWNER TP POLICY (directive 2026-10-28): risk is $50 per trade,
+            # so the target ladder is fixed in R, not in strategy structure
+            # points: tp1 = +1R (+$50), tp2 = +2R (+$100), tp3 = +3R (+$150),
+            # measured from the re-anchored entry and stop. The BROKER order
+            # carries TP = tp3; the trade manager works the ladder in between
+            # (tp1 partial, tp2 SL lock at +1R, AI reversal protection).
+            # The strategy's structure still sets the STOP; only the targets
+            # are universal now. Trail strategies keep the managed trail
+            # (no broker TP) untouched.
+            _trail_only = signal.get("strategy_id") in TRAIL_ONLY_STRATEGIES
+            tp1_eff = tp2_eff = tp3_eff = None
+            if not _trail_only:
+                _sign = 1.0 if str(signal.get("direction", "")).upper() == "BUY" else -1.0
+                _stop_d = abs(_anchor - sl_eff)
+                tp1_eff = round(_anchor + _sign * _stop_d, 5)
+                tp2_eff = round(_anchor + _sign * 2.0 * _stop_d, 5)
+                tp3_eff = round(_anchor + _sign * 3.0 * _stop_d, 5)
+                tp_eff = tp3_eff
+            else:
+                tp_eff = (tp + _delta) if tp else None
+            lots = calc_lot(market, _anchor, sl_eff, float(acct["balance"]) or 0.0, risk_pct)
             _mode = _lot_mode(user_id)
             lots = apply_lot_mode(lots, _mode)
             if lots > MAX_LOTS:
@@ -642,7 +672,7 @@ def execute_signal(signal: dict, user_id: str) -> None:
                 if _acct_doc:
                     _pip = PIP_SIZE.get(market, 0.1)
                     _pipv = PIP_VALUE.get(market, 10.0)
-                    _stop_usd_per_lot = (abs((_fill_px or entry) - sl) / _pip) * _pipv
+                    _stop_usd_per_lot = (abs(_anchor - sl_eff) / _pip) * _pipv
                     _d = _daily_state(user_id)
                     _pf = _pf_cap(_acct_doc, {
                         "daily_pl": float(_d.get("total_usd") or 0.0),
@@ -667,33 +697,6 @@ def execute_signal(signal: dict, user_id: str) -> None:
                 _log(f"Prop-firm cap check failed ({type(_pf_exc).__name__}) - "
                      "continuing with the standard risk math.", market,
                      kind="EXEC_WARN")
-            # RE-ANCHOR (owner directive 2026-10-28): enter ALWAYS - anchor
-            # the order to the live price, preserving the strategy's stop and
-            # TP distances exactly (structure, R:R and side are untouched).
-            # Movement/spread changes WHERE the trade starts, never WHETHER.
-            _anchor = _fill_px or entry
-            _delta = _anchor - entry
-            sl_eff = sl + _delta
-            # OWNER TP POLICY (directive 2026-10-28): risk is $50 per trade,
-            # so the target ladder is fixed in R, not in strategy structure
-            # points: tp1 = +1R (+$50), tp2 = +2R (+$100), tp3 = +3R (+$150),
-            # measured from the re-anchored entry and stop. The BROKER order
-            # carries TP = tp3; the trade manager works the ladder in between
-            # (tp1 partial, tp2 SL lock at +1R, AI reversal protection).
-            # The strategy's structure still sets the STOP; only the targets
-            # are universal now. Trail strategies keep the managed trail
-            # (no broker TP) untouched.
-            _trail_only = signal.get("strategy_id") in TRAIL_ONLY_STRATEGIES
-            tp1_eff = tp2_eff = tp3_eff = None
-            if not _trail_only:
-                _sign = 1.0 if str(signal.get("direction", "")).upper() == "BUY" else -1.0
-                _stop_d = abs(_anchor - sl_eff)
-                tp1_eff = round(_anchor + _sign * _stop_d, 5)
-                tp2_eff = round(_anchor + _sign * 2.0 * _stop_d, 5)
-                tp3_eff = round(_anchor + _sign * 3.0 * _stop_d, 5)
-                tp_eff = tp3_eff
-            else:
-                tp_eff = (tp + _delta) if tp else None
             if _delta:
                 _log(f"Re-anchored {market} {signal['direction']} to the live "
                      f"{'ask' if signal['direction'].upper() == 'BUY' else 'bid'} {_anchor} "

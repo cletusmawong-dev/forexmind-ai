@@ -102,9 +102,42 @@ def test_sizing_uses_the_live_ask(exec_env, fresh_store):
                        candle_time="2026-10-28T10:10:00+00:00")
     m5.execute_signal(sig2, uid)
     lots_at_entry = _orders(state)[-1]["lots"]
-    assert lots_at_quote < lots_at_entry, "ask-based sizing did not shrink the lot"
-    assert lots_at_entry * 10.0 == pytest.approx(lots_at_quote * 11.0, rel=0.02), \
-        "risk is not conserved at ~$risk across the spread"
+    # Since anchor-first re-anchoring (postmortem SIG-20261029-030) the
+    # stop distance is shift-invariant: the fill drift is absorbed by the
+    # re-anchored stop, so the lot - and the dollar risk - are EXACT at
+    # the live fill (spread no longer widens the stop; it moves the entry).
+    assert lots_at_quote == pytest.approx(lots_at_entry, rel=0.01), \
+        "dollar risk not conserved at the live fill"
+    assert lots_at_quote == pytest.approx(
+        m5.calc_lot("XAUUSD", 2400.0, 2390.0, 10_000.0, 1.0), rel=0.02), \
+        "lot must equal the entry-based baseline (risk exact at any fill)"
+
+
+def test_sizing_uses_the_anchored_stop_not_the_stale_gap(exec_env, fresh_store):
+    """Postmortem SIG-20261029-030 (GBPUSD BUY refused RISK_OVER_BUDGET):
+    price fell ~17 pips through the entry by execution time, sizing still
+    measured the ORIGINAL SL (a 1.2-pip gap), exploded the lot and got
+    capped into a refusal. The anchor/stop must be computed BEFORE sizing,
+    so a fill near the original stop sizes on the RE-ANCHORED stop and the
+    dollar risk stays exact."""
+    m5, state, uid = exec_env
+    # BUY entry 2400, SL 2390 (10.0 stop); fill prints just 1.0 above the
+    # stop -> the stale gap is 1.0, the anchored stop is 10.0.
+    sig = _signal_doc(fresh_store, direction="BUY", entry=2400.0, sl=2390.0,
+                      tp1=2415.0, rr_primary=1.5, risk=10.0)
+    state["quote"] = {"bid": 2390.5, "ask": 2391.0}
+    REF["price"] = 2400.0
+    m5.execute_signal(sig, uid)
+    orders = _orders(state)
+    assert orders, f"order not sent: {_doc(fresh_store, sig).get('execution_status')}"
+    p = orders[-1]
+    baseline = m5.calc_lot("XAUUSD", 2400.0, 2390.0, 10_000.0, 1.0)
+    assert p["lots"] == pytest.approx(baseline, rel=0.02), \
+        "lot sized on the stale gap, not the anchored stop"
+    assert p["sl"] == pytest.approx(2381.0)      # 2390 + (-9.0) re-anchored
+    assert p["tp"] == pytest.approx(2421.0)      # anchor 2391 + 3R (30.0)
+    doc = _doc(fresh_store, sig)
+    assert doc["execution_status"] == "SUBMITTED"
 
 
 def test_sl_tp_reanchored_to_the_live_price(exec_env, fresh_store):
