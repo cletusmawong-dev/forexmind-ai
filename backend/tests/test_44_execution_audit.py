@@ -349,9 +349,12 @@ def _signal_doc(fresh_store, **kw):
     return fresh_store.create("signals", doc)
 
 
-def test_single_target_signal_sends_the_strategy_tp(exec_env, fresh_store, monkeypatch):
-    """THE September bug, regression-tested: EXECUTION_TP_LEVEL=2 must NOT
-    replace a single-target (spec) signal's own TP."""
+def test_owner_ladder_replaces_strategy_tp_with_audit(exec_env, fresh_store, monkeypatch):
+    """Owner directive 2026-10-28: the target ladder is universal R -
+    tp1 +1R (+$50), tp2 +2R (+$100), tp3 +3R (+$150) - and the broker order
+    carries TP = tp3. The strategy's own structural targets are preserved
+    on the doc (strategy_tp1..3) so nothing is replaced without a record
+    (the September silent-replacement bug stays regression-covered)."""
     m5, sent, uid = exec_env
     monkeypatch.setattr(m5.settings, "execution_tp_level", "2", raising=False)
     sig = _signal_doc(fresh_store)
@@ -359,11 +362,13 @@ def test_single_target_signal_sends_the_strategy_tp(exec_env, fresh_store, monke
     m5.execute_signal(sig, uid)
     assert sent.get("path") == "/execute", f"no order sent: {sig.get('execution_status')}"
     p = sent["payload"]
-    assert p["tp"] == 2385.0                       # the strategy's own 1.5R target
+    assert p["tp"] == 2370.0                       # tp3 = 3R from entry (SELL, stop 10)
     assert p["sl"] == 2410.0 and p["symbol"] == "XAUUSD" and p["direction"] == "SELL"
     doc = fresh_store.list("signals", filters={"id": sig["id"]}, limit=1)[0]
     assert doc["execution_status"] == "SUBMITTED"
-    assert doc["intended_rr"] == pytest.approx(1.5, abs=1e-6)
+    assert (doc["tp1"], doc["tp2"], doc["tp3"]) == (2390.0, 2380.0, 2370.0)
+    assert doc["strategy_tp1"] == 2385.0           # the strategy's own 1.5R target kept
+    assert doc["intended_rr"] == pytest.approx(3.0, abs=1e-6)
     assert doc["executed_rr"] is not None          # measured from the fill
 
 
@@ -379,16 +384,20 @@ def test_multi_target_signal_still_uses_the_level_setting(exec_env, fresh_store,
     assert sent["payload"]["tp"] == 2370.0         # level 3 of a genuine 3-TP signal
 
 
-def test_rr_mismatch_blocks_the_order(exec_env, fresh_store):
-    """A signal whose TP no longer matches its configured R:R is REFUSED."""
+def test_rr_mismatch_no_longer_blocks_owner_ladder_enters(exec_env, fresh_store):
+    """Owner directive 2026-10-28: strategy TP / configured-R:R mismatch does
+    not refuse the order any more - the universal R ladder IS the target
+    spec, and the strategy's structural target is kept for audit. (Side,
+    lifecycle, symbol and sizing validation still refuse.)"""
     m5, sent, uid = exec_env
     sig = _signal_doc(fresh_store, rr_primary=1.5, tp1=2390.0)   # 1R target on 1.5R config
     REF = sent["ref"]; REF["price"] = 2400.0
     m5.execute_signal(sig, uid)
-    assert "path" not in sent, "an R:R-mismatched order reached the broker"
+    assert sent.get("path") == "/execute", "order refused - directive violated"
+    assert sent["payload"]["tp"] == 2370.0
     doc = fresh_store.list("signals", filters={"id": sig["id"]}, limit=1)[0]
-    assert doc["execution_status"] == "REJECTED_PRETRADE"
-    assert "RR_MISMATCH" in (doc.get("mt5_note") or "")
+    assert doc["execution_status"] == "SUBMITTED"
+    assert doc["strategy_tp1"] == 2390.0
 
 
 def test_stale_entry_enters_without_quote(exec_env, fresh_store):
@@ -403,13 +412,14 @@ def test_stale_entry_enters_without_quote(exec_env, fresh_store):
     m5.execute_signal(sig, uid)
     assert sent.get("path") == "/execute", "stale entry was refused - directive violated"
     p = sent["payload"]
-    assert p["sl"] == 2410.0 and p["tp"] == 2385.0  # no quote -> signal levels
+    assert p["sl"] == 2410.0 and p["tp"] == 2370.0  # no quote: stop from signal, ladder 3R
     doc = fresh_store.list("signals", filters={"id": sig["id"]}, limit=1)[0]
     assert doc["execution_status"] == "SUBMITTED"
+    assert (doc["tp1"], doc["tp2"]) == (2390.0, 2380.0)
 
 
 def test_buy_direction_validated_end_to_end(exec_env, fresh_store):
-    """BUY order: side-correct, sized, submitted with the spec geometry."""
+    """BUY order: side-correct, sized, submitted with the owner ladder."""
     m5, sent, uid = exec_env
     sig = _signal_doc(fresh_store, direction="BUY", entry=2400.0, sl=2390.0,
                       tp1=2415.0, rr_primary=1.5, risk=10.0)
@@ -417,7 +427,7 @@ def test_buy_direction_validated_end_to_end(exec_env, fresh_store):
     m5.execute_signal(sig, uid)
     p = sent.get("payload")
     assert p, "valid BUY was refused"
-    assert p["direction"] == "BUY" and p["sl"] == 2390.0 < p["tp"] == 2415.0
+    assert p["direction"] == "BUY" and p["sl"] == 2390.0 < p["tp"] == 2430.0
     assert p["lots"] > 0
 
 
@@ -447,16 +457,18 @@ def test_no_price_reference_still_enters_bridge_is_final_guard(exec_env, fresh_s
     assert sent.get("path") == "/execute", "order was refused without a reference price"
     doc = fresh_store.list("signals", filters={"id": sig["id"]}, limit=1)[0]
     assert doc["execution_status"] == "SUBMITTED"
-    assert doc["sl"] == 2410.0 and doc["order_tp"] == 2385.0   # signal levels kept
+    assert doc["sl"] == 2410.0 and doc["order_tp"] == 2370.0   # ladder built from entry/sl
 
 
-def test_order_rr_recorded_even_on_refusal(exec_env, fresh_store):
+def test_order_rr_recorded_on_execution(exec_env, fresh_store):
+    """The planned order RR is recorded on the doc before the broker call -
+    under the owner ladder that is the 3R final target."""
     m5, sent, uid = exec_env
     sig = _signal_doc(fresh_store, rr_primary=1.5, tp1=2390.0)
     REF = sent["ref"]; REF["price"] = 2400.0
     m5.execute_signal(sig, uid)
     doc = fresh_store.list("signals", filters={"id": sig["id"]}, limit=1)[0]
-    assert doc.get("order_rr") == pytest.approx(1.0, abs=1e-6)
+    assert doc.get("order_rr") == pytest.approx(3.0, abs=1e-6)
 
 
 # ===========================================================================

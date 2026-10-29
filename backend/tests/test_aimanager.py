@@ -384,7 +384,9 @@ def test_tp3_hold_ai_leaves_management_to_ai(world):
     assert mgr._state[11]["tp_state"] >= 3
 
 
-def test_tp1_partial_policy_closes_half(world):
+def test_tp1_partial_policy_closes_half_and_locks_breakeven(world):
+    """Owner directive 2026-10-28: at TP1 the manager banks 50% AND moves the
+    SL to entry - the runner can only add, never give the banked part back."""
     store, X, mgr, router, sent = world
     store.update("settings", store.list("settings", filters={"userId": "u1"}, limit=1)[0]["id"],
                  {"tp1_policy": "partial"})
@@ -393,6 +395,7 @@ def test_tp1_partial_policy_closes_half(world):
     X.bridge_get = lambda p, timeout=8: {"positions": [pos]} if p == "/positions" else {"balance": 1000}
     mgr.tick("u1")
     assert ("/partial_close", {"ticket": 11, "fraction": 0.5}) in sent
+    assert ("/modify_sl", {"ticket": 11, "sl": 2400.0}) in sent   # breakeven lock
 
 
 def test_tp_policy_schema_validation():

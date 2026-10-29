@@ -108,11 +108,13 @@ def test_sizing_uses_the_live_ask(exec_env, fresh_store):
 
 
 def test_sl_tp_reanchored_to_the_live_price(exec_env, fresh_store):
-    """Spread/movement never skips the entry: SL/TP shift by the same delta
-    as the anchor - distances, sides and R:R are preserved exactly."""
+    """Spread/movement never skips the entry: the stop distance is preserved
+    from the live anchor and the owner's R ladder (1R/2R/3R) is re-anchored
+    onto it; the broker order carries TP = tp3."""
     m5, state, uid = exec_env
-    # entry 2400, SL 2390 (10.0 stop), TP 2415 (15.0 target, 1.5R).
-    # Live ask 2406.5 (a gold-spike style print): the old code refused here.
+    # entry 2400, SL 2390 (10.0 stop). Live ask 2406.5 (a gold-spike style
+    # print): the old code refused here. Ladder from the anchor:
+    # tp1 2416.5 (+$50), tp2 2426.5 (+$100), tp3 2436.5 (+$150).
     state["quote"] = {"bid": 2405.5, "ask": 2406.5}
     REF["price"] = 2400.0
     sig = _signal_doc(fresh_store)
@@ -120,13 +122,17 @@ def test_sl_tp_reanchored_to_the_live_price(exec_env, fresh_store):
     orders = _orders(state)
     assert orders, f"order not sent: {_doc(fresh_store, sig).get('execution_status')}"
     p = orders[-1]
-    assert p["sl"] == pytest.approx(2396.5)     # 2390 + 6.5
-    assert p["tp"] == pytest.approx(2421.5)     # 2415 + 6.5
-    assert (p["tp"] - 2406.5) / (2406.5 - p["sl"]) == pytest.approx(1.5), \
-        "re-anchoring changed the strategy R:R"
+    assert p["sl"] == pytest.approx(2396.5)     # 2390 + 6.5 (fill drift)
+    assert p["tp"] == pytest.approx(2436.5)     # owner ladder: tp3 = 3R from the fill
+    assert (p["tp"] - 2406.5) / (2406.5 - p["sl"]) == pytest.approx(3.0), \
+        "order TP is not 3R from the re-anchored entry"
     doc = _doc(fresh_store, sig)
+    assert doc["tp1"] == pytest.approx(2416.5)   # ladder on the doc: +1R
+    assert doc["tp2"] == pytest.approx(2426.5)   # +2R
+    assert doc["tp3"] == pytest.approx(2436.5)   # +3R
+    assert doc["strategy_tp1"] == 2415.0         # originals preserved for audit
     assert doc["execution_status"] == "SUBMITTED"
-    assert "re-anchored" in (doc.get("mt5_note") or "")
+    assert "TP ladder" in (doc.get("mt5_note") or "")
 
 
 def test_far_drift_still_enters_reanchored(exec_env, fresh_store):
@@ -139,7 +145,7 @@ def test_far_drift_still_enters_reanchored(exec_env, fresh_store):
     m5.execute_signal(sig, uid)
     p = _orders(state)[-1]
     assert p["sl"] == pytest.approx(2420.0)     # stop distance preserved
-    assert p["tp"] == pytest.approx(2445.0)     # TP distance preserved
+    assert p["tp"] == pytest.approx(2460.0)     # tp3 = 3R from the drifted fill
     assert _doc(fresh_store, sig)["execution_status"] == "SUBMITTED"
 
 
@@ -169,5 +175,8 @@ def test_no_quote_keeps_signal_levels(exec_env, fresh_store):
     sig = _signal_doc(fresh_store)
     m5.execute_signal(sig, uid)
     p = _orders(state)[-1]
-    assert p["sl"] == 2390.0 and p["tp"] == 2415.0
-    assert _doc(fresh_store, sig)["execution_status"] == "SUBMITTED"
+    assert p["sl"] == 2390.0                    # signal stop kept
+    assert p["tp"] == 2430.0                    # tp3 = 3R from entry (no quote)
+    _d = _doc(fresh_store, sig)
+    assert _d["tp1"] == 2410.0 and _d["tp2"] == 2420.0
+    assert _d["execution_status"] == "SUBMITTED"

@@ -47,7 +47,8 @@ def test_execute_submits_and_records(monkeypatch):
     X.execute_signal(SIG, "u1")
     store = X.get_store()
     doc = store.get("signals", "sig1")
-    assert calls["lots"] == 0.05 and calls["tp"] == 1.0900      # tp2 default
+    assert calls["lots"] == 0.05
+    assert calls["tp"] == pytest.approx(1.0940)                 # owner ladder: tp3 = 3R
     assert doc["execution_status"] == "SUBMITTED" and doc["mt5_ticket"] == 777
 
 
@@ -357,5 +358,8 @@ def test_execute_signal_uses_auto_tp(monkeypatch):
     monkeypatch.setattr(X, "_executed_today", lambda uid: 0)
     X.execute_signal(sig, "u1")
     doc = store.get("signals", sig["id"])
-    assert doc.get("tp_selection", {}).get("source") == "default"   # no history yet
-    assert sent["tp"] == pytest.approx(doc["tp2"])                  # fallback TP2
+    assert doc.get("tp_selection", {}).get("source") == "default"   # picker still audited
+    assert sent["tp"] == pytest.approx(1.0940)                      # owner ladder: tp3 = 3R
+    assert (doc["tp1"], doc["tp2"], doc["tp3"]) == (pytest.approx(1.0980),
+                                                    pytest.approx(1.0960),
+                                                    pytest.approx(1.0940))

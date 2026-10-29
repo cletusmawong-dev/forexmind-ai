@@ -674,17 +674,42 @@ def execute_signal(signal: dict, user_id: str) -> None:
             _anchor = _fill_px or entry
             _delta = _anchor - entry
             sl_eff = sl + _delta
-            tp_eff = (tp + _delta) if tp else None
+            # OWNER TP POLICY (directive 2026-10-28): risk is $50 per trade,
+            # so the target ladder is fixed in R, not in strategy structure
+            # points: tp1 = +1R (+$50), tp2 = +2R (+$100), tp3 = +3R (+$150),
+            # measured from the re-anchored entry and stop. The BROKER order
+            # carries TP = tp3; the trade manager works the ladder in between
+            # (tp1 partial, tp2 SL lock at +1R, AI reversal protection).
+            # The strategy's structure still sets the STOP; only the targets
+            # are universal now. Trail strategies keep the managed trail
+            # (no broker TP) untouched.
+            _trail_only = signal.get("strategy_id") in TRAIL_ONLY_STRATEGIES
+            tp1_eff = tp2_eff = tp3_eff = None
+            if not _trail_only:
+                _sign = 1.0 if str(signal.get("direction", "")).upper() == "BUY" else -1.0
+                _stop_d = abs(_anchor - sl_eff)
+                tp1_eff = round(_anchor + _sign * _stop_d, 5)
+                tp2_eff = round(_anchor + _sign * 2.0 * _stop_d, 5)
+                tp3_eff = round(_anchor + _sign * 3.0 * _stop_d, 5)
+                tp_eff = tp3_eff
+            else:
+                tp_eff = (tp + _delta) if tp else None
             if _delta:
                 _log(f"Re-anchored {market} {signal['direction']} to the live "
                      f"{'ask' if signal['direction'].upper() == 'BUY' else 'bid'} {_anchor} "
-                     f"(signal entry {entry}): SL {sl}->{sl_eff}, TP {tp}->{tp_eff} "
-                     "- distances preserved.", market)
+                     f"(signal entry {entry}): SL {sl}->{sl_eff}; ladder re-anchored "
+                     f"1R/2R/3R = {tp1_eff}/{tp2_eff}/{tp3_eff}.", market)
+            if tp1_eff is not None:
                 store.update("signals", signal["id"], {
                     "order_entry": _anchor,
-                    "mt5_note": (f"entered at live {'ask' if signal['direction'].upper() == 'BUY' else 'bid'} "
-                                 f"{_anchor} (signal entry {entry}); SL/TP re-anchored, "
-                                 "strategy distances preserved")[:250]})
+                    "strategy_tp1": signal.get("tp1"), "strategy_tp2": signal.get("tp2"),
+                    "strategy_tp3": signal.get("tp3"),
+                    "tp1": tp1_eff, "tp2": tp2_eff, "tp3": tp3_eff,
+                    "mt5_note": (("entered at live "
+                                  f"{'ask' if signal['direction'].upper() == 'BUY' else 'bid'} "
+                                  f"{_anchor} (signal entry {entry}); " if _delta else "")
+                                 + f"owner TP ladder: tp1 1R +$50, tp2 2R +$100, "
+                                   f"tp3 3R +$150; order TP at tp3")[:250]})
             # UNIVERSAL PRE-TRADE VALIDATION (owner brief 2026-10-24, s.3,
             # amended 2026-10-28: market movement is re-anchored above, never
             # refused): the composed order must match the strategy's own rules
@@ -696,7 +721,8 @@ def execute_signal(signal: dict, user_id: str) -> None:
                 market=market, direction=signal.get("direction"),
                 entry=_anchor, sl=sl_eff, tp=tp_eff, lots=lots,
                 intended_rr=signal.get("rr_primary"),
-                declared_tps=[signal.get("tp1"), signal.get("tp2"), signal.get("tp3")],
+                declared_tps=([tp1_eff, tp2_eff, tp3_eff] if tp1_eff is not None
+                              else [signal.get("tp1"), signal.get("tp2"), signal.get("tp3")]),
                 symbol_known=market in PIP_SIZE,
                 strategy_status=(store.list("strategies", filters={"id": signal.get("strategy_id")}, limit=1) or [{}])[0].get("status"),
                 lifecycle=_life, pip_size=PIP_SIZE.get(market),

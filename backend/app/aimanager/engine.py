@@ -631,6 +631,14 @@ class TradeManager:
                                              reason="TP1 policy: 50% partial")
                 if res.get("executed"):
                     actions.append("partial_close(50%)")
+                    # lock what was banked: SL -> entry so the runner can
+                    # only add (owner 2026-10-28: the manager must protect
+                    # profit, never give a banked partial back)
+                    _be = risk_gate.execute_plan(user_id, pos,
+                                                 {"modify_sl": float(pos["price_open"])},
+                                                 reason="TP1 policy: breakeven after partial")
+                    if _be.get("executed"):
+                        actions.append("modify_sl(breakeven)")
             # tp1_policy ai_decide (default): NO deterministic action - the AI
             # review (trigger tp1_hit) decides continue/protect/exit (SS14)
         if crossed >= 2:
