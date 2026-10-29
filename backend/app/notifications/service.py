@@ -30,7 +30,11 @@ _TELEGRAM_ALLOWED_EXACT = {"MORNING_BRIEF", "NEWS_ALERT", "TRADE_ENTERED",
                            "TRADE_COMPLETED",
                            # owner approval 2026-10-25: entry failures are
                            # loud again (3.0 spec: every failure is heard)
-                           "EXECUTION_FAILED"}
+                           "EXECUTION_FAILED",
+                           # owner 2026-10-29 ("if we miss a trade I will deal
+                           # with u"): a REFUSED order is a missed trade - the
+                           # owner hears about it the moment it happens
+                           "EXECUTION_SKIPPED"}
 
 
 def _telegram_worthy(type_: str, meta: Optional[Dict[str, Any]]) -> bool:

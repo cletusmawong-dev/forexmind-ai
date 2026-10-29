@@ -34,13 +34,17 @@ def test_live_tp_hits_are_telegram_worthy():
 
 
 def test_everything_else_is_silenced():
+    """EXECUTION_SKIPPED left this list on 2026-10-29: a refused order is a
+    MISSED trade (owner: "if we miss a trade I will deal with u") and the
+    owner hears about it the moment it happens."""
     from app.notifications.service import _telegram_worthy
     for t in ("NEW_SIGNAL", "EXTRA_SIGNAL", "EXTRA_SIGNAL_TAKEN",
-              "EXECUTION_SKIPPED", "SIGNAL_SKIPPED",
+              "SIGNAL_SKIPPED",
               "MANAGEMENT_EVENT", "REGIME_CHANGE", "APPROVAL_REQUIRED",
               "RESEARCH_REVIEW", "STRATEGY_VERSION_UPDATED",
               "AI_ESCALATION_DOWN", "TELEGRAM_TEST", "MY_CUSTOM_TYPE"):
         assert _telegram_worthy(t, None) is False, t
+    assert _telegram_worthy("EXECUTION_SKIPPED", None) is True
 
 
 def test_tp_audit_leak_is_not_a_tp_hit():
@@ -53,7 +57,7 @@ def test_force_flag_cannot_bypass():
     from app.notifications.service import _telegram_worthy
     meta = {"telegram_important": True}
     assert _telegram_worthy("NEW_SIGNAL", meta) is False
-    assert _telegram_worthy("EXECUTION_SKIPPED", meta) is False
+    assert _telegram_worthy("EXECUTION_SKIPPED", meta) is True   # exact allowlist
     assert _telegram_worthy("MANAGEMENT_EVENT", meta) is False
 
 
