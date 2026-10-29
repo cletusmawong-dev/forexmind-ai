@@ -231,10 +231,25 @@ class TradeManager:
 
         now = time.time()
         self.last_tick_ts = now
+        _ps_ids = ("strategy_hybrid_crt_tbs", "strategy_fade_crt_ext")
         for pos in self._positions(user_id):
             summary["positions"] += 1
             sig = self._link_signal(user_id, pos)
             st = self._state_for(pos, sig)
+            # UNIVERSAL TRADE MANAGER (owner reference impl 2026-10-29):
+            # deterministic BE/lock/trail ladder runs EVERY tick - it must
+            # never wait for a review trigger or a cooldown. Strategy-owned
+            # plans (TrendBreak v2 trail, PINSTRIPE ladder) keep their own
+            # verbatim management and are not touched by it.
+            if (sig or {}).get("strategy_id") != "strategy_trendbreak_v2" and \
+               (sig or {}).get("strategy_id") not in _ps_ids:
+                uni = self._universal_manage(user_id, pos, sig, st, now)
+                if uni.get("actions"):
+                    summary["actions"].extend(uni["actions"])
+                if uni.get("closed"):
+                    st["last_review"] = now
+                    st["last_pl"] = float(pos.get("profit") or 0)
+                    continue
             triggers = self._triggers(user_id, pos, sig, st, daily, now)
             if not triggers:
                 st["last_pl"] = float(pos.get("profit") or 0)
@@ -287,8 +302,14 @@ class TradeManager:
             return out
 
         # 0) TP-ladder deterministic layer FIRST (SS14-16): hard rules run
-        #    regardless of AI availability/decisions (implemented in P9)
-        ladder = self._tp_ladder(user_id, pos, sig, st, trigger)
+        #    regardless of AI availability/decisions (implemented in P9).
+        #    When the Universal manager owns this position it has ALREADY
+        #    applied the hard rules this tick (stage machine in tick()) -
+        #    running this ladder too would double-fire the partial.
+        ladder: Dict[str, Any] = {"actions": [], "skip_ai": False,
+                                  "verdict": "UNIVERSAL_LADDER"}
+        if not st.get("universal"):
+            ladder = self._tp_ladder(user_id, pos, sig, st, trigger)
         out["actions"].extend(ladder.get("actions", []))
         if ladder.get("skip_ai"):
             st["last_review"] = now
@@ -578,6 +599,159 @@ class TradeManager:
         except Exception as exc:
             return {"actions": actions, "verdict": "TB2_ERROR",
                     "error": type(exc).__name__, "skip_ai": True}
+
+    def _uni_tighten(self, user_id: str, pos: dict, st: dict,
+                     new_sl: float, is_buy: bool, reason: str) -> Optional[dict]:
+        """Ratchet guard for the universal ladder: never loosen, never
+        re-send the same stop. Compares against BOTH the broker snapshot
+        (possibly stale after a previous modify) and our own last write."""
+        cur = [float(pos.get("sl") or 0), float(st.get("last_sl") or 0)]
+        cur = [c for c in cur if c > 0]
+        if cur:
+            ref = max(cur) if is_buy else min(cur)
+            looser = (new_sl < ref - 1e-9) if is_buy else (new_sl > ref + 1e-9)
+            same = abs(new_sl - ref) <= 1e-9
+            if looser or same:
+                return None
+        res = risk_gate.execute_plan(user_id, pos, {"modify_sl": round(new_sl, 5)},
+                                     reason=reason)
+        if res.get("executed"):
+            st["last_sl"] = float(new_sl)
+            return res
+        return None
+
+    # ==================================================================
+    # UNIVERSAL TRADE MANAGER - owner reference implementation 2026-10-29
+    # Stage 0 -> 1 at +1R : bank 50% (policy) + SL to break-even + buffer
+    # Stage 1 -> 2 at +2R : lock profit (default +1R)
+    # Stage 2             : trail the extreme (default 0.9R) and, when the
+    #                       market flips against the position, tighten to
+    #                       0.5R behind price. Stage advances on the BEST
+    #                       price reached (never regresses with a wick).
+    # ==================================================================
+    def _universal_manage(self, user_id: str, pos: dict, sig: Optional[dict],
+                          st: dict, now: float) -> Dict[str, Any]:
+        actions: List[str] = []
+        out: Dict[str, Any] = {"actions": actions, "closed": False}
+        if not sig:
+            return out
+        entry = float(pos.get("price_open") or 0)
+        sl0 = st.get("initial_sl")
+        if sl0 is None:
+            sl0 = float(pos.get("sl") or 0)
+            st["initial_sl"] = sl0
+        price = float(pos.get("price_current") or 0)
+        if entry <= 0 or not sl0 or sl0 <= 0 or price <= 0 or abs(entry - sl0) <= 0:
+            return out
+        risk_dist = abs(entry - sl0)
+        is_buy = str(pos.get("type", "")).upper() == "BUY"
+        sign = 1.0 if is_buy else -1.0
+        st["universal"] = True
+        # extremes since entry (owner reference: highest/lowest tracking)
+        st["highest"] = max(float(st.get("highest") or entry), price)
+        st["lowest"] = min(float(st.get("lowest") or entry), price)
+
+        rdoc = get_store().list("settings", filters={"userId": user_id,
+                                                     "kind": "risk"}, limit=1)
+        risk = rdoc[0] if rdoc else {}
+        be_buf = float(risk.get("mg_be_buffer_r", 0.1) or 0.1)
+        lock_r = float(risk.get("mg_lock_at_2r_r", 1.0) or 1.0)
+        trail_r = float(risk.get("mg_trail_r", 0.9) or 0.9)
+        tp1_policy = str(risk.get("tp1_policy") or "ai_decide")
+        tp3_policy = str(risk.get("tp3_policy") or "close")
+
+        # favorable excursion in R, measured on the BEST price reached
+        best = st["highest"] if is_buy else st["lowest"]
+        r_best = (best - entry) * sign / risk_dist
+
+        stage = int(st.get("uni_stage") or 0)
+
+        # TP3 final (broker TP should have filled; belt + braces)
+        tp3 = sig.get("tp3")
+        if tp3_policy == "close" and tp3 and (stage >= 1 or r_best >= 3.0) and \
+                ((price >= float(tp3)) if is_buy else (price <= float(tp3))):
+            res = risk_gate.execute_plan(user_id, pos, {"close_full": True},
+                                         reason="Universal: TP3 reached - secure final profit")
+            if res.get("executed"):
+                actions.append("close_full(tp3)")
+                self._notify_tp(user_id, pos, sig, 3)
+                out["closed"] = True
+            return out
+
+        # Stage 0 -> 1 : +1R -> bank (policy) + break-even + buffer
+        if stage == 0 and r_best >= 1.0:
+            self._notify_tp(user_id, pos, sig, 1)
+            if tp1_policy == "partial":
+                res = risk_gate.execute_plan(user_id, pos, {"partial_fraction": 0.5},
+                                             reason="Universal TP1: bank 50%")
+                if res.get("executed"):
+                    actions.append("partial_close(50%)")
+            new_sl = entry + sign * be_buf * risk_dist
+            if self._uni_tighten(user_id, pos, st, new_sl, is_buy,
+                                 f"Universal TP1: SL to BE +{be_buf}R"):
+                actions.append(f"modify_sl(be+{be_buf}R)")
+            st["uni_stage"] = 1
+            stage = 1
+            recorder.record(user_id, pos, "universal_tp1", "deterministic",
+                            "local", None, True, "UNIVERSAL_TP1",
+                            execution={"actions": actions}, snapshot_ts=now)
+
+        # Stage 1 -> 2 : +2R -> lock profit
+        if stage == 1 and r_best >= 2.0:
+            self._notify_tp(user_id, pos, sig, 2)
+            new_sl = entry + sign * lock_r * risk_dist
+            if self._uni_tighten(user_id, pos, st, new_sl, is_buy,
+                                 f"Universal TP2: lock +{lock_r}R"):
+                actions.append(f"modify_sl(lock {lock_r}R)")
+            st["uni_stage"] = 2
+            stage = 2
+            recorder.record(user_id, pos, "universal_tp2", "deterministic",
+                            "local", None, True, "UNIVERSAL_TP2_LOCK",
+                            execution={"actions": actions}, snapshot_ts=now)
+
+        # Stage 2 : trail the extreme; tighten harder on a market flip
+        if stage == 2:
+            extreme = st["highest"] if is_buy else st["lowest"]
+            trail_sl = extreme - sign * trail_r * risk_dist
+            if self._uni_tighten(user_id, pos, st, trail_sl, is_buy,
+                                 f"Universal trail {trail_r}R behind the extreme"):
+                actions.append(f"modify_sl(trail {trail_r}R)")
+                pos = self._refresh_position(user_id, pos) or pos
+            state = self._read_market(str(pos.get("app_market") or pos.get("symbol", "")))
+            flipped = (state == "strong_sell") if is_buy else (state == "strong_buy")
+            if flipped:
+                tighter = price - sign * 0.5 * risk_dist
+                if self._uni_tighten(user_id, pos, st, tighter, is_buy,
+                                     "Universal: market flipped against the position - tighten"):
+                    actions.append("modify_sl(flip-tighten 0.5R)")
+        return out
+
+    def _read_market(self, market: str, bars: int = 30) -> str:
+        """Owner reference `read_market`: EMA8/21 + 6-bar momentum on 5M ->
+        strong_buy / strong_sell / neutral / weak. Bridge candles, never
+        invented: unreadable market reads neutral (no action)."""
+        try:
+            import pandas as pd
+            from ..execution.mt5 import bridge_get
+            data = bridge_get(f"/rates?market={market}&tf=5M&count={bars}") or {}
+            rows = data.get("bars") or []
+            if len(rows) < 20:
+                return "neutral"
+            closes = [float(b["c"]) for b in rows]
+            ser = pd.Series(closes)
+            ema_f = float(ser.ewm(span=8).mean().iloc[-1])
+            ema_s = float(ser.ewm(span=21).mean().iloc[-1])
+            last = closes[-1]
+            momentum = last - closes[-6]
+            if ema_f > ema_s and momentum > 0 and last > ema_f:
+                return "strong_buy"
+            if ema_f < ema_s and momentum < 0 and last < ema_f:
+                return "strong_sell"
+            if abs(momentum) < last * 0.0003:
+                return "weak"
+            return "neutral"
+        except Exception:
+            return "neutral"
 
     def _tp_ladder(self, user_id: str, pos: dict, sig: Optional[dict],
                    st: dict, trigger: str) -> Dict[str, Any]:

@@ -58,7 +58,7 @@ def test_execute_submits_and_records(monkeypatch):
     X.execute_signal(SIG, "u1")
     store = X.get_store()
     doc = store.get("signals", "sig1")
-    assert calls["lots"] == 0.05
+    assert calls["lots"] == pytest.approx(0.25)   # $50 default risk / $200-per-lot stop
     assert calls["tp"] == pytest.approx(1.0940)                 # owner ladder: tp3 = 3R
     assert doc["execution_status"] == "SUBMITTED" and doc["mt5_ticket"] == 777
 

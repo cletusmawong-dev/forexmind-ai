@@ -66,6 +66,14 @@ class PropRules(BaseModel):
 class RiskSettings(BaseModel):
     signal_timeframes: List[str] = Field(default_factory=lambda: ["15M"])
     risk_per_trade_pct: float = 1.0
+    # OWNER 2026-10-29: the user picks the DOLLAR amount risked per trade;
+    # the % is the fallback when the dollar field is 0. $50 is the default.
+    risk_per_trade_usd: float = Field(default=50.0)
+    # Universal trade-manager tuning (owner reference impl 2026-10-29):
+    # BE + buffer at 1R, lock this many R at 2R, trail this many R after 2R.
+    mg_be_buffer_r: float = Field(default=0.1)
+    mg_lock_at_2r_r: float = Field(default=1.0)
+    mg_trail_r: float = Field(default=0.9)
     max_daily_loss_pct: float = 3.0
     max_consecutive_losses: int = 4
     max_signals_per_day: int = 6

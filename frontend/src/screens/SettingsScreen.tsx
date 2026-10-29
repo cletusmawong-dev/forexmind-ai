@@ -57,6 +57,7 @@ export function SettingsScreen() {
   const [daily, setDaily] = useState("");
   const [weekly, setWeekly] = useState("");
   const [riskPct, setRiskPct] = useState("");
+  const [riskUsd, setRiskUsd] = useState("");
   const [lotMode, setLotMode] = useState<"low" | "medium" | "high">("medium");
   const [maxLoss, setMaxLoss] = useState("");
   const [maxSignals, setMaxSignals] = useState("");
@@ -94,6 +95,7 @@ export function SettingsScreen() {
     if (Date.now() - lastTouch.current < 120000) return;
     if (risk.data) {
       setRiskPct(String(risk.data.risk_per_trade_pct));
+      setRiskUsd(String(risk.data.risk_per_trade_usd ?? 50));
       setMaxLoss(String(risk.data.max_daily_loss_pct));
       setMaxSignals(String(risk.data.max_signals_per_day));
       setMaxTrades(String(risk.data.max_trades_per_day ?? 15));
@@ -211,6 +213,7 @@ export function SettingsScreen() {
         : null;
       await api.patch(endpoints.settings, {
         risk_per_trade_pct: parseFloat(riskPct),
+        risk_per_trade_usd: parseFloat(riskUsd) || 0,
         max_daily_loss_pct: parseFloat(maxLoss),
         max_signals_per_day: parseInt(maxSignals),
         max_trades_per_day: parseInt(maxTrades),
@@ -399,7 +402,8 @@ export function SettingsScreen() {
         </p>
         <Divider className="my-5" />
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Risk / trade %" value={riskPct} onChange={setRiskPct} />
+          <Field label="Risk / trade $" value={riskUsd} onChange={setRiskUsd} />
+          <Field label="Risk / trade % (fallback if $ is 0)" value={riskPct} onChange={setRiskPct} />
           <Field label="Max daily loss %" value={maxLoss} onChange={setMaxLoss} />
           <Field label="Max signals / day" value={maxSignals} onChange={setMaxSignals} />
           <Field label="Max trades / day (execution cap)" value={maxTrades} onChange={setMaxTrades} />

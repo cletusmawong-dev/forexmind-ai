@@ -198,9 +198,11 @@ def test_tp2_hit_hard_rule_moves_sl_to_tp1_even_when_ai_says_hold(world):
     monkey = getattr(world, "_monkey", None)
     X.bridge_get = lambda p, timeout=8: {"positions": [pos]} if p == "/positions" else {"balance": 1000}
     out = mgr.tick("u1")
-    assert ("/modify_sl", {"ticket": 11, "sl": 2420.0}) in sent   # SL := TP1
+    # Universal manager (owner 2026-10-29): at 2R the lock is +1R, not the
+    # tp1 price - dollar-exact guaranteed profit
+    assert ("/modify_sl", {"ticket": 11, "sl": 2410.0}) in sent
     st = mgr._state[11]
-    assert st["tp_state"] >= 2
+    assert st["uni_stage"] == 2
     # AI was still asked about TP3 continuation (SS15 reassess)
     assert len(router.calls) >= 1
     audit = store.list("ai_decisions", filters={"userId": "u1"}, limit=10)
@@ -240,7 +242,7 @@ def test_tp1_policy_protect_is_deterministic(world):
     pos = dict(POS, price_current=2420.5)
     X.bridge_get = lambda p, timeout=8: {"positions": [pos]} if p == "/positions" else {"balance": 1000}
     mgr.tick("u1")
-    assert ("/modify_sl", {"ticket": 11, "sl": 2400.0}) in sent   # breakeven lock
+    assert ("/modify_sl", {"ticket": 11, "sl": 2401.0}) in sent   # BE + 0.1R buffer (owner spec)
 
 
 def test_malformed_ai_json_degrades_to_hold(world):
@@ -251,7 +253,10 @@ def test_malformed_ai_json_degrades_to_hold(world):
     X.bridge_get = lambda p, timeout=8: {"positions": [pos]} if p == "/positions" else {"balance": 1000}
     mgr._state.clear()                                        # position_opened trigger
     out = mgr.tick("u1")
-    assert sent == []                                         # nothing executed
+    # the universal ladder acts deterministically regardless of the AI;
+    # the BROKEN AI itself must execute nothing
+    assert all(op == "/modify_sl" for op, _ in sent)
+    assert all(p.get("sl") == 2401.0 for _, p in sent)        # BE + buffer only
     audit = store.list("ai_decisions", filters={"userId": "u1"}, limit=5)
     assert audit and audit[0]["decision"]["action"] == "HOLD"  # deterministic hold
     assert audit[0]["model"] == "qwen"
@@ -379,9 +384,9 @@ def test_tp3_hold_ai_leaves_management_to_ai(world):
     X.bridge_get = lambda p, timeout=8: {"positions": [pos]} if p == "/positions" else {"balance": 1000}
     mgr.tick("u1")
     assert ("/close", {"ticket": 11}) not in sent            # no final close
-    # the TP2 lock still fired on the way up (SS15 is unconditional)
-    assert ("/modify_sl", {"ticket": 11, "sl": 2420.0}) in sent
-    assert mgr._state[11]["tp_state"] >= 3
+    # the 2R lock still fired on the way up (universal ladder is unconditional)
+    assert ("/modify_sl", {"ticket": 11, "sl": 2410.0}) in sent
+    assert mgr._state[11]["uni_stage"] == 2
 
 
 def test_tp1_partial_policy_closes_half_and_locks_breakeven(world):
@@ -395,7 +400,7 @@ def test_tp1_partial_policy_closes_half_and_locks_breakeven(world):
     X.bridge_get = lambda p, timeout=8: {"positions": [pos]} if p == "/positions" else {"balance": 1000}
     mgr.tick("u1")
     assert ("/partial_close", {"ticket": 11, "fraction": 0.5}) in sent
-    assert ("/modify_sl", {"ticket": 11, "sl": 2400.0}) in sent   # breakeven lock
+    assert ("/modify_sl", {"ticket": 11, "sl": 2401.0}) in sent   # BE + 0.1R buffer
 
 
 def test_tp_policy_schema_validation():

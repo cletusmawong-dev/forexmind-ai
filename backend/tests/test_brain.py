@@ -359,7 +359,8 @@ def test_manager_tp2_lock_unaffected_by_brain(world):
         monkeypatch.setattr(E, "daily_state", lambda uid: None, raising=False)
         summary = mgr.tick("boss")
         assert any("modify_sl" in a for a in summary["actions"])
-        assert sent and abs(sent[0].get("sl") - 1.105) < 1e-9   # SL := TP1
+        assert sent and any(abs(p.get("sl", 0) - 1.105) < 1e-9 for p in sent), \
+            "the +1R lock still fires (universal ladder adds BE+0.1R first)"
     finally:
         X.bridge_get, X.bridge_post = orig_get, orig_post
         X._CONFIRMED_POSITIONS.clear()

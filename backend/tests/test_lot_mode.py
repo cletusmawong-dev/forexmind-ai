@@ -92,13 +92,13 @@ def _vps_lots(monkeypatch):
 
 def test_executor_low_mode_halves_lots(env, monkeypatch):
     set_mode(env, "low")
-    assert _vps_lots(monkeypatch) == 0.02      # 0.05 base -> 0.025 -> floor 0.02
+    assert _vps_lots(monkeypatch) == 0.12      # 0.25 base -> 0.125 -> floor 0.12
 
 
 def test_executor_high_mode_raises_lots(env, monkeypatch):
     set_mode(env, "high")
-    assert _vps_lots(monkeypatch) == 0.07      # 0.05 * 1.5 = 0.075 -> floor 0.07
+    assert _vps_lots(monkeypatch) == 0.37      # 0.25 * 1.5 = 0.375 -> floor 0.37
 
 
 def test_executor_medium_is_previous_behavior(env, monkeypatch):
-    assert _vps_lots(monkeypatch) == 0.05      # identical to before the feature
+    assert _vps_lots(monkeypatch) == 0.25      # $50 default risk, medium = 1.0x

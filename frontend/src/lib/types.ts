@@ -253,6 +253,7 @@ export interface AgentStatus {
     objective_pct: number;
     objective_progress: string;
     risk_per_trade_pct: number;
+    risk_per_trade_usd?: number;
   };
   current_task: string;
   strategies_active: number;

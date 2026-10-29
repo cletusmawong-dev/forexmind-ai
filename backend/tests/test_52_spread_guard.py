@@ -109,8 +109,25 @@ def test_sizing_uses_the_live_ask(exec_env, fresh_store):
     assert lots_at_quote == pytest.approx(lots_at_entry, rel=0.01), \
         "dollar risk not conserved at the live fill"
     assert lots_at_quote == pytest.approx(
-        m5.calc_lot("XAUUSD", 2400.0, 2390.0, 10_000.0, 1.0), rel=0.02), \
-        "lot must equal the entry-based baseline (risk exact at any fill)"
+        m5.calc_lot("XAUUSD", 2400.0, 2390.0, 10_000.0, 0.5), rel=0.02), \
+        "lot must equal the $50-risk baseline (risk exact at any fill)"
+
+
+def test_user_selected_dollar_risk_drives_sizing(exec_env, fresh_store, monkeypatch):
+    """OWNER 2026-10-29: the user-selected DOLLAR amount per trade is the
+    primary risk knob ($50 default); the % setting is only the fallback
+    when the dollar field is 0."""
+    m5, state, uid = exec_env
+    monkeypatch.setattr(m5, "_goals_doc",
+                        lambda u: {"risk_per_trade_pct": 1.0,
+                                   "risk_per_trade_usd": 50.0})
+    sig = _signal_doc(fresh_store)                 # SELL 2400 / SL 2410 (10.0 stop)
+    REF["price"] = 2400.0
+    m5.execute_signal(sig, uid)
+    p = _orders(state)[-1]
+    assert p["lots"] == pytest.approx(
+        m5.calc_lot("XAUUSD", 2400.0, 2410.0, 10_000.0, 1.0) * 0.5, rel=0.02), \
+        "user dollar risk ($50) did not drive the lot size"
 
 
 def test_sizing_uses_the_anchored_stop_not_the_stale_gap(exec_env, fresh_store):
@@ -131,7 +148,7 @@ def test_sizing_uses_the_anchored_stop_not_the_stale_gap(exec_env, fresh_store):
     orders = _orders(state)
     assert orders, f"order not sent: {_doc(fresh_store, sig).get('execution_status')}"
     p = orders[-1]
-    baseline = m5.calc_lot("XAUUSD", 2400.0, 2390.0, 10_000.0, 1.0)
+    baseline = m5.calc_lot("XAUUSD", 2400.0, 2390.0, 10_000.0, 0.5)   # $50 default risk
     assert p["lots"] == pytest.approx(baseline, rel=0.02), \
         "lot sized on the stale gap, not the anchored stop"
     assert p["sl"] == pytest.approx(2381.0)      # 2390 + (-9.0) re-anchored

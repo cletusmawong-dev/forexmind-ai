@@ -649,7 +649,14 @@ def execute_signal(signal: dict, user_id: str) -> None:
                 tp_eff = tp3_eff
             else:
                 tp_eff = (tp + _delta) if tp else None
-            lots = calc_lot(market, _anchor, sl_eff, float(acct["balance"]) or 0.0, risk_pct)
+            # OWNER 2026-10-29: the user's DOLLAR risk wins when set (> 0);
+            # otherwise fall back to the % of balance. $50 is the default.
+            _g = _goals_doc(user_id) or {}
+            _risk_usd = float(_g.get("risk_per_trade_usd", 50.0) or 0.0)
+            _bal = float(acct.get("balance") or 0.0)
+            if _risk_usd > 0 and _bal > 0:
+                risk_pct = (_risk_usd / _bal) * 100.0
+            lots = calc_lot(market, _anchor, sl_eff, _bal, risk_pct)
             _mode = _lot_mode(user_id)
             lots = apply_lot_mode(lots, _mode)
             if lots > MAX_LOTS:
@@ -861,6 +868,9 @@ def execute_signal(signal: dict, user_id: str) -> None:
             _log(f"Order queued for your MT5 PC ({market} {signal['direction']} {lots} lots).",
                  market)
     except Exception as exc:
+        if os.getenv("FXM_DEBUG"):
+            import traceback
+            traceback.print_exc()
         try:
             store.update("signals", signal["id"], {"execution_status": "FAILED",
                                                    "mt5_error": type(exc).__name__[:200]})
