@@ -1,0 +1,7 @@
+[Unit]
+Description=ForexMind auto-deploy (sync /opt/forexmind to origin/main)
+
+[Service]
+Type=oneshot
+ExecStart=/opt/forexmind/auto-deploy.sh
+TimeoutStartSec=900
