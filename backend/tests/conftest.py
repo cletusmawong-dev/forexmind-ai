@@ -98,3 +98,13 @@ def with_strategies():
     reg.STRATEGY_CLASSES.clear()
     reg.STRATEGY_CLASSES.update(prev)
     reg._INSTANCES.clear()
+
+@pytest.fixture(autouse=True)
+def _table_pip_values(monkeypatch):
+    """Default test seam: pip values come from the static table so legacy
+    sizing expectations stay valid without a live /symbol_info bridge.
+    Tests that verify broker-truth sizing (test_54) restore the real
+    bridge-backed lookup explicitly."""
+    from app.execution import mt5 as _X
+    monkeypatch.setattr(_X, "_pip_value_usd",
+                        lambda market: _X.PIP_VALUE.get(market, 10.0))

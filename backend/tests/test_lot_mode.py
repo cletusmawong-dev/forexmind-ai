@@ -90,14 +90,16 @@ def _vps_lots(monkeypatch):
     return sent["lots"]
 
 
-def test_executor_low_mode_halves_lots(env, monkeypatch):
+def test_executor_dollar_setting_overrides_lot_mode(env, monkeypatch):
+    """OWNER 2026-10-29: the user's dollar setting IS the risk - the legacy
+    lot-mode multiplier never overrides it on the vps path."""
     set_mode(env, "low")
-    assert _vps_lots(monkeypatch) == 0.12      # 0.25 base -> 0.125 -> floor 0.12
+    assert _vps_lots(monkeypatch) == 0.25      # $50 setting wins over 'low' 
 
 
-def test_executor_high_mode_raises_lots(env, monkeypatch):
+def test_executor_dollar_setting_overrides_high_mode(env, monkeypatch):
     set_mode(env, "high")
-    assert _vps_lots(monkeypatch) == 0.37      # 0.25 * 1.5 = 0.375 -> floor 0.37
+    assert _vps_lots(monkeypatch) == 0.25      # $50 setting wins over 'high' 
 
 
 def test_executor_medium_is_previous_behavior(env, monkeypatch):

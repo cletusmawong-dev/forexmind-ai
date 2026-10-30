@@ -164,6 +164,28 @@ def account(x_bridge_token: Optional[str] = Header(None)):
             "margin_free": a.margin_free}
 
 
+@app.get("/symbol_info")
+def symbol_info_ep(market: str, x_bridge_token: Optional[str] = Header(None)):
+    """Broker contract truth for one symbol (mt5.symbol_info) - tick value,
+    tick size, lot constraints. The cloud sizes positions from THIS (the
+    same values the owner's reference manager uses) so a stale static
+    pip-table can never oversize an order again (postmortem 2026-10-30:
+    NAS100 risked $482 instead of $50 on the migrated broker)."""
+    _auth(x_bridge_token)
+    sym = _resolve(market)
+    if not sym:
+        raise HTTPException(404, f"unknown symbol: {market}")
+    info = mt5.symbol_info(sym)
+    if info is None:
+        raise HTTPException(503, "symbol_info unavailable")
+    return {"symbol": info.name, "point": info.point,
+            "trade_tick_value": info.trade_tick_value,
+            "trade_tick_size": info.trade_tick_size,
+            "trade_contract_size": info.trade_contract_size,
+            "volume_min": info.volume_min, "volume_max": info.volume_max,
+            "volume_step": info.volume_step}
+
+
 @app.get("/quote")
 def quote(market: str, x_bridge_token: Optional[str] = Header(None)):
     """Live bid/ask straight from the terminal (symbol_info_tick).

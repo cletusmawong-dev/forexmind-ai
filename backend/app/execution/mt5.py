@@ -39,8 +39,15 @@ PIP_SIZE = {"EURUSD": 0.0001, "GBPUSD": 0.0001, "USDJPY": 0.01, "XAUUSD": 0.1,
 # An instrument missing from BOTH tables cannot be sized (calc_lot returns
 # 0.0) and the pre-trade validator refuses the order loudly - never a
 # silent 0.01-lot fallback.
-PIP_VALUE = {"EURUSD": 10.0, "GBPUSD": 10.0, "XAUUSD": 10.0, "XAGUSD": 50.0,
-             "NAS100": 1.0}   # USD per pip per 1.0 lot
+# POSTMORTEM 2026-10-30: NAS100 carried the OLD Exness value ($1/point/lot);
+# on AquaFunded 1 NAS100 lot = $10 per 1.0 point (proven by deal #41479978:
+# 0.26 lots x 101.47 pts = -$263.82). Sizing now prefers the broker's OWN
+# contract values from bridge /symbol_info (see _pip_value_usd) - this
+# table is only the fallback when the bridge cannot answer. USDJPY pip
+# value is quote-dependent (~$6.3 at 158) - broker truth always wins.
+PIP_VALUE = {"EURUSD": 10.0, "GBPUSD": 10.0, "USDJPY": 6.3, "XAUUSD": 10.0,
+             "XAGUSD": 50.0,
+             "NAS100": 10.0}   # USD per pip per 1.0 lot (fallback only)
 LOT_STEP = 0.01
 MODES = ("off", "manual", "vps")
 
@@ -50,6 +57,43 @@ _lock = threading.Lock()
 # ---------------------------------------------------------------------------
 # lot sizing (same math as the app's Position Size card)
 # ---------------------------------------------------------------------------
+_symbol_info_cache: dict = {}
+
+
+def _pip_value_usd(market: str):
+    """USD per 1.0 PIP_SIZE-unit per 1.0 lot - from the BROKER ONLY
+    (bridge /symbol_info: tick value/size are the contract truth the
+    owner's reference manager uses). Returns None when the bridge cannot
+    answer: sizing then FAILS CLOSED (no order) because a stale static
+    table is exactly what breached the account on 2026-10-30. Cache 5 min."""
+    import time as _t
+    now = _t.time()
+    hit = _symbol_info_cache.get(market)
+    if hit and now - hit[1] < 300:
+        return hit[0]
+    val = None
+    try:
+        info = bridge_get(f"/symbol_info?market={market}", timeout=4) or {}
+        tv, ts = info.get("trade_tick_value"), info.get("trade_tick_size")
+        pip = PIP_SIZE.get(market)
+        if tv and ts and pip and float(ts) > 0:
+            val = (float(tv) / float(ts)) * float(pip)   # USD per pip per lot
+    except Exception:
+        val = None
+    _symbol_info_cache[market] = (val, now)
+    return val
+
+
+def _risk_usd_of(market: str, entry: float, sl: float, lots: float):
+    """True dollar risk of an order at the broker's own contract values
+    (None when the broker cannot be asked)."""
+    pip = PIP_SIZE.get(market)
+    pv = _pip_value_usd(market)
+    if not pip or not entry or not sl or not lots or pv is None:
+        return None
+    return (abs(entry - sl) / pip) * pv * lots
+
+
 def calc_lot(market: str, entry: float, sl: float, balance: float, risk_pct: float) -> float:
     """Risk-% position size. Returns 0.0 when the instrument is unknown or an
     input is unusable - the caller (pre-trade validator) must REFUSE the
@@ -657,12 +701,70 @@ def execute_signal(signal: dict, user_id: str) -> None:
             if _risk_usd > 0 and _bal > 0:
                 risk_pct = (_risk_usd / _bal) * 100.0
             lots = calc_lot(market, _anchor, sl_eff, _bal, risk_pct)
-            _mode = _lot_mode(user_id)
-            lots = apply_lot_mode(lots, _mode)
+            # OWNER 2026-10-29: the user-selected DOLLAR amount IS the risk.
+            # The legacy low/medium/high lot-mode multiplier only applies on
+            # the % fallback (no dollar setting) - it must never silently
+            # override the dollar number the user typed.
+            _mode = "medium"          # neutral: the dollar path IS the setting
+            if not (_risk_usd > 0):
+                _mode = _lot_mode(user_id)
+                lots = apply_lot_mode(lots, _mode)
+            # BROKER-TRUTH RESIZE (postmortem 2026-10-30): correct the lot
+            # by the ratio of broker-vs-table pip values so the user's
+            # DOLLAR risk is exact on THIS broker even if the static table
+            # drifts. Ratio (not recompute) so lot-mode multipliers survive.
+            _target_usd = _risk_usd if _risk_usd > 0 else _bal * risk_pct / 100.0
+            _true_risk_per_lot = _risk_usd_of(market, _anchor, sl_eff, 1.0)
+            if _target_usd > 0 and (_true_risk_per_lot is None or _true_risk_per_lot <= 0):
+                if market not in PIP_SIZE:
+                    _reject_pretrade(store, signal, user_id, market,
+                                     "SYMBOL_UNSUPPORTED",
+                                     f"{market} is not a supported/configured "
+                                     "instrument - refusing to fall back to "
+                                     "any other symbol")
+                else:
+                    _reject_pretrade(store, signal, user_id, market,
+                                     "CONTRACT_TRUTH_UNAVAILABLE",
+                                     f"broker contract values for {market} are "
+                                     "unavailable - refusing to size on a static "
+                                     "table (postmortem 2026-10-30)")
+                return
+            _table_risk_per_lot = (abs(_anchor - sl_eff)
+                                   / PIP_SIZE.get(market, 1.0)) \
+                * PIP_VALUE.get(market, 10.0)
+            if _true_risk_per_lot and _table_risk_per_lot > 0:
+                # broker charges MORE per pip than the table thinks -> FEWER
+                # lots: scale by table/truth (0.27 x 185/1855 = 0.03 on the
+                # NAS100 postmortem numbers)
+                _ratio = _table_risk_per_lot / _true_risk_per_lot
+                if abs(_ratio - 1.0) > 0.05:
+                    _log(f"Broker-truth resize {market}: pip value "
+                         f"{PIP_VALUE.get(market, 10.0):.2f} -> "
+                         f"{_pip_value_usd(market):.2f}/pip; lot {lots} -> "
+                         f"{round(lots * _ratio, 2):.2f}.", market, kind="EXEC_WARN")
+                    lots = max(0.01, round(lots * _ratio / LOT_STEP) * LOT_STEP)
+                    lots = round(lots, 2)
             if lots > MAX_LOTS:
                 _log(f"Lot size capped {lots} -> {MAX_LOTS} (EXECUTION_MAX_LOTS).", market,
                      kind="EXEC_WARN")
                 lots = MAX_LOTS
+            # DOLLAR-RISK GUARD (postmortem 2026-10-30): the FINAL order,
+            # measured at broker truth, must be within 35% of the user's
+            # dollar risk setting - else refuse loudly. This is the seatbelt
+            # that would have blocked the $482 NAS100 order that breached
+            # the $50-risk account.
+            _final_usd = _risk_usd_of(market, _anchor, sl_eff, lots)
+            if _target_usd > 0 and _final_usd > _target_usd * 1.35:
+                _why = (f"RISK_USD_MISMATCH: order risks ${_final_usd:.2f} "
+                        f"({lots:.2f} lots) but the user's risk setting is "
+                        f"${_target_usd:.2f} - refusing the oversize order")
+                _reject_pretrade(store, signal, user_id, market,
+                                 "RISK_USD_MISMATCH", _why)
+                return
+            if lots <= 0:
+                _reject_pretrade(store, signal, user_id, market,
+                                 "LOTS_INVALID", "lot sized to zero at broker truth")
+                return
             # PROP-FIRM BUDGET CAP (owner brief 2026-10-10, s.6): shrink-only
             # cap from the account's CONFIGURED challenge rules (an account
             # without prop_rules is not governed and passes straight through).

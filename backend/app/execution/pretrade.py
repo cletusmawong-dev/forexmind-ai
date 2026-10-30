@@ -191,7 +191,11 @@ def validate_order(
         if pip_size and pip_value and balance > 0 and eff_risk_pct > 0:
             usd_risk = (risk_dist / pip_size) * pip_value * lots
             budget = balance * (eff_risk_pct / 100.0)
-            if usd_risk > budget * 1.05 + 1e-9:
+            # 1.35 (owner postmortem 2026-10-30, aligned with the
+            # RISK_USD_MISMATCH guard): lot-step rounding on wide-stop
+            # instruments (NAS100 0.027 -> 0.03) shifts risk ~+12%; the
+            # dollar guard still refuses everything beyond 1.35x.
+            if usd_risk > budget * 1.35 + 1e-9:
                 return (False, "RISK_OVER_BUDGET",
                         f"order risks ${usd_risk:.2f} ({lots} lots, {risk_dist / pip_size:.1f} pips) "
                         f"but the budget is ${budget:.2f} ({eff_risk_pct:.2f}% of "

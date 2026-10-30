@@ -485,8 +485,10 @@ def test_calc_lot_silver_and_nas100_are_sane():
     assert calc_lot("XAUUSD", 2400.0, 2412.0, 10_000.0, 1.0) == pytest.approx(0.08, abs=0.011)
     # XAGUSD: stop $0.30 = 30 pips x $50 = $1500/lot -> 0.06
     assert calc_lot("XAGUSD", 30.0, 30.30, 10_000.0, 1.0) == pytest.approx(0.06, abs=0.011)
-    # NAS100: stop 20 points x $1 = $20/lot -> 5.0 lots (cap applies upstream)
-    assert calc_lot("NAS100", 21000.0, 21020.0, 10_000.0, 1.0) == pytest.approx(5.0, abs=0.011)
+    # NAS100: stop 20 points x $10/pt (Aqua truth, postmortem 2026-10-30)
+    # = $200/lot -> 0.5 lots (cap applies upstream; runtime re-sizes again
+    # from the broker's live /symbol_info values)
+    assert calc_lot("NAS100", 21000.0, 21020.0, 10_000.0, 1.0) == pytest.approx(0.5, abs=0.011)
 
 
 # ===========================================================================
