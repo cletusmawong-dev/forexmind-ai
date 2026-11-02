@@ -110,14 +110,23 @@ def patch_risk(user_id: str, patch: Dict[str, Any]) -> Dict[str, Any]:
     if not store.list("settings", filters={"userId": user_id, "kind": "risk"}, limit=1):
         ensure_user_docs(user_id)
     doc = store.list("settings", filters={"userId": user_id, "kind": "risk"}, limit=1)[0]
-    allowed = {"risk_per_trade_pct", "max_daily_loss_pct", "max_consecutive_losses",
+    allowed = {"risk_per_trade_pct", "risk_per_trade_usd",
+               "max_daily_loss_pct", "max_consecutive_losses",
                "max_signals_per_day", "max_trades_per_day",
                "min_rr", "sessions", "allowed_markets",
                "market_sessions", "session_hours", "session_tz",
                "daily_profit_target_usd", "daily_loss_limit_usd", "on_loss_limit",
                "ai_manage_enabled", "tp1_policy", "tp3_policy",
+               "mg_be_buffer_r", "mg_lock_at_2r_r", "mg_trail_r",
                "signal_timeframes", "account_type", "lot_mode", "prop_rules"}
     clean_keys = {k: v for k, v in patch.items() if k in allowed}
+
+    for _k in ("risk_per_trade_usd", "mg_be_buffer_r", "mg_lock_at_2r_r", "mg_trail_r"):
+        if _k in clean_keys and clean_keys[_k] is not None:
+            try:
+                clean_keys[_k] = float(clean_keys[_k])
+            except (TypeError, ValueError):
+                raise ValueError(f"{_k} must be a number")
     if "signal_timeframes" in clean_keys:
         tfs = clean_keys["signal_timeframes"]
         if not isinstance(tfs, list) or not tfs or \

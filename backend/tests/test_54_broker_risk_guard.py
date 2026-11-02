@@ -23,7 +23,7 @@ def _world(monkeypatch, pip_table_override=None, symbol_info=None):
     import app.execution.mt5 as m5
     from app.db.store import LocalStore
     store = LocalStore(path=str(tempfile.mktemp()))
-    m5.get_store = lambda: store
+    monkeypatch.setattr(m5, "get_store", lambda: store)
     monkeypatch.setattr(m5, "user_mode", lambda u: "vps")
     monkeypatch.setattr(m5, "execution_enabled", lambda u: True)
     monkeypatch.setattr(m5, "_goals_doc",
@@ -127,3 +127,27 @@ def test_correct_broker_values_trade_the_right_size(monkeypatch):
     assert doc["execution_status"] == "SUBMITTED" and ex
     lots = ex[-1]["lots"]
     assert 0.02 <= lots <= 0.05                 # ~$50 at $10/pt/lot
+
+
+def test_ui_dollar_setting_roundtrip_reaches_sizing(monkeypatch):
+    """OWNER 2026-10-31 pre-flight: the Settings 'Risk / trade $' field
+    (patch_risk -> risk settings doc) must DRIVE sizing - no silent drop,
+    no hardcoded 50. A $25 setting must produce ~$25 of true risk."""
+    m5, store, calls = _world(
+        monkeypatch,
+        symbol_info={"trade_tick_value": 1.0, "trade_tick_size": 0.1})
+    store.create("settings", {"userId": "u1", "kind": "risk",
+                              "risk_per_trade_usd": 25.0,
+                              "ai_manage_enabled": True})
+    from app.agent.core import patch_risk
+    out = patch_risk("u1", {"risk_per_trade_usd": 25.0})
+    assert out["risk_per_trade_usd"] == 25.0        # PATCH round-trip persists
+    sig = dict(SIG_NAS, id="snas2", signal_id="SIG-NAS2")
+    store.create("signals", dict(sig))
+    m5.execute_signal(sig, "u1")
+    doc = store.get("signals", "snas2")
+    ex = [p for op, p in calls if op == "/execute"]
+    assert ex, f"no order: {doc.get('execution_status')}"
+    lots = ex[-1]["lots"]
+    risk = 185.48 / 1.0 * 10.0 * lots               # Aqua truth
+    assert risk <= 25.0 * 1.35, f"risk ${risk:.2f} does not honor the $25 setting"

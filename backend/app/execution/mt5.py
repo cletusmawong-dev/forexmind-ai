@@ -695,8 +695,13 @@ def execute_signal(signal: dict, user_id: str) -> None:
                 tp_eff = (tp + _delta) if tp else None
             # OWNER 2026-10-29: the user's DOLLAR risk wins when set (> 0);
             # otherwise fall back to the % of balance. $50 is the default.
+            # Source of truth = the RISK SETTINGS doc (what the Settings UI
+            # writes); the goals doc is the legacy fallback.
             _g = _goals_doc(user_id) or {}
-            _risk_usd = float(_g.get("risk_per_trade_usd", 50.0) or 0.0)
+            _risk_doc = (store.list("settings", filters={"userId": user_id,
+                                                         "kind": "risk"}, limit=1) or [{}])[0]
+            _risk_usd = float(_risk_doc.get("risk_per_trade_usd", 0.0) or 0.0) \
+                or float(_g.get("risk_per_trade_usd", 50.0) or 0.0)
             _bal = float(acct.get("balance") or 0.0)
             if _risk_usd > 0 and _bal > 0:
                 risk_pct = (_risk_usd / _bal) * 100.0
