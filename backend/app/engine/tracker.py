@@ -125,10 +125,22 @@ class SignalTracker:
                     # record-only research, demo) stays in-app.
                     _tp_type = (f"TP{k}_HIT" if _is_real(sig)
                                 else f"TP{k}_HIT_VIRTUAL")
+                    from ..notifications.fmt import move_usd, px, usd
+                    _nxt = sig.get(f"tp{k + 1}")
+                    _d = move_usd(sig.get("market"), sig.get("entry"), tp,
+                                  sig.get("mt5_volume"))
+                    _lv = (f"Price reached TP{k} {px(tp)}"
+                           + (f" (+{rr:.1f}R = +{usd(_d)})" if _d is not None
+                              else f" (+{rr:.1f}R)"))
+                    _lines = [f"{sig['strategy_name']} | {sig['signal_id']}",
+                              _lv,
+                              (f"Tracking TP{k + 1} {px(_nxt)} - the SL trails "
+                               "with the manager."
+                               if _nxt not in (None, "", 0) else
+                               "Final target reached - position closes.")]
                     notify(sig.get("userId"), _tp_type,
-                           f"TP{k} hit - {sig['market']} {sig['direction']}",
-                           f"{sig['strategy_name']} | {sig['signal_id']}\n"
-                           f"Price reached TP{k} ({tp:,.5g}). Tracking TP{k+1}...",
+                           f"🎯 TP{k} hit - {sig['market']} {sig['direction']}",
+                           "\n".join(_lines),
                            signal_id=sig["id"])
                     return  # conservative: one event per candle
 
@@ -166,11 +178,32 @@ class SignalTracker:
         # recorded in-app under a silent type - never on Telegram.
         _type = ("TRADE_COMPLETED" if _is_real(sig)
                  else "VIRTUAL_TRADE_COMPLETED")
-        notify(sig.get("userId"), _type,
-               f"{outcome} - {sig['market']} {sig['direction']}",
-               f"{sig['strategy_name']} | {sig['signal_id']}\nResult: {status} "
-               f"({r:+.1f}R).",
-               signal_id=sig["id"])
+        # owner 2026-11-02 (detailed Telegram): the broker-confirmed close
+        # carries the honest dollar result; when IT already announced (or
+        # announced first) this tracked completion stays in-app only.
+        from ..notifications.fmt import duration_str, move_usd, px, usd
+        _fresh = store.get("signals", sig["id"]) or {}
+        _d = move_usd(sig.get("market"), sig.get("entry"), exit_price,
+                      _fresh.get("mt5_volume") or sig.get("mt5_volume"))
+        _res = f"Result: {status} ({r:+.1f}R"
+        if _d is not None:
+            _res += f" = {usd(_d if r >= 0 else -_d)}"
+        _res += ")"
+        _dur = duration_str(sig.get("createdAt"), patch["completed_at"])
+        _lines = [f"{sig['strategy_name']} | {sig['signal_id']}", _res,
+                  f"Entry {px(sig.get('entry'))} -> Exit {px(exit_price)}"
+                  + (f" | Held {_dur}" if _dur else "")]
+        if _fresh.get("mfe_r") is not None:
+            _lines.append(f"MFE {_fresh.get('mfe_r', 0):+.1f}R | "
+                          f"MAE {_fresh.get('mae_r', 0):+.1f}R")
+        _announce = not (_type == "TRADE_COMPLETED"
+                         and _fresh.get("mt5_confirmed"))
+        if _announce:
+            notify(sig.get("userId"), _type,
+                   f"{'✅' if outcome == 'WIN' else '❌'} {outcome} - "
+                   f"{sig['market']} {sig['direction']}",
+                   "\n".join(_lines),
+                   signal_id=sig["id"])
         store.create("agent_activity", {
             "userId": None, "kind": "ANALYSIS",
             "message": f"{sig['signal_id']} completed: {status} ({r:+.1f}R). "

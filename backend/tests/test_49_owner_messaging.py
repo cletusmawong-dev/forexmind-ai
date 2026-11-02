@@ -146,8 +146,11 @@ def test_apply_fill_emits_trade_entered_with_tp(fresh_store, _cap_tg):
     assert "ENTERED" in text and "EURUSD" in text and "BUY" in text
     assert "100.02" in text                      # the FILL price, not ref entry
     assert "SL 99" in text
-    assert "TP 103" in text and "RR 1:3" in text
-    assert "0.12 lots" in text
+    # rich ladder (owner 2026-11-02); R is anchored to the FILL (100.02),
+    # so the honest multiple is (103-100.02)/(100.02-99) = 2.9R, not 3.0R
+    assert "TP1 103" in text and "+2.9R" in text and "= +$" in text
+    assert "0.12 lots" in text and "Ticket #9" in text
+    assert "AI trade manager" in text and "= risk $" in text
 
 
 def test_apply_fill_trail_variant_no_tp_line(fresh_store, _cap_tg):
@@ -161,7 +164,7 @@ def test_apply_fill_trail_variant_no_tp_line(fresh_store, _cap_tg):
                                        "volume": 0.08}, 0.08)
     assert len(_cap_tg) == 1
     uid, text = _cap_tg[0]
-    assert "2,399.4" in text and "SL 2,412" in text
+    assert "2399.4" in text and "SL 2412" in text
     assert "No fixed TP by rule" in text and "trail" in text
     assert " - TP " not in text   # no target leg
 

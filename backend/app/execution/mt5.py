@@ -355,9 +355,12 @@ def _reject_pretrade(store, signal: dict, user_id: str, market: str,
              market, kind="EXEC_WARN")
         _emit(user_id, "ENTRY", "SKIPPED", market=market, signal=signal,
               detail=f"pre-trade {code}: {reason}"[:160])
+        from ..notifications.fmt import ctx_line
         notify(user_id, "EXECUTION_SKIPPED",
-               f"ORDER REFUSED - {market} {signal.get('direction')}",
-               f"Pre-trade check {code}: {reason}. No trade was placed.",
+               f"⚠️ ORDER REFUSED - {market} {signal.get('direction')}",
+               f"{ctx_line(signal)}\n"
+               f"Reason: {code}\n{reason}\n"
+               "No trade was placed - the account stays protected.",
                meta={"telegram_important": True},
                signal_id=signal.get("id"))
     except Exception:
@@ -533,9 +536,12 @@ def execute_signal(signal: dict, user_id: str) -> None:
         _log(f"Execution skipped - daily cap reached ({cap}/day).", market)
         _emit(user_id, "ENTRY", "SKIPPED", market=market, signal=signal,
               detail="daily cap reached")
-        notify(user_id, "EXECUTION_SKIPPED", f"NOT EXECUTED - {signal.get('market')} {signal.get('direction')}",
-               f"Daily execution cap reached ({cap}/day). "
-               "The signal is tracked as research only - no trade was placed.",
+        from ..notifications.fmt import ctx_line
+        notify(user_id, "EXECUTION_SKIPPED",
+               f"⚠️ NOT EXECUTED - {signal.get('market')} {signal.get('direction')}",
+               f"{ctx_line(signal)}\n"
+               f"Daily execution cap reached ({cap}/day). The signal is "
+               "tracked as research only - no trade was placed.",
                meta={"telegram_important": True},
                signal_id=signal.get("id"))
         return
@@ -551,9 +557,13 @@ def execute_signal(signal: dict, user_id: str) -> None:
             _log(f"Execution skipped - SL only {abs(entry - sl) / pip:.1f} pips from entry; "
                  f"the broker rejects stops under {MIN_STOP_PIPS:g} pips (retcode 10016). "
                  "Signal kept as advisory.", market, kind="EXEC_WARN")
-            notify(user_id, "EXECUTION_SKIPPED", f"NOT EXECUTED - {signal.get('market')} {signal.get('direction')}",
-                   f"Stop distance {abs(entry - sl) / pip:.1f} pips is under the broker minimum "
-                   f"({MIN_STOP_PIPS:g} pips). Research only - no trade was placed.",
+            from ..notifications.fmt import ctx_line
+            notify(user_id, "EXECUTION_SKIPPED",
+                   f"⚠️ NOT EXECUTED - {signal.get('market')} {signal.get('direction')}",
+                   f"{ctx_line(signal)}\n"
+                   f"Stop distance {abs(entry - sl) / pip:.1f} pips is under "
+                   f"the broker minimum ({MIN_STOP_PIPS:g} pips). Research "
+                   "only - no trade was placed.",
                    signal_id=signal.get("id"))
             _emit(user_id, "ENTRY", "SKIPPED", market=market, signal=signal,
                   detail=f"stop too tight (< {MIN_STOP_PIPS:g} pips)")
@@ -577,8 +587,10 @@ def execute_signal(signal: dict, user_id: str) -> None:
                  market, kind="EXEC_WARN")
             _emit(user_id, "ENTRY", "SKIPPED", market=market, signal=signal,
                   detail=f"{guard} guard: {gwhy}")
+            from ..notifications.fmt import ctx_line
             notify(user_id, "EXECUTION_SKIPPED",
-                   f"NOT EXECUTED - {market} {signal.get('direction')}",
+                   f"⚠️ NOT EXECUTED - {market} {signal.get('direction')}",
+                   f"{ctx_line(signal)}\n"
                    f"Risk guard {guard}: {gwhy}. The signal is tracked as "
                    "research only - no trade was placed.",
                    signal_id=signal.get("id"))
@@ -631,9 +643,12 @@ def execute_signal(signal: dict, user_id: str) -> None:
                      market, kind="EXEC_WARN")
                 _emit(user_id, "ENTRY", "SKIPPED", market=market, signal=signal,
                       detail="bridge offline")
-                notify(user_id, "EXECUTION_SKIPPED", f"NOT EXECUTED - {signal.get('market')} {signal.get('direction')}",
-                       "VPS bridge offline - the order was NOT sent to the broker. "
-                       "Signal kept as research only.",
+                from ..notifications.fmt import ctx_line
+                notify(user_id, "EXECUTION_SKIPPED",
+                       f"⚠️ NOT EXECUTED - {signal.get('market')} {signal.get('direction')}",
+                       f"{ctx_line(signal)}\n"
+                       "VPS bridge offline - the order was NOT sent to the "
+                       "broker. Signal kept as research only.",
                        meta={"telegram_important": True},
                        signal_id=signal.get("id"))
                 return
@@ -648,9 +663,13 @@ def execute_signal(signal: dict, user_id: str) -> None:
                          "One broker order per setup.", market, kind="EXEC_WARN")
                     _emit(user_id, "ENTRY", "SKIPPED", market=market, signal=signal,
                           detail=f"duplicate setup (already via {dup})")
-                    notify(user_id, "EXECUTION_SKIPPED", f"NOT EXECUTED - {signal.get('market')} {signal.get('direction')}",
-                           "This exact setup is already on the account (one broker order "
-                           "per setup). Research only - no second trade was placed.",
+                    from ..notifications.fmt import ctx_line
+                    notify(user_id, "EXECUTION_SKIPPED",
+                           f"⚠️ NOT EXECUTED - {signal.get('market')} {signal.get('direction')}",
+                           f"{ctx_line(signal)}\n"
+                           "This exact setup is already on the account (one "
+                           "broker order per setup). Research only - no "
+                           "second trade was placed.",
                            signal_id=signal.get("id"))
                     return
                 store.update("signals", signal["id"], {"execution_status": "EXECUTING"})
@@ -1020,10 +1039,13 @@ def execute_signal(signal: dict, user_id: str) -> None:
             _emit(user_id, "ENTRY", "FAILED", market=signal.get("market"),
                   signal=signal,
                   detail=f"{type(exc).__name__}: {str(exc)[:120]}")
+            from ..notifications.fmt import ctx_line
             notify(user_id, "EXECUTION_FAILED",
-                   f"ENTRY FAILED - {signal.get('market')} {signal.get('direction')}",
-                   f"Execution error: {type(exc).__name__}. No trade was opened. "
-                   "The failure is recorded in the Execution ledger.",
+                   f"❌ ENTRY FAILED - {signal.get('market')} {signal.get('direction')}",
+                   f"{ctx_line(signal)}\n"
+                   f"Error: {type(exc).__name__}: {str(exc)[:140]}\n"
+                   "No trade was opened - the failure is recorded in the "
+                   "Execution ledger.",
                    signal_id=signal.get("id"))
         except Exception:
             pass
@@ -1074,13 +1096,25 @@ def _apply_fill(store, signal: dict, res: dict, lots: float) -> None:
         _name = (signal.get("strategy_name") or signal.get("strategy_id") or "")
         _sid = signal.get("signal_id") or signal.get("id") or ""
         _vol = res.get("volume") or lots
-        _body = (f"{_name} | {_sid}\n"
-                 f"Filled {_vol} lots at {_e:,.5g} - SL {_sl:,.5g}")
-        if _tp is not None:
-            _body += (f" - TP {_tp:,.5g}"
-                      + (f" (RR 1:{_int_rr:.2f})" if _int_rr else "") + ".")
+        from ..notifications.fmt import (ctx_line, ladder_lines, move_usd,
+                                         px, usd)
+        _risk_usd = move_usd(signal.get("market"), _e, _sl, _vol)
+        _lines = [f"{_name} | {_sid}",
+                  f"Filled {_vol} lots at {px(_e)}"
+                  + (f" (slippage {_slip:+.8g})" if _slip else "")
+                  + f" | Ticket #{res.get('ticket')}"]
+        if _sl:
+            _lines.append(f"SL {px(_sl)}"
+                          + (f" = risk {usd(_risk_usd)}"
+                             if _risk_usd is not None else ""))
+        _ladder = ladder_lines(signal, _vol, ref_px=_e)
+        if _ladder:
+            _lines += ["", _ladder, ""]
         else:
-            _body += ".\nNo fixed TP by rule - managed trail + time exit."
+            _lines += ["", "No fixed TP by rule - managed trail + time exit.", ""]
+        _lines.append("AI trade manager: active on this position "
+                      "(BE at +1R, lock at +2R).")
+        _body = "\n".join(_lines)
         notify(signal.get("userId") or settings.owner_user_id, "TRADE_ENTERED",
                f"{'🟢' if _dir.upper() == 'BUY' else '🔴'} ENTERED - "
                f"{signal.get('market')} {_dir}", _body,
@@ -1417,12 +1451,23 @@ def apply_deals(user_id: str, deals: List[dict]) -> int:
             "mt5_closed_at": datetime.now(timezone.utc).isoformat()})
         updated += 1
         _CONFIRMED_POSITIONS.add(pos_id)
-        store.create("notifications", {
-            "userId": user_id, "type": "TRADE_COMPLETED",
-            "title": f"{'WIN' if pl > 0 else 'LOSS'} - {sig_id} (MT5)",
-            "body": f"Broker-confirmed result: {pl:+.2f} USD on {vol} lots.",
-            "signal_id": docs[0]["id"], "meta": {"mt5_pl": pl, "position_id": pos_id},
-            "read": False})
+        from ..notifications.fmt import duration_str, px, usd
+        from ..notifications.service import notify
+        _sdoc = docs[0]
+        _oc = "WIN" if pl > 0 else ("LOSS" if pl < 0 else "BREAK-EVEN")
+        _dur = duration_str(_sdoc.get("createdAt"), _sdoc.get("mt5_closed_at"))
+        _lines = [f"{_sdoc.get('strategy_name') or '-'} | {sig_id}",
+                  f"Broker-confirmed result: {usd(pl)} on {vol} lots",
+                  f"Entry {px(_sdoc.get('mt5_open_price') or _sdoc.get('entry'))}"
+                  f" -> Close {px(_sdoc.get('mt5_close_price'))}"
+                  + (f" | Held {_dur}" if _dur else "")]
+        notify(user_id, "TRADE_COMPLETED",
+               f"{'✅' if pl > 0 else ('❌' if pl < 0 else '➖')} {_oc} - "
+               f"{_sdoc.get('market')} {_sdoc.get('direction')} (broker-confirmed)",
+               "\n".join(_lines),
+               signal_id=_sdoc["id"],
+               meta={"mt5_pl": pl, "position_id": pos_id},
+               store=store)
     return updated
 
 

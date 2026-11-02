@@ -109,7 +109,7 @@ def test_sync_confirms_closed_trade(monkeypatch):
     assert doc["mt5_confirmed"] and doc["outcome"] == "WIN"
     assert doc["mt5_pl"] == 9.4                                  # 9.8 - 0.2 - 0.2
     notes = store.list("notifications", filters={"userId": "u1"})
-    assert any("MT5" in (x.get("title") or "") for x in notes)
+    assert any("broker-confirmed" in (x.get("title") or "") for x in notes)
     # idempotent: second sync does nothing
     assert X.sync_deals("u1") == 0
 

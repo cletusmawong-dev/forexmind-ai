@@ -848,10 +848,32 @@ class TradeManager:
     def _notify_tp(self, user_id: str, pos: dict, sig: dict, level: int) -> None:
         try:
             from ..notifications.service import notify
+            from ..notifications.fmt import move_usd, px, usd
+            _mkt = pos.get("app_market") or sig.get("market")
+            _tp = sig.get(f"tp{level}")
+            _e = sig.get("entry") or pos.get("price_open") or pos.get("open_price")
+            _risk = 0.0
+            try:
+                _risk = abs(float(_e) - float(sig.get("sl") or 0)) if (_e and sig.get("sl")) else 0.0
+            except Exception:
+                _risk = 0.0
+            _r = ((float(_tp) - float(_e)) / _risk
+                  if (_tp not in (None, "", 0) and _risk) else None)
+            _d = (move_usd(_mkt, _e, _tp, pos.get("volume") or sig.get("mt5_volume"))
+                  if _tp not in (None, "", 0) else None)
+            _lv = (f"Price reached TP{level}" + (f" {px(_tp)}" if _tp else ""))
+            if _r is not None and _d is not None:
+                _lv += f" (+{_r:.1f}R = +{usd(_d)})"
+            _nxt = sig.get(f"tp{level + 1}")
+            _lines = [f"{sig.get('strategy_name')} | {sig.get('signal_id')}",
+                      _lv,
+                      "Live MT5 ticket updated (partial/BE/lock per plan).",
+                      (f"Tracking TP{level + 1} {px(_nxt)}."
+                       if _nxt not in (None, "", 0) else
+                       "Final target - the position closes.")]
             notify(user_id, f"TP{level}_HIT_LIVE",
-                   f"TP{level} reached - {pos.get('app_market')} {pos.get('type')}",
-                   f"{sig.get('strategy_name')} | {sig.get('signal_id')}\n"
-                   "Live MT5 position management engaged.",
+                   f"🎯 TP{level} reached - {_mkt} {pos.get('type')}",
+                   "\n".join(_lines),
                    signal_id=sig.get("id"))
         except Exception:
             pass

@@ -51,10 +51,15 @@ def _telegram_worthy(type_: str, meta: Optional[Dict[str, Any]]) -> bool:
 
 
 def notify(user_id: Optional[str], type_: str, title: str, body: str,
-           signal_id: Optional[str] = None, meta: Optional[Dict[str, Any]] = None) -> dict:
+           signal_id: Optional[str] = None, meta: Optional[Dict[str, Any]] = None,
+           store=None) -> dict:
     from ..core.plain_text import to_plain
     title, body = to_plain(title), to_plain(body)
-    store = get_store()
+    # store pass-through: callers holding a session-scoped store (deal
+    # confirmers, batch jobs) must record into THAT store, not resolve a
+    # fresh one here (2026-11-02: broker-confirmed completion moved from a
+    # bare store.create to notify() for Telegram delivery)
+    store = store or get_store()
     doc = store.create("notifications", {
         "userId": user_id,
         "type": type_,
@@ -70,7 +75,10 @@ def notify(user_id: Optional[str], type_: str, title: str, body: str,
     if settings.telegram_bot_token and user_id and _telegram_worthy(type_, meta):
         try:
             from .telegram import send_telegram
-            text = f"🤖 {title}"
+            # owner 2026-11-02 (rich messages): lifecycle titles carry their
+            # own marker emoji - the 🤖 prefix only fills bare titles
+            lead = "" if (title and not title[:1].isascii()) else "🤖 "
+            text = f"{lead}{title}"
             if body:
                 text += f"\n{body}"
             send_telegram(user_id, text)
