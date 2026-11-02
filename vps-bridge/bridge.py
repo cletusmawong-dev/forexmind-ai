@@ -172,12 +172,14 @@ def symbol_info_ep(market: str, x_bridge_token: Optional[str] = Header(None)):
     pip-table can never oversize an order again (postmortem 2026-10-30:
     NAS100 risked $482 instead of $50 on the migrated broker)."""
     _auth(x_bridge_token)
-    sym = _resolve(market)
-    if not sym:
-        raise HTTPException(404, f"unknown symbol: {market}")
+    sym = resolve_symbol(market)          # raises 404 on no-match
+    # a freshly logged-in terminal often does not carry the symbol in its
+    # Market Watch yet - select it (True = add if missing), then read
+    if not mt5.symbol_select(sym, True):
+        raise HTTPException(404, f"symbol not available on this terminal: {sym}")
     info = mt5.symbol_info(sym)
     if info is None:
-        raise HTTPException(503, "symbol_info unavailable")
+        raise HTTPException(404, f"symbol not available on this terminal: {sym}")
     return {"symbol": info.name, "point": info.point,
             "trade_tick_value": info.trade_tick_value,
             "trade_tick_size": info.trade_tick_size,
