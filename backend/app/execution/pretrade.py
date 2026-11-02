@@ -93,7 +93,8 @@ def validate_order(
     dup_checked: bool = True,
     budgets_allowed: bool = True,
     allow_no_tp: bool = False,     # trail strategies (no fixed target by rule)
-    reference_price: Optional[float] = None,   # live market ref (vps path)
+    reference_price: Optional[float] = None,   # live market ref (vps path,
+    budget_cap_usd: Optional[float] = None,    # min-lot tier absolute cap
 ) -> Tuple[bool, str, str]:
     """Returns (ok, code, reason). Never raises."""
     try:
@@ -190,16 +191,27 @@ def validate_order(
             return False, "LOTS_OVER_CAP", f"lots {lots} exceed the hard cap {lots_cap}"
         if pip_size and pip_value and balance > 0 and eff_risk_pct > 0:
             usd_risk = (risk_dist / pip_size) * pip_value * lots
-            budget = balance * (eff_risk_pct / 100.0)
-            # 1.35 (owner postmortem 2026-10-30, aligned with the
-            # RISK_USD_MISMATCH guard): lot-step rounding on wide-stop
-            # instruments (NAS100 0.027 -> 0.03) shifts risk ~+12%; the
-            # dollar guard still refuses everything beyond 1.35x.
-            if usd_risk > budget * 1.35 + 1e-9:
-                return (False, "RISK_OVER_BUDGET",
-                        f"order risks ${usd_risk:.2f} ({lots} lots, {risk_dist / pip_size:.1f} pips) "
-                        f"but the budget is ${budget:.2f} ({eff_risk_pct:.2f}% of "
-                        f"${balance:.2f})")
+            # budget_cap_usd (owner rule 2026-11-02): the minimum-lot tier
+            # passes an ABSOLUTE cap ($80) - the trade is already at the
+            # broker's smallest possible size, the 1.35x-relative rule
+            # cannot apply to it.
+            if budget_cap_usd:
+                budget = budget_cap_usd
+                if usd_risk > budget + 1e-9:
+                    return (False, "RISK_OVER_BUDGET",
+                            f"order risks ${usd_risk:.2f} but the minimum-lot "
+                            f"cap is ${budget:.2f}")
+            else:
+                budget = balance * (eff_risk_pct / 100.0)
+                # 1.35 (owner postmortem 2026-10-30, aligned with the
+                # RISK_USD_MISMATCH guard): lot-step rounding on wide-stop
+                # instruments (NAS100 0.027 -> 0.03) shifts risk ~+12%; the
+                # dollar guard still refuses everything beyond 1.35x.
+                if usd_risk > budget * 1.35 + 1e-9:
+                    return (False, "RISK_OVER_BUDGET",
+                            f"order risks ${usd_risk:.2f} ({lots} lots, {risk_dist / pip_size:.1f} pips) "
+                            f"but the budget is ${budget:.2f} ({eff_risk_pct:.2f}% of "
+                            f"${balance:.2f})")
 
         # 7. upstream protections asserted ------------------------------------
         if not dup_checked:

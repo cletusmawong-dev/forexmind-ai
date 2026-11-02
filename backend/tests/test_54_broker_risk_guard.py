@@ -151,3 +151,41 @@ def test_ui_dollar_setting_roundtrip_reaches_sizing(monkeypatch):
     lots = ex[-1]["lots"]
     risk = 185.48 / 1.0 * 10.0 * lots               # Aqua truth
     assert risk <= 25.0 * 1.35, f"risk ${risk:.2f} does not honor the $25 setting"
+
+
+SIG_GOLD_WIDE = {"id": "sgold", "userId": "u1", "signal_id": "SIG-GOLD-W",
+                 "market": "XAUUSD", "strategy_name": "Hybrid CRT",
+                 "direction": "BUY", "entry": 3961.62, "sl": 3891.06,
+                 "tp1": 4032.18, "tp2": 4102.74, "tp3": 4173.30,
+                 "risk": 70.56, "timeframe": "1H", "status": "LIVE",
+                 "completed": False}
+
+
+def test_min_lot_tier_wide_stop_taken_at_broker_minimum(monkeypatch):
+    """OWNER RULE 2026-11-02 (SIG-20261102-016 replay): a 70.56-point gold
+    stop needs 0.007 lots at $50 - below the 0.01 broker minimum. The
+    0.01-lot risk ($70.56) is under the $80 cap -> TAKE at the minimum."""
+    m5, store, calls = _world(
+        monkeypatch,
+        symbol_info={"trade_tick_value": 1.0, "trade_tick_size": 0.01})
+    store.create("signals", dict(SIG_GOLD_WIDE))
+    m5.execute_signal(SIG_GOLD_WIDE, "u1")
+    doc = store.get("signals", "sgold")
+    ex = [p for op, p in calls if op == "/execute"]
+    assert doc["execution_status"] == "SUBMITTED", doc.get("mt5_note")
+    assert ex and ex[-1]["lots"] == 0.01
+
+
+def test_min_lot_tier_refuses_beyond_the_cap(monkeypatch):
+    """Same rule, wider stop: 0.01-lot risk over the $80 cap -> refuse."""
+    m5, store, calls = _world(
+        monkeypatch,
+        symbol_info={"trade_tick_value": 1.0, "trade_tick_size": 0.01})
+    sig = dict(SIG_GOLD_WIDE, id="sgold2", signal_id="SIG-GOLD-W2",
+               sl=3841.62)                       # stop $120 -> min-lot risk $120
+    store.create("signals", dict(sig))
+    m5.execute_signal(sig, "u1")
+    doc = store.get("signals", "sgold2")
+    assert doc["execution_status"] == "REJECTED_PRETRADE"
+    assert "RISK_USD_MISMATCH" in (doc.get("mt5_note") or "")
+    assert not [1 for op, _ in calls if op == "/execute"]

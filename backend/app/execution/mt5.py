@@ -134,6 +134,11 @@ TRAIL_ONLY_STRATEGIES = {"strategy_trendbreak_v2"}
 PINSTRIPE_TP2_STRATEGIES = {"strategy_hybrid_crt_tbs", "strategy_fade_crt_ext"}
 MIN_STOP_PIPS = float(os.getenv("EXECUTION_MIN_STOP_PIPS", "6"))
 MAX_LOTS = float(os.getenv("EXECUTION_MAX_LOTS", "1.0"))
+# OWNER RULE 2026-11-02: when a stop is too wide to size at the user's
+# dollar setting (required lot < 0.01), the trade is still TAKEN at the
+# broker minimum lot if its true risk fits under this cap; only wider
+# stops are refused. Normal orders keep the 1.35x rule ($67.50 at $50).
+MIN_LOT_RISK_CAP_USD = float(os.getenv("EXECUTION_MIN_LOT_RISK_CAP", "80"))
 
 
 def _lot_mode(user_id: str) -> str:
@@ -749,6 +754,31 @@ def execute_signal(signal: dict, user_id: str) -> None:
                          f"{round(lots * _ratio, 2):.2f}.", market, kind="EXEC_WARN")
                     lots = max(0.01, round(lots * _ratio / LOT_STEP) * LOT_STEP)
                     lots = round(lots, 2)
+            # OWNER RULE 2026-11-02 - minimum-lot tier:
+            #   required_lot < 0.01 and 0.01-lot risk <= cap -> TAKE at 0.01
+            #   required_lot < 0.01 and 0.01-lot risk >  cap -> REFUSE
+            #   required_lot >= 0.01                         -> normal 1.35x rule
+            _lots_required = (_target_usd / _true_risk_per_lot) \
+                if (_true_risk_per_lot and _target_usd > 0) else None
+            _min_lot_tier = False
+            if _lots_required is not None and _lots_required < LOT_STEP:
+                _min_risk = _risk_usd_of(market, _anchor, sl_eff, LOT_STEP)
+                if _min_risk is not None and _min_risk <= MIN_LOT_RISK_CAP_USD:
+                    _log(f"{market}: stop too wide to size ${_target_usd:.0f} "
+                         f"(needs {_lots_required:.3f} lots); min lot 0.01 "
+                         f"risks ${_min_risk:.2f} <= ${MIN_LOT_RISK_CAP_USD:.0f} "
+                         "cap - taking the broker minimum (owner 2026-11-02).",
+                         market, kind="EXEC_WARN")
+                    lots = LOT_STEP
+                    _min_lot_tier = True
+                elif _min_risk is not None:
+                    _reject_pretrade(store, signal, user_id, market,
+                                     "RISK_USD_MISMATCH",
+                                     f"stop too wide for the ${_target_usd:.0f} "
+                                     f"setting: minimum lot 0.01 would risk "
+                                     f"${_min_risk:.2f} > the "
+                                     f"${MIN_LOT_RISK_CAP_USD:.0f} cap - refusing")
+                    return
             if lots > MAX_LOTS:
                 _log(f"Lot size capped {lots} -> {MAX_LOTS} (EXECUTION_MAX_LOTS).", market,
                      kind="EXEC_WARN")
@@ -759,7 +789,8 @@ def execute_signal(signal: dict, user_id: str) -> None:
             # that would have blocked the $482 NAS100 order that breached
             # the $50-risk account.
             _final_usd = _risk_usd_of(market, _anchor, sl_eff, lots)
-            if _target_usd > 0 and _final_usd > _target_usd * 1.35:
+            if (_target_usd > 0 and not _min_lot_tier and _final_usd is not None
+                    and _final_usd > _target_usd * 1.35):
                 _why = (f"RISK_USD_MISMATCH: order risks ${_final_usd:.2f} "
                         f"({lots:.2f} lots) but the user's risk setting is "
                         f"${_target_usd:.2f} - refusing the oversize order")
@@ -848,7 +879,8 @@ def execute_signal(signal: dict, user_id: str) -> None:
                 eff_risk_pct=risk_pct * LOT_MODE_MULT.get(_mode, 1.0),
                 lots_cap=MAX_LOTS, dup_checked=True, budgets_allowed=True,
                 allow_no_tp=signal.get("strategy_id") in TRAIL_ONLY_STRATEGIES,
-                reference_price=None)   # drift is re-anchored, never refused (owner 2026-10-28)
+                reference_price=None,   # drift is re-anchored, never refused (owner 2026-10-28)
+                budget_cap_usd=(MIN_LOT_RISK_CAP_USD if _min_lot_tier else None))
             if not _ok:
                 _reject_pretrade(store, signal, user_id, market, _code, _why)
                 return
