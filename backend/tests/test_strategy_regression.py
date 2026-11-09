@@ -28,7 +28,20 @@ FIXTURE = (pathlib.Path(__file__).parent / "fixtures"
 @pytest.mark.skipif(not FIXTURE.exists(), reason="baseline fixture missing")
 def test_strategy_behaviour_unchanged_since_baseline():
     baseline = json.loads(FIXTURE.read_text())["snapshot"]
-    live = build_snapshot()
+    # build the live snapshot in a FRESH interpreter: the harness must never
+    # see in-process test pollution (module-level state machines in dormant
+    # strategies are mutated by other tests in a combined run)
+    import subprocess
+    backend = pathlib.Path(__file__).parent.parent
+    out = subprocess.run(
+        [sys.executable, "-c",
+         "import sys, json; sys.path.insert(0, '.'); "
+         "sys.path.insert(0, 'tests'); "
+         "from strategy_harness import build_snapshot; "
+         "print(json.dumps(build_snapshot(), sort_keys=True, default=str))"],
+        cwd=str(backend), capture_output=True, text=True, timeout=600)
+    assert out.returncode == 0, out.stderr[-800:]
+    live = json.loads(out.stdout.strip().splitlines()[-1])
     assert set(live) == set(baseline), \
         "registry changed since the baseline - re-baseline consciously"
     changed = {sid: (baseline[sid]["hash"][:12], live[sid]["hash"][:12])
@@ -43,4 +56,4 @@ def test_strategy_behaviour_unchanged_since_baseline():
 def test_baseline_fixture_is_self_consistent():
     doc = json.loads(FIXTURE.read_text())
     assert snapshot_hash(doc["snapshot"]).startswith(
-        "c3ec82a3b54671d3"), "fixture was re-baselined - update this pin"
+        "f93cc28500ac634b"), "fixture was re-baselined - update this pin"

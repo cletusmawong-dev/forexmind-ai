@@ -17,15 +17,18 @@ from tests.test_46_research_candidates import (
 # ===========================================================================
 # registration & lifecycle
 # ===========================================================================
-def test_both_registered_and_boot_active():
+def test_registry_is_the_owner_three_and_their_lifecycle_is_live():
+    """OWNER WIPE 2 + the owner's three (2026-11-02)."""
     import app.strategies as reg
-    from app.learning.versions import START_PAUSED, lifecycle_of
-    assert reg.STRATEGY_CLASSES["strategy_trendbreak_h1"] is TrendBreakStrategy
-    assert reg.STRATEGY_CLASSES["strategy_zonesweep_m15"] is ZoneSweepStrategy
-    assert "strategy_trendbreak_h1" not in START_PAUSED
-    assert "strategy_zonesweep_m15" not in START_PAUSED
-    assert lifecycle_of("strategy_trendbreak_h1") == "LIVE"
-    assert lifecycle_of("strategy_zonesweep_m15") == "LIVE"
+    from app.learning.versions import lifecycle_of
+    assert set(reg.STRATEGY_CLASSES.keys()) == {
+        "strategy_mrms_scalper", "strategy_pullback_trend",
+        "strategy_liquidity_sweep"}
+    for sid in ("strategy_trendbreak_h1", "strategy_zonesweep_m15"):
+        assert sid not in reg.STRATEGY_CLASSES
+    for sid in reg.STRATEGY_CLASSES:
+        assert lifecycle_of(sid) == "LIVE"
+
 
 
 def test_spec_market_pinning():
@@ -173,13 +176,14 @@ def test_zone_entry_event_direct():
 # ===========================================================================
 # platform wiring: START_PAUSED / docs / scan compatibility
 # ===========================================================================
-def test_strategy_docs_created_active_for_both(fresh_store, monkeypatch):
+def test_strategy_docs_created_active_for_owner_three(fresh_store, monkeypatch):
     from app.learning import versions as vc
-    import app.strategies as reg
     monkeypatch.setattr(vc, "get_store", lambda: fresh_store)
-    for sid in ("strategy_trendbreak_h1", "strategy_zonesweep_m15"):
-        vc.LIFECYCLE.pop(sid, None)
     vc.ensure_strategy_docs()
     docs = {d["id"]: d for d in fresh_store.list("strategies", limit=1000)}
-    assert docs["strategy_trendbreak_h1"]["status"] == "ACTIVE"
-    assert docs["strategy_zonesweep_m15"]["status"] == "ACTIVE"
+    assert set(docs) == {"strategy_mrms_scalper", "strategy_pullback_trend",
+                         "strategy_liquidity_sweep"}
+    assert all(d["status"] == "ACTIVE" for d in docs.values())
+    assert docs["strategy_mrms_scalper"]["entry_timeframe"] == "5M"
+
+

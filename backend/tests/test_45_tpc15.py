@@ -423,18 +423,14 @@ def test_config_matches_the_guide_verbatim():
 # ---------------------------------------------------------------------------
 # isolation: not registered, not executable, no broker surface
 # ---------------------------------------------------------------------------
-def test_tpc15_is_registered_and_live():
-    """Owner directive 2026-10-24: TPC-15 is a live registered strategy."""
+def test_tpc15_unregistered_after_wipe2_engine_stays_usable():
+    """OWNER WIPE 2: TPC-15 is no longer registered (owner's three only);
+    the pure engine + adapter classes remain importable for history."""
     import app.strategies as reg
-    from app.learning.versions import START_PAUSED, lifecycle_of
     assert set(reg.STRATEGY_CLASSES.keys()) == {
-        "strategy_h1_trend_breakout", "strategy_gold_orb",
-        "strategy_tpc15_pullback", "strategy_trendbreak_h1",
-        "strategy_zonesweep_m15", "strategy_trendbreak_v2",
-        "strategy_hybrid_crt_tbs", "strategy_fade_crt_ext"}
-    assert "strategy_tpc15_pullback" not in START_PAUSED   # boot-ACTIVE doc
-    assert lifecycle_of("strategy_tpc15_pullback") == "LIVE"
-
+        "strategy_mrms_scalper", "strategy_pullback_trend",
+        "strategy_liquidity_sweep"}
+    assert "strategy_tpc15_pullback" not in reg.STRATEGY_CLASSES
 
 def test_engine_module_stays_pure_for_research_use():
     from app.strategies.tpc15 import strategy as tpc15_engine
@@ -464,31 +460,10 @@ def test_tpc15_has_no_execution_surface():
                    if getattr(obj, "__module__", "") == tpc15.__name__)
 
 
-def test_tpc15_registered_name_visible():
+def test_registered_names_are_the_owner_three():
     from app.strategies import all_strategies
     names = {s.name for s in all_strategies().values()}
-    assert "TPC-15 Trend Pullback" in names
-
-
-# ===========================================================================
-# LIVE ADAPTER (registered strategy) - Candidate flow through the pipeline
-# ===========================================================================
-def test_adapter_buy_candidate_on_selected_market():
-    from app.strategies.tpc15.live import TPC15PullbackStrategy
-    df, _ = with_pullback_and_confirmation(trend_frame(220, force_extreme=(4, 99.0)))
-    cand = TPC15PullbackStrategy().detect_signal(df, "EURUSD", "15M")
-    assert cand is not None
-    assert cand.strategy_id == "strategy_tpc15_pullback"
-    assert cand.market == "EURUSD"                      # no instrument pin
-    assert cand.direction == "BUY"
-    assert cand.rr_primary == pytest.approx(1.25)
-    assert cand.sl < cand.entry < cand.tps[0]           # BUY sides correct
-    assert cand.tps[0] == pytest.approx(cand.entry + (cand.entry - cand.sl) * 1.25)
-    assert cand.candle_time                             # confirmation candle identity
-    assert cand.entry_rule if hasattr(cand, "entry_rule") else True
-    assert "Pullback to EMA 21" in cand.analysis
-    assert cand.checks and cand.checks[0]["rule"].startswith("BUY 1")
-
+    assert names == {"MRMS Scalper", "Pullback in Trend", "Liquidity Sweep"}
 
 def test_adapter_sell_candidate_mirror():
     from app.strategies.tpc15.live import TPC15PullbackStrategy

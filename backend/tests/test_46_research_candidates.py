@@ -428,20 +428,17 @@ def test_zonesweep_time_exit_after_fill():
 # ===========================================================================
 # isolation: research-only, never registered, never executable
 # ===========================================================================
-def test_candidates_registered_via_adapters_only():
-    """Owner directive 2026-10-24: the candidates ARE live now - through the
-    adapter layer only. The research engines stay pure (no registry refs)."""
+def test_candidates_unregistered_after_wipe2_engines_stay_pure():
+    """OWNER WIPE 2: the CRT candidates are unregistered; the research
+    engines stay pure (no registry refs, no execution imports)."""
     import app.strategies as reg
     assert set(reg.STRATEGY_CLASSES.keys()) == {
-        "strategy_h1_trend_breakout", "strategy_gold_orb",
-        "strategy_tpc15_pullback", "strategy_trendbreak_h1",
-        "strategy_zonesweep_m15", "strategy_trendbreak_v2",
-        "strategy_hybrid_crt_tbs", "strategy_fade_crt_ext"}
+        "strategy_mrms_scalper", "strategy_pullback_trend",
+        "strategy_liquidity_sweep"}
     for mod in (tb, zs):
         src = inspect.getsource(mod)
         assert "STRATEGY_CLASSES" not in src
         assert "mt5" not in src.replace(" Summary:", "")
-
 
 def test_candidate_imports_are_pure():
     for mod in (tb, zs):

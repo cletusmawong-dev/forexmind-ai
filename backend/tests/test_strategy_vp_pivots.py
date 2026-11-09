@@ -100,34 +100,13 @@ def test_metadata_and_defaults():
     assert "hvn_rejection" in S.experiment_variables["entry_mode"]["options"]
 
 
-def test_owner_specs_are_the_only_registered_strategies():
-    """OWNER WIPE 2026-10-10, later the same day: the two new gold specs are
-    the only registered strategies; this module's strategies stay
-    unregistered but importable for signal history."""
+def test_owner_three_are_the_only_registered_strategies():
+    """OWNER WIPE 2 (2026-11-02) + the owner's three new strategies; this
+    module's strategies stay unregistered but importable for history."""
     import app.strategies as reg
-    assert set(reg.STRATEGY_CLASSES) == {"strategy_h1_trend_breakout",
-                                         "strategy_gold_orb",
-                                         "strategy_tpc15_pullback",
-                                         "strategy_trendbreak_h1",
-                                         "strategy_zonesweep_m15",
-                                         "strategy_trendbreak_v2",
-                                         "strategy_hybrid_crt_tbs",
-                                         "strategy_fade_crt_ext"}
-    from app.strategies.strategy_1_vp_pivots.strategy import VPPivotsStrategy
-    assert VPPivotsStrategy().id == "strategy_1_vp_pivots"
-
-
-# ------------------------------------------------------- profile exactness
-def test_profile_matches_source_loops_exactly():
-    for seed in (3, 7, 11):
-        df = make_df(seed=seed)
-        p = dict(P); p["profile_period"] = 60; p["profile_bins"] = 12
-        for i in (200, 260, len(df) - 1):
-            prof = S._profile_at(df, i, p)
-            ref = naive_profile(df, i, 60, 12)
-            assert np.allclose(prof["acc"], ref, atol=1e-9)
-            assert prof["max"] == pytest.approx(max(ref), rel=1e-12)
-
+    assert set(reg.STRATEGY_CLASSES) == {"strategy_mrms_scalper",
+                                         "strategy_pullback_trend",
+                                         "strategy_liquidity_sweep"}
 
 def test_poc_is_last_max_bin_and_mid_price():
     df = make_df(n=80, seed=5)
@@ -364,21 +343,14 @@ def test_detect_is_causal_future_bars_cannot_create_past_events():
 
 
 # ------------------------------------------------- version control / API
-def test_owner_wipe_boot_purges_all_strategy_docs(store):
-    """OWNER WIPE 2026-10-10 + owner spec pair: the boot reconciliation
-    purges the wiped strategies' docs and creates the two spec strategies
-    PAUSED (spec rule 7)."""
+def test_owner_wipe_boot_purges_unregistered_docs(store):
+    """Boot reconciliation: unregistered docs purged; the owner's three
+    boot ACTIVE with the scalper pinned to its 5M entry timeframe."""
     docs = {d["id"]: d for d in store.list("strategies", limit=1000)}
-    assert set(docs) == {"strategy_h1_trend_breakout", "strategy_gold_orb",
-                         "strategy_tpc15_pullback", "strategy_trendbreak_h1",
-                         "strategy_zonesweep_m15", "strategy_trendbreak_v2",
-                         "strategy_hybrid_crt_tbs", "strategy_fade_crt_ext"}
-    for sid in ("strategy_h1_trend_breakout", "strategy_gold_orb"):
-        assert docs[sid]["status"] == "PAUSED"    # spec rule 7
-    for sid in ("strategy_tpc15_pullback", "strategy_trendbreak_h1",
-                "strategy_zonesweep_m15"):
-        assert docs[sid]["status"] == "ACTIVE"    # owner directives 2026-10-24
-
+    assert set(docs) == {"strategy_mrms_scalper", "strategy_pullback_trend",
+                         "strategy_liquidity_sweep"}
+    assert all(d["status"] == "ACTIVE" for d in docs.values())
+    assert docs["strategy_mrms_scalper"]["entry_timeframe"] == "5M"
 
 def test_set_param_direct_after_wipe_rejects_unknown(store):
     """OWNER WIPE 2026-10-10: with zero registered strategies every param

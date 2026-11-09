@@ -1,8 +1,8 @@
 {
  "meta": {
-  "captured_at_git_head": "1cb4b34",
+  "captured_at_git_head": "cdf8492",
   "n_bars": 900,
-  "note": "re-baselined after OWNER WIPE 2 (2026-11-02): registry intentionally empty; dormant EMA-family modules keep their behaviour anchors for when new strategies arrive",
+  "note": "re-baselined 2026-11-02: the owner's three strategies registered (mrms_scalper, pullback_trend, liquidity_sweep)",
   "purpose": "strategy architecture upgrade 2026-11-02 - behaviour regression anchor",
   "seed": 20261102
  },
@@ -1320,6 +1320,2273 @@
      "backtest": {
       "error": "ImportError: cannot import name 'atr' from 'app.strategies.base' (/home/user/forexmind-ai/backend/app/strategies/base.py)"
      },
+     "detect_0": null,
+     "detect_25": null,
+     "detect_60": null
+    }
+   }
+  },
+  "strategy_liquidity_sweep": {
+   "hash": "d0de58644f44cb50d28682d65f900f8c272cc57e4c9aacac7de4dec235b1c856",
+   "markets": {
+    "EURUSD": {
+     "backtest": [
+      {
+       "direction": "BUY",
+       "duration_bars": 2,
+       "entry": 114.7105411104,
+       "entry_time": "2026-10-28 17:15:00",
+       "exit_price": 114.0913514816,
+       "exit_time": "2026-10-28 17:45:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.6191896288,
+       "sl": 114.0913514816,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_liquidity_sweep",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        115.9489203679
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 2,
+       "entry": 108.1617606778,
+       "entry_time": "2026-10-29 14:00:00",
+       "exit_price": 107.0582364537,
+       "exit_time": "2026-10-29 14:30:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 1.1035242241,
+       "sl": 107.0582364537,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_liquidity_sweep",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        110.368809126
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 4,
+       "entry": 112.4973934651,
+       "entry_time": "2026-10-30 15:00:00",
+       "exit_price": 113.4181077472,
+       "exit_time": "2026-10-30 16:00:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.9207142821,
+       "sl": 113.4181077472,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_liquidity_sweep",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        110.655964901
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 20,
+       "entry": 119.2470445024,
+       "entry_time": "2026-10-31 17:00:00",
+       "exit_price": 117.5578144891,
+       "exit_time": "2026-10-31 22:00:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 1.6892300134,
+       "sl": 117.5578144891,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_liquidity_sweep",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        122.6255045291
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 5,
+       "entry": 120.176451319,
+       "entry_time": "2026-11-01 11:15:00",
+       "exit_price": 120.9742576113,
+       "exit_time": "2026-11-01 12:30:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.7978062923,
+       "sl": 120.9742576113,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_liquidity_sweep",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        118.5808387345
+       ]
+      }
+     ],
+     "detect_0": null,
+     "detect_25": null,
+     "detect_60": null
+    },
+    "GBPUSD": {
+     "backtest": [
+      {
+       "direction": "BUY",
+       "duration_bars": 5,
+       "entry": 114.6056548605,
+       "entry_time": "2026-10-25 14:15:00",
+       "exit_price": 116.5527962144,
+       "exit_time": "2026-10-25 15:30:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 2.0,
+       "risk": 0.9735706769,
+       "sl": 113.6320841835,
+       "status": "TP1_HIT",
+       "strategy_id": "strategy_liquidity_sweep",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        116.5527962144
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 2,
+       "entry": 116.5094873805,
+       "entry_time": "2026-10-25 15:45:00",
+       "exit_price": 117.3251832169,
+       "exit_time": "2026-10-25 16:15:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.8156958364,
+       "sl": 117.3251832169,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_liquidity_sweep",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        114.8780957077
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 1,
+       "entry": 122.654484073,
+       "entry_time": "2026-10-27 10:45:00",
+       "exit_price": 123.3355402929,
+       "exit_time": "2026-10-27 11:00:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.6810562198,
+       "sl": 123.3355402929,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_liquidity_sweep",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        121.2923716334
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 1,
+       "entry": 125.0228130273,
+       "entry_time": "2026-10-27 14:15:00",
+       "exit_price": 126.1016112411,
+       "exit_time": "2026-10-27 14:30:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 1.0787982138,
+       "sl": 126.1016112411,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_liquidity_sweep",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        122.8652165997
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 7,
+       "entry": 132.6505742432,
+       "entry_time": "2026-10-28 17:15:00",
+       "exit_price": 134.2040571809,
+       "exit_time": "2026-10-28 19:00:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 2.0,
+       "risk": 0.7767414689,
+       "sl": 131.8738327743,
+       "status": "TP1_HIT",
+       "strategy_id": "strategy_liquidity_sweep",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        134.2040571809
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 4,
+       "entry": 135.2370281038,
+       "entry_time": "2026-10-30 15:00:00",
+       "exit_price": 134.1911100345,
+       "exit_time": "2026-10-30 16:00:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 1.0459180693,
+       "sl": 134.1911100345,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_liquidity_sweep",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        137.3288642424
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 35,
+       "entry": 141.1994646079,
+       "entry_time": "2026-10-31 09:15:00",
+       "exit_price": 137.4650484401,
+       "exit_time": "2026-10-31 18:00:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 2.0,
+       "risk": 1.8672080839,
+       "sl": 143.0666726919,
+       "status": "TP1_HIT",
+       "strategy_id": "strategy_liquidity_sweep",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        137.4650484401
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 2,
+       "entry": 135.8503842414,
+       "entry_time": "2026-11-01 10:00:00",
+       "exit_price": 135.001516308,
+       "exit_time": "2026-11-01 10:30:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.8488679333,
+       "sl": 135.001516308,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_liquidity_sweep",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        137.548120108
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 2,
+       "entry": 130.3176021149,
+       "entry_time": "2026-11-01 14:45:00",
+       "exit_price": 129.6510765149,
+       "exit_time": "2026-11-01 15:15:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.6665256,
+       "sl": 129.6510765149,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_liquidity_sweep",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        131.6506533149
+       ]
+      }
+     ],
+     "detect_0": null,
+     "detect_25": null,
+     "detect_60": null
+    }
+   }
+  },
+  "strategy_mrms_scalper": {
+   "hash": "1eedb32c75bc9bf49f625ab57a901d8218f4ac646597f8a5106e03bcc9a62c7d",
+   "markets": {
+    "EURUSD": {
+     "backtest": [
+      {
+       "direction": "BUY",
+       "duration_bars": 1,
+       "entry": 107.6291995106,
+       "entry_time": "2026-10-25 11:45:00",
+       "exit_price": 108.3503304863,
+       "exit_time": "2026-10-25 12:00:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 1.3529411765,
+       "risk": 0.5330098516,
+       "sl": 107.0961896591,
+       "status": "TP1_HIT",
+       "strategy_id": "strategy_mrms_scalper",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        108.3503304863
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 2,
+       "entry": 114.7105411104,
+       "entry_time": "2026-10-28 17:15:00",
+       "exit_price": 114.1230452849,
+       "exit_time": "2026-10-28 17:45:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.5874958255,
+       "sl": 114.1230452849,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_mrms_scalper",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        115.5053884037
+       ]
+      }
+     ],
+     "detect_0": null,
+     "detect_25": null,
+     "detect_60": null
+    },
+    "GBPUSD": {
+     "backtest": [
+      {
+       "direction": "SELL",
+       "duration_bars": 3,
+       "entry": 111.7148649846,
+       "entry_time": "2026-10-24 16:15:00",
+       "exit_price": 111.019120209,
+       "exit_time": "2026-10-24 17:00:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 1.3529411765,
+       "risk": 0.5142461385,
+       "sl": 112.2291111231,
+       "status": "TP1_HIT",
+       "strategy_id": "strategy_mrms_scalper",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        111.019120209
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 2,
+       "entry": 130.3176021149,
+       "entry_time": "2026-11-01 14:45:00",
+       "exit_price": 129.7259113961,
+       "exit_time": "2026-11-01 15:15:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.5916907188,
+       "sl": 129.7259113961,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_mrms_scalper",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        131.1181248521
+       ]
+      }
+     ],
+     "detect_0": null,
+     "detect_25": null,
+     "detect_60": null
+    }
+   }
+  },
+  "strategy_pullback_trend": {
+   "hash": "79f3031b47422c7b6a131a7b9f6f78abe1ebb64c31482cc96d16ae7968bfa1f9",
+   "markets": {
+    "EURUSD": {
+     "backtest": [
+      {
+       "direction": "SELL",
+       "duration_bars": 10,
+       "entry": 109.3374171167,
+       "entry_time": "2026-10-25 07:00:00",
+       "exit_price": 110.443397439,
+       "exit_time": "2026-10-25 09:30:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 1.1059803223,
+       "sl": 110.443397439,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        107.125456472
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 4,
+       "entry": 109.6737318278,
+       "entry_time": "2026-10-25 09:45:00",
+       "exit_price": 108.7068226493,
+       "exit_time": "2026-10-25 10:45:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 2.0,
+       "risk": 0.4834545892,
+       "sl": 110.157186417,
+       "status": "TP1_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        108.7068226493
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 1,
+       "entry": 108.810549957,
+       "entry_time": "2026-10-25 11:15:00",
+       "exit_price": 108.3437156029,
+       "exit_time": "2026-10-25 11:30:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.466834354,
+       "sl": 108.3437156029,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        109.744218665
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 15,
+       "entry": 107.6291995106,
+       "entry_time": "2026-10-25 11:45:00",
+       "exit_price": 106.7136939445,
+       "exit_time": "2026-10-25 15:30:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.9155055661,
+       "sl": 106.7136939445,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        109.4602106428
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 4,
+       "entry": 106.8433808408,
+       "entry_time": "2026-10-25 15:45:00",
+       "exit_price": 106.4485552262,
+       "exit_time": "2026-10-25 16:45:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.3948256146,
+       "sl": 106.4485552262,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        107.63303207
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 1,
+       "entry": 106.3171978836,
+       "entry_time": "2026-10-25 17:15:00",
+       "exit_price": 105.8493394161,
+       "exit_time": "2026-10-25 17:30:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.4678584676,
+       "sl": 105.8493394161,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        107.2529148188
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 8,
+       "entry": 103.9878318404,
+       "entry_time": "2026-10-26 07:15:00",
+       "exit_price": 104.6699989043,
+       "exit_time": "2026-10-26 09:15:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.6821670639,
+       "sl": 104.6699989043,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        102.6234977125
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 5,
+       "entry": 104.6850903913,
+       "entry_time": "2026-10-26 09:30:00",
+       "exit_price": 105.3152107303,
+       "exit_time": "2026-10-26 10:45:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.630120339,
+       "sl": 105.3152107303,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        103.4248497133
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 1,
+       "entry": 105.0980182617,
+       "entry_time": "2026-10-26 11:30:00",
+       "exit_price": 105.6590911152,
+       "exit_time": "2026-10-26 11:45:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 2.0,
+       "risk": 0.2805364267,
+       "sl": 104.817481835,
+       "status": "TP1_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        105.6590911152
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 2,
+       "entry": 105.6683127928,
+       "entry_time": "2026-10-26 13:15:00",
+       "exit_price": 105.209648707,
+       "exit_time": "2026-10-26 13:45:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.4586640858,
+       "sl": 105.209648707,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        106.5856409644
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 9,
+       "entry": 105.7877557812,
+       "entry_time": "2026-10-26 14:00:00",
+       "exit_price": 104.6942835377,
+       "exit_time": "2026-10-26 16:15:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 1.0934722435,
+       "sl": 104.6942835377,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        107.9747002682
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 5,
+       "entry": 104.5114459192,
+       "entry_time": "2026-10-26 17:00:00",
+       "exit_price": 104.9874492611,
+       "exit_time": "2026-10-26 18:15:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.476003342,
+       "sl": 104.9874492611,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        103.5594392353
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 21,
+       "entry": 112.0122784544,
+       "entry_time": "2026-10-27 07:00:00",
+       "exit_price": 110.427111542,
+       "exit_time": "2026-10-27 12:15:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 2.0,
+       "risk": 0.7925834562,
+       "sl": 112.8048619106,
+       "status": "TP1_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        110.427111542
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 6,
+       "entry": 109.5845914831,
+       "entry_time": "2026-10-27 13:00:00",
+       "exit_price": 110.4734696341,
+       "exit_time": "2026-10-27 14:30:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.8888781509,
+       "sl": 110.4734696341,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        107.8068351812
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 8,
+       "entry": 109.8119145213,
+       "entry_time": "2026-10-27 15:00:00",
+       "exit_price": 110.7246674046,
+       "exit_time": "2026-10-27 17:00:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.9127528833,
+       "sl": 110.7246674046,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        107.9864087547
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 30,
+       "entry": 111.9717185535,
+       "entry_time": "2026-10-27 17:45:00",
+       "exit_price": 114.1481280955,
+       "exit_time": "2026-10-28 01:15:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 2.0,
+       "risk": 1.088204771,
+       "sl": 110.8835137825,
+       "status": "TP1_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        114.1481280955
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 12,
+       "entry": 116.1225122071,
+       "entry_time": "2026-10-28 07:00:00",
+       "exit_price": 117.4336140803,
+       "exit_time": "2026-10-28 10:00:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 2.0,
+       "risk": 0.6555509366,
+       "sl": 115.4669612706,
+       "status": "TP1_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        117.4336140803
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 7,
+       "entry": 116.3405875104,
+       "entry_time": "2026-10-28 10:45:00",
+       "exit_price": 117.2814041012,
+       "exit_time": "2026-10-28 12:30:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.9408165908,
+       "sl": 117.2814041012,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        114.4589543287
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 5,
+       "entry": 118.0112548545,
+       "entry_time": "2026-10-28 13:15:00",
+       "exit_price": 117.1208231739,
+       "exit_time": "2026-10-28 14:30:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.8904316806,
+       "sl": 117.1208231739,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        119.7921182158
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 2,
+       "entry": 116.1925735842,
+       "entry_time": "2026-10-28 14:45:00",
+       "exit_price": 117.333725804,
+       "exit_time": "2026-10-28 15:15:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 1.1411522198,
+       "sl": 117.333725804,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        113.9102691447
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 6,
+       "entry": 116.84122539,
+       "entry_time": "2026-10-28 15:30:00",
+       "exit_price": 114.752040406,
+       "exit_time": "2026-10-28 17:00:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 2.0,
+       "risk": 1.044592492,
+       "sl": 117.8858178821,
+       "status": "TP1_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        114.752040406
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 11,
+       "entry": 114.7105411104,
+       "entry_time": "2026-10-28 17:15:00",
+       "exit_price": 116.0871546798,
+       "exit_time": "2026-10-28 20:00:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 2.0,
+       "risk": 0.6883067847,
+       "sl": 114.0222343257,
+       "status": "TP1_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        116.0871546798
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 4,
+       "entry": 112.7675360719,
+       "entry_time": "2026-10-29 07:00:00",
+       "exit_price": 111.1700126465,
+       "exit_time": "2026-10-29 08:00:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 1.5975234254,
+       "sl": 111.1700126465,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        115.9625829228
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 2,
+       "entry": 110.7784878,
+       "entry_time": "2026-10-29 08:15:00",
+       "exit_price": 111.4403136175,
+       "exit_time": "2026-10-29 08:45:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.6618258175,
+       "sl": 111.4403136175,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        109.4548361651
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 4,
+       "entry": 111.0365738274,
+       "entry_time": "2026-10-29 09:30:00",
+       "exit_price": 108.9914110306,
+       "exit_time": "2026-10-29 10:30:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 2.0,
+       "risk": 1.0225813984,
+       "sl": 112.0591552258,
+       "status": "TP1_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        108.9914110306
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 3,
+       "entry": 109.4495958252,
+       "entry_time": "2026-10-29 11:30:00",
+       "exit_price": 108.1328580741,
+       "exit_time": "2026-10-29 12:15:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 1.316737751,
+       "sl": 108.1328580741,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        112.0830713273
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 1,
+       "entry": 108.7486912546,
+       "entry_time": "2026-10-29 13:00:00",
+       "exit_price": 108.0691046263,
+       "exit_time": "2026-10-29 13:15:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.6795866283,
+       "sl": 108.0691046263,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        110.1078645113
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 8,
+       "entry": 107.4883273338,
+       "entry_time": "2026-10-29 13:45:00",
+       "exit_price": 108.6553805126,
+       "exit_time": "2026-10-29 15:45:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 1.1670531788,
+       "sl": 108.6553805126,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        105.1542209762
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 3,
+       "entry": 110.3117320777,
+       "entry_time": "2026-10-29 16:30:00",
+       "exit_price": 108.5750353819,
+       "exit_time": "2026-10-29 17:15:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 1.7366966958,
+       "sl": 108.5750353819,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        113.7851254693
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 5,
+       "entry": 108.466865017,
+       "entry_time": "2026-10-29 17:45:00",
+       "exit_price": 106.9586619031,
+       "exit_time": "2026-10-29 19:00:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 2.0,
+       "risk": 0.7541015569,
+       "sl": 109.2209665739,
+       "status": "TP1_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        106.9586619031
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 2,
+       "entry": 110.2465608856,
+       "entry_time": "2026-10-30 07:15:00",
+       "exit_price": 109.636260368,
+       "exit_time": "2026-10-30 07:45:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.6103005175,
+       "sl": 109.636260368,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        111.4671619206
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 2,
+       "entry": 109.2119703684,
+       "entry_time": "2026-10-30 08:00:00",
+       "exit_price": 109.872781387,
+       "exit_time": "2026-10-30 08:30:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.6608110186,
+       "sl": 109.872781387,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        107.8903483311
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 6,
+       "entry": 110.3703868135,
+       "entry_time": "2026-10-30 08:45:00",
+       "exit_price": 109.4896976717,
+       "exit_time": "2026-10-30 10:15:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.8806891418,
+       "sl": 109.4896976717,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        112.1317650971
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 21,
+       "entry": 110.5196165168,
+       "entry_time": "2026-10-30 10:45:00",
+       "exit_price": 113.2921152917,
+       "exit_time": "2026-10-30 16:00:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 2.0,
+       "risk": 1.3862493875,
+       "sl": 109.1333671294,
+       "status": "TP1_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        113.2921152917
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 17,
+       "entry": 112.7261704114,
+       "entry_time": "2026-10-30 16:15:00",
+       "exit_price": 113.760084116,
+       "exit_time": "2026-10-30 20:30:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 1.0339137046,
+       "sl": 113.760084116,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        110.6583430022
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 26,
+       "entry": 119.1403593672,
+       "entry_time": "2026-10-31 07:15:00",
+       "exit_price": 118.0796132019,
+       "exit_time": "2026-10-31 13:45:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 1.0607461653,
+       "sl": 118.0796132019,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        121.2618516978
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 1,
+       "entry": 118.4084356412,
+       "entry_time": "2026-10-31 14:15:00",
+       "exit_price": 118.7055402198,
+       "exit_time": "2026-10-31 14:30:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.2971045785,
+       "sl": 118.7055402198,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        117.8142264841
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 5,
+       "entry": 118.3030229735,
+       "entry_time": "2026-10-31 16:00:00",
+       "exit_price": 119.5162324177,
+       "exit_time": "2026-10-31 17:15:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 1.2132094442,
+       "sl": 119.5162324177,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        115.8766040852
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 8,
+       "entry": 119.2614421317,
+       "entry_time": "2026-10-31 17:45:00",
+       "exit_price": 120.3640359373,
+       "exit_time": "2026-10-31 19:45:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 1.1025938055,
+       "sl": 120.3640359373,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        117.0562545207
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 8,
+       "entry": 118.0695806796,
+       "entry_time": "2026-11-01 07:15:00",
+       "exit_price": 119.1271734584,
+       "exit_time": "2026-11-01 09:15:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 1.0575927788,
+       "sl": 119.1271734584,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        115.954395122
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 12,
+       "entry": 119.2903114,
+       "entry_time": "2026-11-01 09:30:00",
+       "exit_price": 121.2707059251,
+       "exit_time": "2026-11-01 12:30:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 2.0,
+       "risk": 0.9901972625,
+       "sl": 118.3001141375,
+       "status": "TP1_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        121.2707059251
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 1,
+       "entry": 121.1165672175,
+       "entry_time": "2026-11-01 13:00:00",
+       "exit_price": 120.7818928605,
+       "exit_time": "2026-11-01 13:15:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.334674357,
+       "sl": 120.7818928605,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        121.7859159315
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 8,
+       "entry": 120.4269574204,
+       "entry_time": "2026-11-01 13:30:00",
+       "exit_price": 121.9097781433,
+       "exit_time": "2026-11-01 15:30:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 2.0,
+       "risk": 0.7414103614,
+       "sl": 119.685547059,
+       "status": "TP1_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        121.9097781433
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 16,
+       "entry": 122.8476278159,
+       "entry_time": "2026-11-01 15:45:00",
+       "exit_price": 121.5108143078,
+       "exit_time": "2026-11-01 19:45:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 1.3368135081,
+       "sl": 121.5108143078,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        125.5212548322
+       ]
+      }
+     ],
+     "detect_0": null,
+     "detect_25": null,
+     "detect_60": {
+      "analysis": "BUY pullback in H1 trend on 15min. Rejection candle, stop beyond swing + ATR buffer, target 2.0R.",
+      "candle_time": "2026-11-01 09:00:00",
+      "checks": [
+       {
+        "detail": "BUY pullback to H1 EMA50",
+        "label": "H1 trend + 15min pullback rejection",
+        "ok": true
+       }
+      ],
+      "direction": "BUY",
+      "entry": 118.9230005785,
+      "entry_zone": [
+       118.9230005785,
+       118.9230005785
+      ],
+      "extra": {},
+      "mtf": null,
+      "params": {},
+      "params_version": "1.0",
+      "risk": 0.5437378083,
+      "rr_primary": 2.0,
+      "score": 55,
+      "score_components": {
+       "trend_pullback": 55.0
+      },
+      "sl": 118.3792627701,
+      "tps": [
+       120.0104761951
+      ]
+     }
+    },
+    "GBPUSD": {
+     "backtest": [
+      {
+       "direction": "BUY",
+       "duration_bars": 3,
+       "entry": 114.4457541283,
+       "entry_time": "2026-10-25 07:00:00",
+       "exit_price": 113.697150896,
+       "exit_time": "2026-10-25 07:45:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.7486032324,
+       "sl": 113.697150896,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        115.9429605931
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 5,
+       "entry": 113.1376955226,
+       "entry_time": "2026-10-25 08:00:00",
+       "exit_price": 114.0509283567,
+       "exit_time": "2026-10-25 09:15:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.9132328341,
+       "sl": 114.0509283567,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        111.3112298545
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 6,
+       "entry": 114.3922789986,
+       "entry_time": "2026-10-25 11:00:00",
+       "exit_price": 114.858235144,
+       "exit_time": "2026-10-25 12:30:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.4659561454,
+       "sl": 114.858235144,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        113.4603667077
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 4,
+       "entry": 114.5384516063,
+       "entry_time": "2026-10-25 13:30:00",
+       "exit_price": 114.9828696634,
+       "exit_time": "2026-10-25 14:30:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.4444180571,
+       "sl": 114.9828696634,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        113.6496154922
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 6,
+       "entry": 115.9327071207,
+       "entry_time": "2026-10-25 14:45:00",
+       "exit_price": 117.6766975581,
+       "exit_time": "2026-10-25 16:15:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 2.0,
+       "risk": 0.8719952187,
+       "sl": 115.0607119019,
+       "status": "TP1_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        117.6766975581
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 1,
+       "entry": 117.4707679556,
+       "entry_time": "2026-10-25 16:30:00",
+       "exit_price": 116.9269031153,
+       "exit_time": "2026-10-25 16:45:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.5438648402,
+       "sl": 116.9269031153,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        118.5584976361
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 2,
+       "entry": 116.3452642412,
+       "entry_time": "2026-10-25 17:00:00",
+       "exit_price": 117.0087099397,
+       "exit_time": "2026-10-25 17:30:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.6634456984,
+       "sl": 117.0087099397,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        115.0183728443
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 4,
+       "entry": 118.8088388349,
+       "entry_time": "2026-10-26 07:00:00",
+       "exit_price": 119.6379334429,
+       "exit_time": "2026-10-26 08:00:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.829094608,
+       "sl": 119.6379334429,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        117.1506496188
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 2,
+       "entry": 118.8545322043,
+       "entry_time": "2026-10-26 08:30:00",
+       "exit_price": 119.6946105636,
+       "exit_time": "2026-10-26 09:00:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.8400783593,
+       "sl": 119.6946105636,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        117.1743754857
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 1,
+       "entry": 120.0852380982,
+       "entry_time": "2026-10-26 09:30:00",
+       "exit_price": 120.6612532513,
+       "exit_time": "2026-10-26 09:45:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.5760151531,
+       "sl": 120.6612532513,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        118.9332077919
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 14,
+       "entry": 119.5008373446,
+       "entry_time": "2026-10-26 10:00:00",
+       "exit_price": 120.8024045537,
+       "exit_time": "2026-10-26 13:30:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 1.301567209,
+       "sl": 120.8024045537,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        116.8977029265
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 9,
+       "entry": 121.284172064,
+       "entry_time": "2026-10-26 14:00:00",
+       "exit_price": 120.7126598929,
+       "exit_time": "2026-10-26 16:15:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.5715121711,
+       "sl": 120.7126598929,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        122.4271964062
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 2,
+       "entry": 121.825746692,
+       "entry_time": "2026-10-26 16:30:00",
+       "exit_price": 121.2764071062,
+       "exit_time": "2026-10-26 17:00:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.5493395858,
+       "sl": 121.2764071062,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        122.9244258636
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 20,
+       "entry": 119.68389474,
+       "entry_time": "2026-10-26 17:30:00",
+       "exit_price": 117.9758931127,
+       "exit_time": "2026-10-26 22:30:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 2.0,
+       "risk": 0.8540008137,
+       "sl": 120.5378955537,
+       "status": "TP1_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        117.9758931127
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 9,
+       "entry": 120.1826299239,
+       "entry_time": "2026-10-27 07:15:00",
+       "exit_price": 122.0440280316,
+       "exit_time": "2026-10-27 09:30:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 2.0,
+       "risk": 0.9306990539,
+       "sl": 119.2519308701,
+       "status": "TP1_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        122.0440280316
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 5,
+       "entry": 122.3334403974,
+       "entry_time": "2026-10-27 09:45:00",
+       "exit_price": 123.5310076432,
+       "exit_time": "2026-10-27 11:00:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 2.0,
+       "risk": 0.5987836229,
+       "sl": 121.7346567744,
+       "status": "TP1_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        123.5310076432
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 2,
+       "entry": 123.4488689837,
+       "entry_time": "2026-10-27 11:30:00",
+       "exit_price": 123.8194897607,
+       "exit_time": "2026-10-27 12:00:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.370620777,
+       "sl": 123.8194897607,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        122.7076274297
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 3,
+       "entry": 124.7837713364,
+       "entry_time": "2026-10-27 13:00:00",
+       "exit_price": 125.3244813839,
+       "exit_time": "2026-10-27 13:45:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.5407100475,
+       "sl": 125.3244813839,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        123.7023512414
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 1,
+       "entry": 125.0228130273,
+       "entry_time": "2026-10-27 14:15:00",
+       "exit_price": 126.1623551476,
+       "exit_time": "2026-10-27 14:30:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 1.1395421203,
+       "sl": 126.1623551476,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        122.7437287867
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 7,
+       "entry": 126.4497448452,
+       "entry_time": "2026-10-27 15:15:00",
+       "exit_price": 126.9613865118,
+       "exit_time": "2026-10-27 17:00:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.5116416666,
+       "sl": 126.9613865118,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        125.426461512
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 4,
+       "entry": 127.7394323801,
+       "entry_time": "2026-10-27 17:30:00",
+       "exit_price": 129.8093158772,
+       "exit_time": "2026-10-27 18:30:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 2.0,
+       "risk": 1.0349417486,
+       "sl": 126.7044906315,
+       "status": "TP1_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        129.8093158772
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 8,
+       "entry": 138.3686893507,
+       "entry_time": "2026-10-28 07:00:00",
+       "exit_price": 135.6388784675,
+       "exit_time": "2026-10-28 09:00:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 2.0,
+       "risk": 1.3649054416,
+       "sl": 139.7335947923,
+       "status": "TP1_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        135.6388784675
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 10,
+       "entry": 137.1839234978,
+       "entry_time": "2026-10-28 09:30:00",
+       "exit_price": 135.6777200709,
+       "exit_time": "2026-10-28 12:00:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 1.5062034269,
+       "sl": 135.6777200709,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        140.1963303516
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 31,
+       "entry": 134.3370869905,
+       "entry_time": "2026-10-28 13:15:00",
+       "exit_price": 135.9221375258,
+       "exit_time": "2026-10-28 21:00:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 1.5850505353,
+       "sl": 135.9221375258,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        131.16698592
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 7,
+       "entry": 134.5910359652,
+       "entry_time": "2026-10-29 07:15:00",
+       "exit_price": 137.1208589558,
+       "exit_time": "2026-10-29 09:00:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 2.0,
+       "risk": 1.2649114953,
+       "sl": 133.3261244698,
+       "status": "TP1_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        137.1208589558
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 4,
+       "entry": 137.0775884106,
+       "entry_time": "2026-10-29 09:30:00",
+       "exit_price": 137.8205425756,
+       "exit_time": "2026-10-29 10:30:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.7429541649,
+       "sl": 137.8205425756,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        135.5916800808
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 1,
+       "entry": 137.9546966515,
+       "entry_time": "2026-10-29 10:45:00",
+       "exit_price": 137.03205339,
+       "exit_time": "2026-10-29 11:00:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.9226432615,
+       "sl": 137.03205339,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        139.7999831745
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 7,
+       "entry": 135.3659818447,
+       "entry_time": "2026-10-29 11:45:00",
+       "exit_price": 136.4236957174,
+       "exit_time": "2026-10-29 13:30:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 1.0577138727,
+       "sl": 136.4236957174,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        133.2505540992
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 2,
+       "entry": 135.9208026189,
+       "entry_time": "2026-10-29 14:15:00",
+       "exit_price": 134.5070942213,
+       "exit_time": "2026-10-29 14:45:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 2.0,
+       "risk": 0.7068541988,
+       "sl": 136.6276568177,
+       "status": "TP1_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        134.5070942213
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 4,
+       "entry": 134.4203297309,
+       "entry_time": "2026-10-29 16:00:00",
+       "exit_price": 135.6319072601,
+       "exit_time": "2026-10-29 17:00:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 2.0,
+       "risk": 0.6057887646,
+       "sl": 133.8145409663,
+       "status": "TP1_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        135.6319072601
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 2,
+       "entry": 136.5346398115,
+       "entry_time": "2026-10-29 17:15:00",
+       "exit_price": 135.6341265299,
+       "exit_time": "2026-10-29 17:45:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.9005132816,
+       "sl": 135.6341265299,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        138.3356663747
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 2,
+       "entry": 134.9015261983,
+       "entry_time": "2026-10-30 07:30:00",
+       "exit_price": 135.9685741235,
+       "exit_time": "2026-10-30 08:00:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 2.0,
+       "risk": 0.5335239626,
+       "sl": 134.3680022358,
+       "status": "TP1_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        135.9685741235
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 1,
+       "entry": 136.6871420757,
+       "entry_time": "2026-10-30 08:45:00",
+       "exit_price": 136.2375310527,
+       "exit_time": "2026-10-30 09:00:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.4496110231,
+       "sl": 136.2375310527,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        137.5863641219
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 1,
+       "entry": 136.6284554939,
+       "entry_time": "2026-10-30 09:30:00",
+       "exit_price": 137.4512784762,
+       "exit_time": "2026-10-30 09:45:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 2.0,
+       "risk": 0.4114114912,
+       "sl": 136.2170440027,
+       "status": "TP1_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        137.4512784762
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 26,
+       "entry": 135.736077558,
+       "entry_time": "2026-10-30 10:45:00",
+       "exit_price": 133.096456751,
+       "exit_time": "2026-10-30 17:15:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 2.0,
+       "risk": 1.3198104035,
+       "sl": 137.0558879615,
+       "status": "TP1_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        133.096456751
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 17,
+       "entry": 131.9230914102,
+       "entry_time": "2026-10-30 17:30:00",
+       "exit_price": 133.3549247742,
+       "exit_time": "2026-10-30 21:45:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 1.431833364,
+       "sl": 133.3549247742,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        129.0594246821
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 1,
+       "entry": 139.2193723712,
+       "entry_time": "2026-10-31 07:00:00",
+       "exit_price": 140.3140309518,
+       "exit_time": "2026-10-31 07:15:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 1.0946585806,
+       "sl": 140.3140309518,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        137.03005521
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 4,
+       "entry": 140.7087362695,
+       "entry_time": "2026-10-31 08:15:00",
+       "exit_price": 142.5433763027,
+       "exit_time": "2026-10-31 09:15:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 2.0,
+       "risk": 0.9173200166,
+       "sl": 139.7914162529,
+       "status": "TP1_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        142.5433763027
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 5,
+       "entry": 140.3142755471,
+       "entry_time": "2026-10-31 09:45:00",
+       "exit_price": 141.6319667768,
+       "exit_time": "2026-10-31 11:00:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 1.3176912297,
+       "sl": 141.6319667768,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        137.6788930877
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 11,
+       "entry": 140.8081226912,
+       "entry_time": "2026-10-31 11:15:00",
+       "exit_price": 138.1632040163,
+       "exit_time": "2026-10-31 14:00:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 2.0,
+       "risk": 1.3224593374,
+       "sl": 142.1305820286,
+       "status": "TP1_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        138.1632040163
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 15,
+       "entry": 139.3975873423,
+       "entry_time": "2026-10-31 14:15:00",
+       "exit_price": 137.8086930636,
+       "exit_time": "2026-10-31 18:00:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 1.5888942787,
+       "sl": 137.8086930636,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        142.5753758996
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 13,
+       "entry": 137.0848412306,
+       "entry_time": "2026-11-01 07:15:00",
+       "exit_price": 134.8341912186,
+       "exit_time": "2026-11-01 10:30:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 2.0,
+       "risk": 1.125325006,
+       "sl": 138.2101662366,
+       "status": "TP1_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        134.8341912186
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 2,
+       "entry": 135.6226450477,
+       "entry_time": "2026-11-01 10:45:00",
+       "exit_price": 134.5504616503,
+       "exit_time": "2026-11-01 11:15:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 1.0721833974,
+       "sl": 134.5504616503,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        137.7670118426
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 6,
+       "entry": 134.9329841115,
+       "entry_time": "2026-11-01 11:30:00",
+       "exit_price": 133.9858718406,
+       "exit_time": "2026-11-01 13:00:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.9471122709,
+       "sl": 133.9858718406,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        136.8272086533
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 2,
+       "entry": 133.4965876581,
+       "entry_time": "2026-11-01 13:15:00",
+       "exit_price": 132.0878190869,
+       "exit_time": "2026-11-01 13:45:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 2.0,
+       "risk": 0.7043842856,
+       "sl": 134.2009719437,
+       "status": "TP1_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        132.0878190869
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 7,
+       "entry": 131.0241255537,
+       "entry_time": "2026-11-01 14:15:00",
+       "exit_price": 129.0593366775,
+       "exit_time": "2026-11-01 16:00:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 2.0,
+       "risk": 0.9823944381,
+       "sl": 132.0065199918,
+       "status": "TP1_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        129.0593366775
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 9,
+       "entry": 128.5969782116,
+       "entry_time": "2026-11-01 16:30:00",
+       "exit_price": 126.4727578449,
+       "exit_time": "2026-11-01 18:45:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 2.0,
+       "risk": 1.0621101834,
+       "sl": 129.659088395,
+       "status": "TP1_HIT",
+       "strategy_id": "strategy_pullback_trend",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        126.4727578449
+       ]
+      }
+     ],
      "detect_0": null,
      "detect_25": null,
      "detect_60": null

@@ -10,7 +10,7 @@ from .deps import get_user_id
 
 router = APIRouter(prefix="/strategies", tags=["strategies"])
 
-ENTRY_TFS = ("15M", "1H", "4H", "1D")
+ENTRY_TFS = ("5M", "15M", "1H", "4H", "1D")   # 5M: the owner's MRMS scalper (2026-11-02)
 
 
 def allowed_entry_tfs(strat) -> list:
@@ -41,7 +41,12 @@ def list_strategies(user_id: str = Depends(get_user_id)):
                     "lifecycle": vc.lifecycle_of(sid),
                     "active_params": vc.active_params(sid),
                     "experiment_variables": strat.experiment_variables,
-                    "default_entry_tf": getattr(strat, "entry_tf", None) or None,
+                    # adapter entry_tf wins; a single-timeframe strategy
+                    # defaults to its own timeframe (the 5M scalper)
+                    "default_entry_tf": (getattr(strat, "entry_tf", None)
+                                         or (strat.timeframes[0] if len(
+                                             getattr(strat, "timeframes", []) or []) == 1
+                                             else None)),
                     "allowed_entry_tfs": allowed_entry_tfs(strat)})
     return {"strategies": out}
 

@@ -43,6 +43,17 @@ LIFECYCLE = {
 }
 
 
+# Owner's three strategies (2026-11-02) - registered LIVE per the
+# implementation note ("use the existing Universal trade manager ladder
+# for all three"). The owner's master gates still apply on top: kill
+# switch, allowed markets, session/news guards, the $50 risk rule.
+LIFECYCLE.update({
+    "strategy_mrms_scalper": "LIVE",
+    "strategy_pullback_trend": "LIVE",
+    "strategy_liquidity_sweep": "LIVE",
+})
+
+
 def lifecycle_of(strategy_id: str) -> str:
     return LIFECYCLE.get(strategy_id or "", "LIVE")
 
@@ -124,6 +135,11 @@ def _ensure_single_strategy_doc(store, sid: str, strategy) -> None:
                        or ("PAUSED" if sid in START_PAUSED else "ACTIVE")),
                       # ACTIVE | PAUSED | DISABLED
             "active_version": strategy.version,
+            # a single-timeframe strategy scans on ITS timeframe (e.g. the
+            # 5M scalper) regardless of the user's scan list - the scan
+            # fetches this frame and hands the strategy the right bars
+            **({"entry_timeframe": strategy.timeframes[0]}
+               if len(getattr(strategy, "timeframes", []) or []) == 1 else {}),
         }, doc_id=sid)
     vid = f"{sid}-v{strategy.version}"
     version_row = (store.list("strategy_versions", filters={"id": vid}, limit=1) or [None])[0]

@@ -1,27 +1,25 @@
-"""OWNER WIPE (2026-10-10): every strategy removed at the owner's explicit
-request - "clear all the strategies in the system, those sleeping and those
-live, don't leave a single strategy there."
+"""Registry contract: OWNER WIPE 2 (2026-11-02) emptied the registry; the
+same day the owner supplied THREE new strategies (MRMS Scalper, Pullback in
+Trend, Liquidity Sweep) which are now the only registered strategies.
 
-Guarantees after the wipe:
-  * the registry is empty -> nothing is scanned, no signal can be created,
-    nothing can trade (market open = silence until the owner adds strategies)
+Guarantees:
+  * the registry holds exactly the owner's three - nothing else scans
   * boot purges every strategies/ + strategy_versions/ + version_events/
-    doc whose id is not registered (all of them) - on Local AND Supabase
-  * the Strategies API returns zero strategies
+    doc whose id is not registered - on Local AND Supabase
+  * the Strategies API returns exactly the owner's three
   * OLD signal history still renders (name fallback, journal loops, market
-    cards, chat) - history is preserved, only strategies are gone
+    cards, chat) - history is preserved
 """
 from fastapi.testclient import TestClient
 
 
-def test_registry_is_empty_after_owner_wipe_2():
-    """OWNER WIPE 2 (2026-11-02): the owner ordered every strategy removed
-    (old and new) and will supply new specifications. The registry is
-    intentionally EMPTY - nothing scans, nothing trades - until the owner's
-    new strategies are registered."""
+def test_registry_has_exactly_the_owner_three():
+    """OWNER WIPE 2 then the owner's three new strategies (2026-11-02)."""
     from app.strategies import all_strategies, STRATEGY_CLASSES
-    assert set(STRATEGY_CLASSES) == set()
-    assert set(all_strategies()) == set()
+    assert set(STRATEGY_CLASSES) == {"strategy_mrms_scalper",
+                                     "strategy_pullback_trend",
+                                     "strategy_liquidity_sweep"}
+    assert set(all_strategies()) == set(STRATEGY_CLASSES)
 
 
 def test_boot_purges_all_strategy_docs(tmp_path, monkeypatch):
@@ -42,12 +40,16 @@ def test_boot_purges_all_strategy_docs(tmp_path, monkeypatch):
                      doc_id=f"{sid}-evt")
     monkeypatch.setattr(vc, "get_store", lambda: store)
     vc.ensure_strategy_docs()
-    # OWNER WIPE 2: with an empty registry, EVERY strategy doc is purged
+    # the registered three get docs; everything unregistered is purged
     docs = {d["id"]: d for d in store.list("strategies", limit=1000)}
-    assert set(docs) == set()
-    # and every flavour of version/event doc for unregistered ids is gone
+    assert set(docs) == {"strategy_mrms_scalper", "strategy_pullback_trend",
+                         "strategy_liquidity_sweep"}
+    assert all(d["status"] == "ACTIVE" for d in docs.values())
+    # the 5M scalper scans on ITS timeframe via the doc override
+    assert docs["strategy_mrms_scalper"]["entry_timeframe"] == "5M"
     for sid in ("strategy_trendbreak_v2", "strategy_hybrid_crt_tbs",
-                "strategy_fade_crt_ext"):
+                "strategy_fade_crt_ext", "strategy_1_zero_lag"):
+        assert not store.list("strategies", filters={"id": sid})
         assert not store.list("strategy_versions", filters={"strategy_id": sid})
         assert not store.list("version_events", filters={"strategy_id": sid})
     for sid in ("strategy_1_vp_pivots", "strategy_2_ema_atr",
@@ -57,7 +59,7 @@ def test_boot_purges_all_strategy_docs(tmp_path, monkeypatch):
         assert not store.list("strategy_versions", filters={"strategy_id": sid})
         assert not store.list("version_events", filters={"strategy_id": sid})
     vc.ensure_strategy_docs()          # idempotent - same state, no crash
-    assert len(store.list("strategy_versions", limit=1000)) == 0   # WIPE 2
+    assert len(store.list("strategy_versions", limit=1000)) == 3
 
 
 def test_registered_doc_would_survive_purge(tmp_path, monkeypatch):
@@ -69,13 +71,13 @@ def test_registered_doc_would_survive_purge(tmp_path, monkeypatch):
     store = LocalStore(str(tmp_path / "db.json"))
     store.create("strategies", {"status": "PAUSED"}, doc_id="some_future_strategy")
     monkeypatch.setattr(vc, "get_store", lambda: store)
-    monkeypatch.setattr(reg, "STRATEGY_CLASSES", {"some_future_strategy": object})
+    monkeypatch.setattr(reg, "STRATEGY_CLASSES",
+                        {"some_future_strategy": object})
     try:
         vc.ensure_strategy_docs()
     except Exception:
         pass  # registration details of a dummy class don't matter here
     assert store.list("strategies", filters={"id": "some_future_strategy"})
-    reg.STRATEGY_CLASSES = {}
 
 
 def test_strategies_api_returns_zero():
@@ -90,7 +92,9 @@ def test_strategies_api_returns_zero():
             r = c.get("/api/strategies")
             assert r.status_code == 200
             rows = r.json()["strategies"]
-            assert {x["id"] for x in rows} == set()   # OWNER WIPE 2
+            assert {x["id"] for x in rows} == {
+                "strategy_mrms_scalper", "strategy_pullback_trend",
+                "strategy_liquidity_sweep"}
     finally:
         # never leak the override into other test files (full-suite isolation)
         app.dependency_overrides.pop(get_user_id, None)

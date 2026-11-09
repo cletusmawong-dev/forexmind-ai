@@ -509,25 +509,23 @@ def test_manager_no_data_is_safe(_capturing):
 # ===========================================================================
 # registration
 # ===========================================================================
-def test_registry_six_strategies_v2_active():
+def test_v2_unregistered_after_wipe2():
+    """OWNER WIPE 2: TrendBreak v2 is unregistered (module kept for
+    history); the registry is the owner's three."""
     import app.strategies as reg
-    from app.learning.versions import START_PAUSED, lifecycle_of
     from app.strategies.research_only.live import TrendBreakV2Strategy
-    assert reg.STRATEGY_CLASSES["strategy_trendbreak_v2"] is TrendBreakV2Strategy
-    assert len(reg.STRATEGY_CLASSES) == 8
-    assert "strategy_trendbreak_v2" not in START_PAUSED
-    assert lifecycle_of("strategy_trendbreak_v2") == "LIVE"
+    assert "strategy_trendbreak_v2" not in reg.STRATEGY_CLASSES
+    assert TrendBreakV2Strategy.id == "strategy_trendbreak_v2"
+    assert len(reg.STRATEGY_CLASSES) == 3
 
-
-def test_v2_boot_doc_created_active(fresh_store, monkeypatch):
+def test_v2_boot_doc_is_purged(tmp_path, monkeypatch):
+    from app.db.store import LocalStore
     from app.learning import versions as vc
-    monkeypatch.setattr(vc, "get_store", lambda: fresh_store)
-    vc.LIFECYCLE.pop("strategy_trendbreak_v2", None)
+    store = LocalStore(str(tmp_path / "db.json"))
+    store.create("strategies", {"status": "ACTIVE"}, doc_id="strategy_trendbreak_v2")
+    monkeypatch.setattr(vc, "get_store", lambda: store)
     vc.ensure_strategy_docs()
-    docs = {d["id"]: d for d in fresh_store.list("strategies", limit=1000)}
-    assert "strategy_trendbreak_v2" in docs
-    assert docs["strategy_trendbreak_v2"]["status"] == "ACTIVE"
-
+    assert not store.list("strategies", filters={"id": "strategy_trendbreak_v2"})
 
 def test_spec_untouched_by_tests():
     """The engine's SPEC still carries the owner's tested numbers."""

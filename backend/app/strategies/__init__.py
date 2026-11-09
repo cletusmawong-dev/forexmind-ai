@@ -26,14 +26,22 @@ from .base import BaseStrategy, Candidate
 # only registered strategies. Per the specs' own rule 7 the docs are created
 # PAUSED (see learning.versions.START_PAUSED) - activation is an explicit
 # owner step after tests, historical validation and forward demo testing.
-# OWNER WIPE 2 (2026-11-02): the owner ordered every strategy removed -
-# old and new - and will supply brand-new specifications. The registry is
-# INTENTIONALLY EMPTY: nothing is scanned, nothing generates signals,
-# nothing can trade. Strategy modules remain in the repo UNREGISTERED for
-# history (same doctrine as the 2026-10-10 wipe); ensure_strategy_docs()
-# purges their database docs on every boot. Adding a new strategy = its
-# module + one registry entry here (see strategies/versions/README.md).
-STRATEGY_CLASSES: Dict[str, Type[BaseStrategy]] = {}
+# OWNER WIPE 2 (2026-11-02), then the owner supplied THREE new strategies
+# with an implementation note (same day) - registered exactly as delivered:
+#   strategy_mrms_scalper   (MRMS Scalper, 5M mean-reversion, ~1.35R)
+#   strategy_pullback_trend (H1 bias + 15M pullback rejection, 1:2)
+#   strategy_liquidity_sweep (sweep + rejection, 1:2)
+# All three are managed post-entry by the Universal ladder (note: no
+# strategy-owned management plan). Rules are the owner's files, unmodified.
+from .strategy_mrms_scalper import MRMSScalper
+from .strategy_pullback_trend import PullbackInTrend
+from .strategy_liquidity_sweep import LiquiditySweep
+
+STRATEGY_CLASSES: Dict[str, Type[BaseStrategy]] = {
+    MRMSScalper.id: MRMSScalper,
+    PullbackInTrend.id: PullbackInTrend,
+    LiquiditySweep.id: LiquiditySweep,
+}
 
 _INSTANCES: Dict[str, BaseStrategy] = {}
 

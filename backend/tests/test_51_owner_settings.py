@@ -158,38 +158,28 @@ def test_full_volume_exit_completes_and_announces(env, monkeypatch, tmp_path):
 # ===========================================================================
 def test_entry_timeframe_patch_validation_and_metadata(env):
     c, store, monkeypatch = env
-    r = c.patch("/api/strategies/strategy_zonesweep_m15",
+    # the scalper declares only 5M - anything else is refused
+    r = c.patch("/api/strategies/strategy_mrms_scalper",
                 json={"entry_timeframe": "1H"})
-    assert r.status_code == 200
-    assert r.json()["strategy"]["entry_timeframe"] == "1H"
-    # 30M is not a platform entry timeframe
-    r = c.patch("/api/strategies/strategy_zonesweep_m15",
-                json={"entry_timeframe": "30M"})
     assert r.status_code == 422
-    # gold_orb declares its own spec timeframes - outside them is refused
+    r = c.patch("/api/strategies/strategy_mrms_scalper",
+                json={"entry_timeframe": "5M"})
+    assert r.status_code == 200
+    assert r.json()["strategy"]["entry_timeframe"] == "5M"
     r = c.get("/api/strategies")
     rows = {x["id"]: x for x in r.json()["strategies"]}
-    assert rows["strategy_zonesweep_m15"]["default_entry_tf"] == "15M"
-    assert "1H" in rows["strategy_zonesweep_m15"]["allowed_entry_tfs"]
-    gold = rows["strategy_gold_orb"]
-    assert gold["allowed_entry_tfs"] == [t for t in ("15M", "1H", "4H", "1D")
-                                         if t in gold["allowed_entry_tfs"]]
-    # back to the strategy default
-    r = c.patch("/api/strategies/strategy_zonesweep_m15",
-                json={"entry_timeframe": None})
-    assert r.status_code == 200
-    assert r.json()["strategy"]["entry_timeframe"] is None
-
+    assert rows["strategy_mrms_scalper"]["default_entry_tf"] == "5M"
+    assert rows["strategy_mrms_scalper"]["allowed_entry_tfs"] == ["5M"]
+    assert rows["strategy_pullback_trend"]["default_entry_tf"] == "15M"
 
 def test_scan_fetches_and_threads_the_configured_timeframe(env):
+    """The 5M scalper's doc override: a 15M scan fetches a 5M frame and
+    hands the strategy the right bars (params entry_tf threaded)."""
     c, store, monkeypatch = env
     import pandas as pd
-    store.create("strategies", {"id": "strategy_zonesweep_m15",
-                                "status": "ACTIVE",
-                                "entry_timeframe": "1H"})
-    idx = pd.date_range("2026-10-01", periods=400, freq="15min")
+    idx = pd.date_range(end="2026-11-03 09:55", periods=600, freq="5min")
     df = pd.DataFrame({"open": 1.1, "high": 1.1, "low": 1.1, "close": 1.1,
-                       "volume": 10}, index=idx)
+                       "volume": 100}, index=idx)
 
     class FakeProvider:
         def get_candles(self, market, tf, limit=600):
@@ -200,32 +190,32 @@ def test_scan_fetches_and_threads_the_configured_timeframe(env):
 
     from app.engine.signal_engine import SignalEngine
     import app.strategies as reg
-    zs = reg.all_strategies()["strategy_zonesweep_m15"]
+    ms = reg.all_strategies()["strategy_mrms_scalper"]
     captured = []
-    orig = zs.detect_signal
+    orig = ms.detect_signal
 
     def spy(df, market, tf, params=None, higher_frames=None, score_context=None):
         captured.append({"tf": tf, "entry_tf": (params or {}).get("entry_tf"),
                          "bars": len(df)})
         return None
 
-    zs.detect_signal = spy
+    ms.detect_signal = spy
     try:
         eng = SignalEngine(FakeProvider())
         eng.scan("boss", "EURUSD", "15M")
     finally:
-        zs.detect_signal = orig
-    assert captured, "zonesweep was not scanned at all"
-    calls = [x for x in captured if x["entry_tf"] == "1H"]
-    assert calls and calls[0]["tf"] == "1H" and calls[0]["bars"] == 400
-
+        ms.detect_signal = orig
+    assert captured, "the scalper must be scanned"
+    assert captured[-1]["tf"] == "5M"          # doc override fetched 5M bars
+    assert captured[-1]["entry_tf"] == "5M"
+    assert captured[-1]["bars"] == 600
 
 def test_scan_without_override_keeps_the_scan_timeframe(env):
     c, store, monkeypatch = env
     import pandas as pd
-    idx = pd.date_range("2026-10-01", periods=400, freq="15min")
+    idx = pd.date_range(end="2026-11-03 09:45", periods=400, freq="15min")
     df = pd.DataFrame({"open": 1.1, "high": 1.1, "low": 1.1, "close": 1.1,
-                       "volume": 10}, index=idx)
+                       "volume": 100}, index=idx)
 
     class FakeProvider:
         def get_candles(self, market, tf, limit=600):
@@ -236,16 +226,15 @@ def test_scan_without_override_keeps_the_scan_timeframe(env):
 
     from app.engine.signal_engine import SignalEngine
     import app.strategies as reg
-    zs = reg.all_strategies()["strategy_zonesweep_m15"]
+    pbt = reg.all_strategies()["strategy_pullback_trend"]   # 15M == scan tf
     tfs = []
-    orig = zs.detect_signal
-    zs.detect_signal = lambda df, m, tf, **kw: (tfs.append(tf), None)[1]
+    orig = pbt.detect_signal
+    pbt.detect_signal = lambda df, m, tf, **kw: (tfs.append(tf), None)[1]
     try:
         SignalEngine(FakeProvider()).scan("boss", "EURUSD", "15M")
     finally:
-        zs.detect_signal = orig
-    assert tfs and all(t == "15M" for t in tfs)
-
+        pbt.detect_signal = orig
+    assert tfs == ["15M"]     # no override fetch - the scan tf is used as-is
 
 def test_candidate_carries_the_effective_timeframe():
     """The pinstripe bridge honours params['entry_tf'] for frame resolution
@@ -340,15 +329,17 @@ def test_personal_account_uses_its_own_limit(env):
 # ===========================================================================
 def test_execution_mode_patch_roundtrip(env):
     c, store, monkeypatch = env
-    r = c.patch("/api/strategies/strategy_gold_orb", json={"execution": "record_only"})
+    r = c.patch("/api/strategies/strategy_mrms_scalper",
+                json={"execution": "record_only"})
     assert r.status_code == 200, r.text
     assert r.json()["strategy"]["execution"] == "record_only"
-    r = c.patch("/api/strategies/strategy_gold_orb", json={"execution": None})
+    r = c.patch("/api/strategies/strategy_mrms_scalper",
+                json={"execution": None})
     assert r.status_code == 200
     assert r.json()["strategy"]["execution"] is None      # None = live
-    r = c.patch("/api/strategies/strategy_gold_orb", json={"execution": "yolo"})
+    r = c.patch("/api/strategies/strategy_mrms_scalper",
+                json={"execution": "yolo"})
     assert r.status_code == 422
-
 
 def test_record_only_strategy_signals_are_recorded_not_executed(env):
     """The owner's research pipeline: signals are created + tracked, but the
