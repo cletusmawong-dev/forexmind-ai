@@ -4,7 +4,7 @@
  *  fields only - never fabricated numbers.
  */
 import { useState } from "react";
-import { Newspaper, Sparkles, RefreshCw } from "lucide-react";
+import { Newspaper, RefreshCw } from "lucide-react";
 import { api } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
 import { Eyebrow, Glass, PageHeader } from "../components/ui";
@@ -61,7 +61,7 @@ export function NewsScreen() {
                 </div>
                 <button onClick={() => explain(ev)}
                   className="btn-ghost flex shrink-0 items-center gap-1.5 !px-3 !py-2 text-[11px]">
-                  <Sparkles size={12} /> {busy === key ? "…" : "Explain"}
+                  {busy === key ? "…" : "Explain"}
                 </button>
               </div>
               {ev.affected_markets.length > 0 && (

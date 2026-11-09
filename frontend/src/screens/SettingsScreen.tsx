@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Sparkles, Send } from "lucide-react";
+import { Check, Send } from "lucide-react";
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
 import { BtnSpinner, DemoTag, Divider, Eyebrow, Glass, GlowDot, Pill, Segmented, SkeletonList, Spinner } from "../components/ui";
@@ -297,7 +297,7 @@ export function SettingsScreen() {
           <Field label="Weekly %" value={weekly} onChange={setWeekly} />
         </div>
         <button className="btn-primary mt-5 flex w-full items-center justify-center gap-2" disabled={savingGoals} onClick={saveGoals}>
-          {savingGoals ? <BtnSpinner /> : <Sparkles size={14} />} {savingGoals ? "Saving..." : "Save objective"}
+          {savingGoals ? <BtnSpinner /> : <Check size={16} strokeWidth={1.75} />} {savingGoals ? "Saving..." : "Save objective"}
         </button>
       </Glass>
 
@@ -580,7 +580,7 @@ export function SettingsScreen() {
           </>
         )}
         <button className="btn-primary mt-5 flex w-full items-center justify-center gap-2" disabled={savingRisk} onClick={saveRisk}>
-          {savingRisk ? <BtnSpinner /> : <Sparkles size={14} />} {savingRisk ? "Saving..." : "Save settings"}
+          {savingRisk ? <BtnSpinner /> : <Check size={16} strokeWidth={1.75} />} {savingRisk ? "Saving..." : "Save settings"}
         </button>
       </Glass>
 

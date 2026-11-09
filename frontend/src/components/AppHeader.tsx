@@ -64,7 +64,7 @@ export function AppHeader() {
           >
             <Bell size={16} strokeWidth={onNotifications ? 2.2 : 1.8} />
             {unread > 0 && (
-              <span className="absolute -right-1 -top-1 flex h-[15px] min-w-[15px] items-center justify-center rounded-full border-[1.5px] border-white bg-[var(--accent-red)] px-0.5 text-[8px] font-bold text-white">
+              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--accent-red)] px-1 text-[11px] font-medium leading-none text-white">
                 {unread > 99 ? "99+" : unread}
               </span>
             )}

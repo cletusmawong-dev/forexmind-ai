@@ -156,7 +156,7 @@ export type PillTone = keyof typeof pillTones;
 
 export function Pill({ tone = "neutral", children, className = "", style }: { tone?: PillTone; children: React.ReactNode; className?: string; style?: React.CSSProperties }) {
   return (
-    <span style={style} className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-semibold tracking-wide ${pillTones[tone]} ${className}`}>
+    <span style={style} className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium tracking-normal ${pillTones[tone]} ${className}`}>
       {children}
     </span>
   );
@@ -182,7 +182,7 @@ export function DemoTag() {
     return (
       <Pill tone="neutral" className="!px-3 !py-1.5 whitespace-nowrap">
         <span className="h-1.5 w-1.5 rounded-full bg-[var(--text-faint)]" />
-        <span className="hidden min-[420px]:inline">CONNECTING...</span>
+        <span className="hidden min-[420px]:inline">Connecting</span>
         <span className="min-[420px]:hidden">...</span>
       </Pill>
     );
@@ -190,19 +190,15 @@ export function DemoTag() {
   if (live) {
     return (
       <Pill tone="green" className="!px-3 !py-1.5 whitespace-nowrap">
-        <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-green)] anim-pulse" style={{ boxShadow: "0 0 8px rgba(var(--p-rgb),0.9)" }} />
-        LIVE<span className="hidden min-[420px]:inline"> - REAL-TIME</span>
+        <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-green)]" />
+        Live
       </Pill>
     );
   }
   return (
-    <Pill tone="amber" className="!px-3 !py-1.5 whitespace-nowrap" style={{
-      background: "linear-gradient(115deg, rgba(var(--amber-rgb),0.2), rgba(217,79,184,0.14))",
-      borderColor: "rgba(var(--amber-rgb),0.5)",
-      boxShadow: "0 0 18px rgba(var(--amber-rgb),0.28), inset 0 1px 0 rgba(255,255,255,0.25)",
-    }}>
-      <Crown size={11} className="text-[var(--accent-gold)]" />
-      DEMO - HISTORICAL
+    <Pill tone="amber" className="!px-3 !py-1.5 whitespace-nowrap">
+      <Crown size={12} strokeWidth={1.75} />
+      Demo · historical
     </Pill>
   );
 }

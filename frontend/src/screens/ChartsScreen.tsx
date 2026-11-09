@@ -14,7 +14,7 @@ import {
   createChart, ColorType, CrosshairMode, LineStyle,
   type IChartApi, type ISeriesApi, type CandlestickData, type IPriceLine,
 } from "lightweight-charts";
-import { Sparkles, ShieldQuestion, RefreshCw } from "lucide-react";
+import { MessageSquare, ShieldQuestion, RefreshCw } from "lucide-react";
 import { api, endpoints } from "../lib/api";
 import { Eyebrow, Glass } from "../components/ui";
 
@@ -250,8 +250,8 @@ export function ChartsScreen() {
               {tf} · {candles.length || 0} bars
             </div>
           </div>
-          <span className="flex shrink-0 items-center gap-1.5 rounded-full border border-[rgba(18,160,92,0.3)] bg-[rgba(18,160,92,0.08)] px-2.5 py-1 text-[10px] font-bold text-[var(--accent-green)]">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--accent-green)]" /> LIVE
+          <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-[rgba(31,191,117,0.12)] px-2.5 py-1 text-[12px] font-medium text-[var(--accent-green)]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-green)]" /> Live
           </span>
         </div>
         <div className="mt-2 flex items-end justify-between gap-3">
@@ -342,7 +342,7 @@ export function ChartsScreen() {
         </button>
         <Link to={`/agent?symbol=${symbol}&tf=${tf}`}
           className="btn-primary flex items-center justify-center gap-2 !py-3 text-[12px]">
-          <Sparkles size={14} /> Ask AI about this chart
+          <MessageSquare size={16} strokeWidth={1.75} /> Ask about this chart
         </Link>
       </div>
       {whynot && whynot !== "…" && (

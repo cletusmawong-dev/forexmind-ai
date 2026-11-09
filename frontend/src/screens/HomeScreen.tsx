@@ -1,8 +1,8 @@
 import { useCallback, useRef, useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  Bell, CandlestickChart, ChevronRight, Cpu, Eye, Shield, ShieldAlert,
-  Target, TrendingUp, TrendingDown, Users, Wallet,
+  Bell, Building, Building2, CandlestickChart, ChevronRight, Cpu, Eye, Landmark, Shield, ShieldAlert,
+  Sun, Target, TrendingUp, TrendingDown, Users, Wallet,
 } from "lucide-react";
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
@@ -51,24 +51,12 @@ const S1_WORD = (s1?: { active?: boolean; direction?: string; outcome?: string }
 const S1_TONE = (s1?: { active?: boolean; direction?: string; outcome?: string }) =>
   s1?.active ? (s1.direction === "SELL" ? "neg" : "pos") : "neutral";
 
-function Skyline({ name, active }: { name: string; active: boolean }) {
-  const fill = active ? "#7dffa8" : "rgba(244,247,251,0.8)";
+function sessionIcon(name: string) {
   const key = name.replace(/\s/g, "");
-  const bars: Record<string, number[]> = {
-    Sydney: [8, 16, 11, 22, 13, 9],
-    Tokyo: [7, 26, 14, 20, 11],
-    London: [12, 18, 28, 16, 10, 14],
-    NewYork: [10, 22, 14, 30, 18, 12],
-  };
-  const hs = bars[key] || [12, 20, 16, 24, 14];
-  return (
-    <svg viewBox="0 0 52 52" className="h-full w-full" aria-hidden="true">
-      <rect width="52" height="52" fill="#101820" />
-      {hs.map((h, i) => (
-        <rect key={i} x={3 + i * (46 / hs.length)} y={42 - h} width={Math.max(4, 46 / hs.length - 2)} height={h + 10} rx="1.2" fill={fill} />
-      ))}
-    </svg>
-  );
+  if (key === "Sydney") return Sun;
+  if (key === "Tokyo") return Building2;
+  if (key === "London") return Landmark;
+  return Building;
 }
 
 function SessionStory({ name, active, hours }: { name: string; active: boolean; hours: number }) {
@@ -90,8 +78,8 @@ function SessionStory({ name, active, hours }: { name: string; active: boolean; 
             transform="rotate(-90 36 36)"
           />
         </svg>
-        <div className="absolute inset-[9px] overflow-hidden rounded-full">
-          <Skyline name={name} active={active} />
+        <div className={`absolute inset-[9px] flex items-center justify-center rounded-full ${active ? "bg-[rgba(31,191,117,0.12)] text-[var(--accent-green)]" : "bg-white/[0.04] text-[var(--text-secondary)]"}`}>
+          {(() => { const Icon = sessionIcon(name); return <Icon size={16} strokeWidth={1.75} />; })()}
         </div>
       </div>
       <div className="mt-2 text-[13px] font-medium">{label}</div>

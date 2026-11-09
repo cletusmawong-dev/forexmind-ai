@@ -35,7 +35,7 @@ export function BottomNav() {
                   fillOpacity={isActive ? 0.18 : 0}
                   className={isActive ? "text-[var(--text-primary)]" : "text-[var(--text-faint)]"}
                 />
-                <span className={`text-[10px] leading-none tracking-tight ${isActive ? "font-semibold text-[var(--text-primary)]" : "font-medium text-[var(--text-faint)]"}`}>
+                <span className={`text-[11px] leading-none tracking-tight ${isActive ? "font-semibold text-[var(--text-primary)]" : "font-medium text-[var(--text-faint)]"}`}>
                   {label}
                 </span>
               </>
