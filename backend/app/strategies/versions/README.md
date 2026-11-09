@@ -37,6 +37,11 @@ Research versions of a strategy live beside it or in this directory as a new
 module (e.g. `ema_9_21_v2_research.py`) and are registered only when the
 owner promotes them.
 
+**New strategies start from the official template:
+`strategies/_template_strategy.py`** — copy it, fill in the identity block
+and the exact rules, register in `__init__.py`, set the state in
+`learning/versions.py`, run the architecture + regression tests.
+
 ## Strategy states (owned by learning/versions.py — never by the modules)
 
 | State    | Meaning                                                        | Executes? |
