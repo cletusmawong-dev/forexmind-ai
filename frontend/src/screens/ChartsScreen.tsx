@@ -245,9 +245,9 @@ export function ChartsScreen() {
       <section className="glass mb-3 !rounded-2xl px-4 py-3.5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="truncate text-[15px] font-extrabold tracking-tight">{symbol}</div>
-            <div className="text-[10.5px] text-[var(--text-muted)]">
-              {tf} candles · {candles.length || 0} bars · live feed
+            <div className="truncate text-[17px] font-semibold tracking-tight">{symbol}</div>
+            <div className="mt-0.5 text-[13px] text-[var(--text-muted)]">
+              {tf} · {candles.length || 0} bars
             </div>
           </div>
           <span className="flex shrink-0 items-center gap-1.5 rounded-full border border-[rgba(18,160,92,0.3)] bg-[rgba(18,160,92,0.08)] px-2.5 py-1 text-[10px] font-bold text-[var(--accent-green)]">
@@ -267,11 +267,11 @@ export function ChartsScreen() {
             )}
           </div>
         </div>
-        <div className="mt-3 grid grid-cols-3 gap-2 border-t border-[var(--glass-border-soft)] pt-2.5 text-center">
+        <div className="mt-4 grid grid-cols-3 gap-2 text-center">
           {[["High", last?.high], ["Low", last?.low], ["Volume", last?.volume]].map(([k, v]) => (
             <div key={k as string}>
-              <div className="text-[9.5px] font-semibold uppercase tracking-[0.1em] text-txt-faint">{k as string}</div>
-              <div className="num mt-0.5 text-[12.5px] font-bold text-[var(--text-secondary)]">
+              <div className="text-[12px] text-[var(--text-muted)]">{k as string}</div>
+              <div className="num mt-0.5 text-[14px] font-medium text-[var(--text-primary)]">
                 {v == null ? "—" : fmt(v as number, k === "Volume" ? 0 : 2)}
               </div>
             </div>

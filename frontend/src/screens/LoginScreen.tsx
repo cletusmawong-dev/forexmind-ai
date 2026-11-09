@@ -58,7 +58,20 @@ export function LoginScreen({ onAuthed }: { onAuthed: () => void }) {
         </p>
       </div>
 
-      <div className="relative mt-auto pt-10">
+      <div className="relative my-2 flex min-h-[180px] flex-1 items-center">
+        <svg viewBox="0 0 360 200" className="h-full w-full" aria-hidden="true">
+          <defs>
+            <linearGradient id="loginFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#4c8dff" stopOpacity="0.32" />
+              <stop offset="100%" stopColor="#4c8dff" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          <path d="M0 130 C50 130 70 48 120 78 C170 108 190 168 240 112 C290 56 320 40 360 72 V200 H0 Z" fill="url(#loginFill)" />
+          <path className="login-trace" d="M0 130 C50 130 70 48 120 78 C170 108 190 168 240 112 C290 56 320 40 360 72" fill="none" stroke="#9ec0ff" strokeWidth="2.25" strokeLinecap="round" />
+        </svg>
+      </div>
+
+      <div className="relative">
         <div className="mb-6 flex gap-6 text-[15px] font-medium">
           {(["login", "register"] as const).map((m) => (
             <button

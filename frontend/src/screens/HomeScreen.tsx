@@ -13,7 +13,7 @@ import {
 } from "../components/ui";
 import { fmtPct, fmtPrice, greeting } from "../lib/format";
 import { MarketFlag } from "../components/MarketFlag";
-import { MiniChart } from "../components/MiniChart";
+import { MiniChart, useSpark } from "../components/MiniChart";
 import { SignalRow } from "../components/SignalRow";
 import { notEnteredReason as notEnteredSignal } from "../lib/execution";
 import { AgentPulse } from "../components/AgentPulse";
@@ -50,6 +50,83 @@ const S1_WORD = (s1?: { active?: boolean; direction?: string; outcome?: string }
 
 const S1_TONE = (s1?: { active?: boolean; direction?: string; outcome?: string }) =>
   s1?.active ? (s1.direction === "SELL" ? "neg" : "pos") : "neutral";
+
+function Skyline({ name, active }: { name: string; active: boolean }) {
+  const fill = active ? "#7dffa8" : "rgba(244,247,251,0.8)";
+  const key = name.replace(/\s/g, "");
+  const bars: Record<string, number[]> = {
+    Sydney: [8, 16, 11, 22, 13, 9],
+    Tokyo: [7, 26, 14, 20, 11],
+    London: [12, 18, 28, 16, 10, 14],
+    NewYork: [10, 22, 14, 30, 18, 12],
+  };
+  const hs = bars[key] || [12, 20, 16, 24, 14];
+  return (
+    <svg viewBox="0 0 52 52" className="h-full w-full" aria-hidden="true">
+      <rect width="52" height="52" fill="#101820" />
+      {hs.map((h, i) => (
+        <rect key={i} x={3 + i * (46 / hs.length)} y={42 - h} width={Math.max(4, 46 / hs.length - 2)} height={h + 10} rx="1.2" fill={fill} />
+      ))}
+    </svg>
+  );
+}
+
+function SessionStory({ name, active, hours }: { name: string; active: boolean; hours: number }) {
+  const pct = active ? 1 : Math.max(0.16, 1 - Math.min(hours, 14) / 14);
+  const r = 28;
+  const circ = 2 * Math.PI * r;
+  const label = name === "NewYork" ? "New York" : name;
+  return (
+    <div className="flex w-[84px] shrink-0 flex-col items-center">
+      <div className="relative h-[72px] w-[72px]">
+        <svg viewBox="0 0 72 72" className="absolute inset-0">
+          <circle cx="36" cy="36" r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="2" />
+          <circle
+            cx="36" cy="36" r={r} fill="none"
+            stroke={active ? "#1fbf75" : "rgba(244,247,251,0.55)"}
+            strokeWidth="2.25"
+            strokeDasharray={`${circ * pct} ${circ}`}
+            strokeLinecap="round"
+            transform="rotate(-90 36 36)"
+          />
+        </svg>
+        <div className="absolute inset-[9px] overflow-hidden rounded-full">
+          <Skyline name={name} active={active} />
+        </div>
+      </div>
+      <div className="mt-2 text-[13px] font-medium">{label}</div>
+      <div className="text-[12px] text-[var(--text-muted)]">{active ? "Open" : `Opens in ${Math.max(1, Math.round(hours))}h`}</div>
+    </div>
+  );
+}
+
+function MarketRow({ row }: { row: { symbol: string; price: number | null; change_pct?: number | null; s1?: { active?: boolean; direction?: string }; s2?: { word?: string; direction?: string } } }) {
+  const { change } = useSpark(row.symbol, 96);
+  const pct = row.change_pct != null ? row.change_pct : change;
+  const up = (pct ?? 0) >= 0;
+  const note = row.s2?.word && row.s2.word !== "NO DATA" && row.s2.word !== "NO SETUP"
+    ? row.s2.word.toLowerCase()
+    : row.s1?.active ? `${row.s1.direction === "SELL" ? "Sell" : "Buy"} live` : null;
+  return (
+    <Link to={`/charts?symbol=${row.symbol}`}
+      className="press flex items-center gap-3 border-b border-white/[0.06] px-4 py-3 active:bg-white/[0.03]">
+      <MarketFlag market={row.symbol} size={40} />
+      <div className="min-w-0 flex-1">
+        <div className="text-[16px] font-semibold tracking-tight">{row.symbol}</div>
+        {note && <div className="truncate text-[12px] text-[var(--text-muted)]">{note}</div>}
+      </div>
+      <div className="w-[72px]">
+        <MiniChart market={row.symbol} width={72} height={32} />
+      </div>
+      <div className="w-[92px] text-right">
+        <div className="num text-[15px] font-medium">{row.price == null ? "" : fmtPrice(row.price, row.symbol)}</div>
+        {pct != null && (
+          <div className={`num text-[13px] font-medium ${up ? "text-pos" : "text-neg"}`}>{fmtPct(pct)}</div>
+        )}
+      </div>
+    </Link>
+  );
+}
 
 export function HomeScreen() {
   const navigate = useNavigate();
@@ -183,13 +260,20 @@ export function HomeScreen() {
                 ? "Objective balance"
                 : "Connect MT5 to see a live balance"}
           </p>
-          <div className="mt-4 flex items-end justify-between gap-4">
-            <MiniChart market="XAUUSD" width={168} height={48} />
-            <div className="text-right text-[12px] leading-relaxed text-[var(--text-muted)]">
-              <div>Open {acct.open_pl != null ? `${Number(acct.open_pl) >= 0 ? "+" : "−"}$${Math.abs(Number(acct.open_pl)).toFixed(0)}` : "—"}</div>
-              <div>Drawdown {acct.drawdown_pct != null ? `${Number(acct.drawdown_pct).toFixed(2)}%` : "0.00%"}</div>
-              <div>{acct.risk_per_trade_pct ?? "—"}% risk</div>
-            </div>
+          <div className="-mx-1 mt-5 h-16">
+            <MiniChart market="XAUUSD" width={360} height={64} fill />
+          </div>
+          <div className="mt-4 grid grid-cols-3 gap-3">
+            {[
+              ["Open", acct.open_pl != null ? `${Number(acct.open_pl) >= 0 ? "+" : "−"}$${Math.abs(Number(acct.open_pl)).toFixed(0)}` : "—"],
+              ["Drawdown", acct.drawdown_pct != null ? `${Number(acct.drawdown_pct).toFixed(2)}%` : "0.00%"],
+              ["Risk", acct.risk_per_trade_pct != null ? `${acct.risk_per_trade_pct}%` : "—"],
+            ].map(([label, value]) => (
+              <div key={label}>
+                <div className="text-[12px] text-[var(--text-muted)]">{label}</div>
+                <div className="num mt-0.5 text-[15px] font-medium">{value}</div>
+              </div>
+            ))}
           </div>
           {acct.trading_status && (
             <p className="mt-3 text-[13px] text-[var(--text-secondary)]">{acct.trading_status}</p>
@@ -259,19 +343,9 @@ export function HomeScreen() {
           </Glass>
         )}
 
-        <div className="no-scrollbar -mx-4 mt-6 flex gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
+        <div className="no-scrollbar -mx-4 mt-7 flex gap-4 overflow-x-auto px-5 pb-1 [scrollbar-width:none]">
           {(ov.sessions ?? []).map((s) => (
-            <div key={s.name} className="flex w-[72px] shrink-0 flex-col items-center gap-2">
-              <div className={`flex h-16 w-16 items-center justify-center rounded-full ${s.active ? "bg-[rgba(31,191,117,0.16)] ring-2 ring-[var(--accent-green)]" : "bg-white/[0.04]"}`}>
-                <span className={`text-[15px] font-semibold ${s.active ? "text-[var(--accent-green)]" : "text-[var(--text-muted)]"}`}>
-                  {s.name.slice(0, 1)}
-                </span>
-              </div>
-              <div className="text-center">
-                <div className="text-[12px] font-medium">{s.name}</div>
-                <div className="text-[11px] text-[var(--text-muted)]">{s.active ? "Open" : `${s.opens_in_hours}h`}</div>
-              </div>
-            </div>
+            <SessionStory key={s.name} name={s.name} active={s.active} hours={s.opens_in_hours} />
           ))}
         </div>
 
@@ -283,28 +357,9 @@ export function HomeScreen() {
           {findingRows.length === 0 && (
             <p className="px-5 py-8 text-center text-[14px] text-[var(--text-muted)]">Markets will show here once the feed answers.</p>
           )}
-          {findingRows.map((r) => {
-            const up = (r.change_pct ?? 0) >= 0;
-            const note = r.s2?.word && r.s2.word !== "NO DATA" && r.s2.word !== "NO SETUP"
-              ? r.s2.word.toLowerCase()
-              : r.s1?.active ? `${r.s1.direction === "SELL" ? "Sell" : "Buy"} live` : null;
-            return (
-              <Link key={r.symbol} to={`/charts?symbol=${r.symbol}`}
-                className="press flex items-center gap-3 border-b border-white/[0.06] px-4 py-3.5 active:bg-white/[0.03]">
-                <MarketFlag market={r.symbol} size={36} />
-                <div className="min-w-0 flex-1">
-                  <div className="text-[16px] font-semibold tracking-tight">{r.symbol}</div>
-                  {note && <div className="text-[12px] text-[var(--text-muted)]">{note}</div>}
-                </div>
-                <div className="text-right">
-                  <div className="num text-[16px] font-medium">{r.price == null ? "" : fmtPrice(r.price, r.symbol)}</div>
-                  {r.change_pct != null && (
-                    <div className={`num text-[13px] font-medium ${up ? "text-pos" : "text-neg"}`}>{fmtPct(r.change_pct)}</div>
-                  )}
-                </div>
-              </Link>
-            );
-          })}
+          {findingRows.map((r) => (
+            <MarketRow key={r.symbol} row={r} />
+          ))}
         </div>
 
         {ov.ai && (

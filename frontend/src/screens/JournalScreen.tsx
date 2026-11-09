@@ -59,11 +59,12 @@ export function JournalScreen() {
                   {fmtR(weekR)}
                 </span>
               </div>
-              <p className="mt-3 text-[12px] text-txt-low">
-                <span className="num font-bold text-txt-hi">{j?.total_signals ?? 0}</span> signals -{" "}
-                <span className="num font-bold text-txt-hi">{m.win_rate ?? 0}%</span> win rate -{" "}
-                <span className="num font-bold text-txt-hi">{fmtR(m.avg_r)}</span> avg -{" "}
-                <span className="num font-bold text-txt-hi">{m.profit_factor ?? "-"}</span> profit factor
+              <p className="mt-3 text-[14px] leading-relaxed text-[var(--text-secondary)]">
+                <span className="num text-[var(--text-primary)]">{j?.total_signals ?? 0}</span> signals
+                <span className="text-[var(--text-faint)]"> · </span>
+                <span className="num text-[var(--text-primary)]">{m.win_rate ?? 0}%</span> win rate
+                <span className="text-[var(--text-faint)]"> · </span>
+                <span className="num text-[var(--text-primary)]">{fmtR(m.avg_r)}</span> average
               </p>
             </section>
 

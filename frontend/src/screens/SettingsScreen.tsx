@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import {Sparkles, Send, Brain} from "lucide-react";
+import { Sparkles, Send } from "lucide-react";
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
 import { BtnSpinner, DemoTag, Divider, Eyebrow, Glass, GlowDot, Pill, Segmented, SkeletonList, Spinner } from "../components/ui";
@@ -251,14 +251,8 @@ export function SettingsScreen() {
   return (
     <div className="animate-fadeUp" onPointerDownCapture={touch} onKeyDownCapture={touch} onBlurCapture={touch}>
       {popup && <SavePopup kind={popup.kind} title={popup.title} text={popup.text} onClose={() => setPopup(null)} />}
-      <header className="mb-7 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="icon-chip icon-chip-violet" aria-hidden="true"><Brain size={20} /></span>
-          <div>
-            <h1 className="text-[22px] font-semibold tracking-tight">ForexMind</h1>
-            <p className="text-[10.5px] text-txt-faint">Agent objective - never a command to trade.</p>
-          </div>
-        </div>
+      <header className="mb-6 flex items-end justify-between px-1">
+        <h1 className="text-[34px] font-semibold tracking-[-0.03em]">Settings</h1>
         <DemoTag />
       </header>
 
@@ -268,7 +262,7 @@ export function SettingsScreen() {
       {/* ---- appearance: theme switcher ---- */}
       <Eyebrow>Appearance</Eyebrow>
       <Glass className="mt-2">
-        <div className="eyebrow !text-[9px] mb-2.5">Design - applies instantly, saved on this device</div>
+        <p className="mb-3 text-[13px] text-[var(--text-muted)]">Saved on this device</p>
         <div className="grid grid-cols-2 gap-2">
           {([["ivory", "Graphite", "Default terminal", "#070b10", "#4c8dff"],
              ["navy", "Navy", "Cooler canvas", "#08111a", "#4c8dff"],

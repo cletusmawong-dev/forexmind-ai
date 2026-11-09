@@ -104,8 +104,8 @@ export function SignalDetailScreen() {
           </p>
         </div>
         <div className="text-right">
-          <div className="eyebrow">Score</div>
-          <div className="num text-[24px] font-light">{s.score}</div>
+          <div className="text-[13px] text-[var(--text-muted)]">Score</div>
+          <div className="num text-[28px] font-semibold tracking-tight">{s.score}</div>
         </div>
       </div>
 

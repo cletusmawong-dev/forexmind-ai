@@ -114,7 +114,19 @@ html[data-theme] .glass,
   font-weight: 600;
   color: var(--text-secondary);
 }
-.num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
+/* Prices stay in Inter. Tabular figures keep columns aligned without a mono face. */
+.num,
+.font-mono {
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif !important;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+.login-trace {
+  stroke-dasharray: 640;
+  stroke-dashoffset: 640;
+  animation: loginDraw 1.15s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes loginDraw { to { stroke-dashoffset: 0; } }
 .press { transition: transform 140ms ease, opacity 140ms ease; }
 .press:active { transform: scale(0.98); opacity: 0.86; }
 html[data-theme] .glass-2,
