@@ -427,9 +427,8 @@ def test_tpc15_unregistered_after_wipe2_engine_stays_usable():
     """OWNER WIPE 2: TPC-15 is no longer registered (owner's three only);
     the pure engine + adapter classes remain importable for history."""
     import app.strategies as reg
-    assert set(reg.STRATEGY_CLASSES.keys()) == {
-        "strategy_mrms_scalper", "strategy_pullback_trend",
-        "strategy_liquidity_sweep"}
+    from app.strategies import OWNER_STRATEGY_IDS
+    assert set(reg.STRATEGY_CLASSES.keys()) == set(OWNER_STRATEGY_IDS)
     assert "strategy_tpc15_pullback" not in reg.STRATEGY_CLASSES
 
 def test_engine_module_stays_pure_for_research_use():
@@ -460,10 +459,11 @@ def test_tpc15_has_no_execution_surface():
                    if getattr(obj, "__module__", "") == tpc15.__name__)
 
 
-def test_registered_names_are_the_owner_three():
+def test_registered_names_include_the_owner_note_three():
     from app.strategies import all_strategies
     names = {s.name for s in all_strategies().values()}
-    assert names == {"MRMS Scalper", "Pullback in Trend", "Liquidity Sweep"}
+    assert {"MRMS Scalper", "Pullback in Trend", "Liquidity Sweep",
+            "Gold NY EMA Pullback", "Gold NY Opening Range Breakout"} <= names
 
 def test_adapter_sell_candidate_mirror():
     from app.strategies.tpc15.live import TPC15PullbackStrategy

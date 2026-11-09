@@ -16,9 +16,8 @@ def test_registry_has_the_owner_three_after_wipe2():
     """OWNER WIPE 2 (2026-11-02) + the owner's three new strategies: the
     gold specs are UNREGISTERED (modules kept for history, docs purged)."""
     import app.strategies as reg
-    assert set(reg.STRATEGY_CLASSES.keys()) == {
-        "strategy_mrms_scalper", "strategy_pullback_trend",
-        "strategy_liquidity_sweep"}
+    from app.strategies import OWNER_STRATEGY_IDS
+    assert set(reg.STRATEGY_CLASSES.keys()) == set(OWNER_STRATEGY_IDS)
     for sid in NEW_IDS:
         assert sid not in reg.STRATEGY_CLASSES
 
@@ -39,10 +38,14 @@ def test_boot_creates_owner_three_docs_active(tmp_path, monkeypatch):
     store = LocalStore(str(tmp_path / "db.json"))
     monkeypatch.setattr(vc, "get_store", lambda: store)
     vc.ensure_strategy_docs()
+    from app.strategies import OWNER_STRATEGY_IDS
     docs = {d["id"]: d for d in store.list("strategies", limit=1000)}
-    assert set(docs) == {"strategy_mrms_scalper", "strategy_pullback_trend",
-                         "strategy_liquidity_sweep"}
-    assert all(d["status"] == "ACTIVE" for d in docs.values())
+    assert set(docs) == set(OWNER_STRATEGY_IDS)
+    for sid in ("strategy_gold_ny_pullback", "strategy_gold_ny_orb"):
+        assert docs[sid]["status"] == "PAUSED", sid
+    for sid in ("strategy_mrms_scalper", "strategy_pullback_trend",
+                "strategy_liquidity_sweep"):
+        assert docs[sid]["status"] == "ACTIVE", sid
     for sid in NEW_IDS:
         assert not store.list("strategies", filters={"id": sid})
 
@@ -134,10 +137,9 @@ def test_strategies_api_lists_the_owner_three():
         with TestClient(app) as c:
             r = c.get("/api/strategies")
             assert r.status_code == 200
+            from app.strategies import OWNER_STRATEGY_IDS
             rows = r.json()["strategies"]
-            assert {s["id"] for s in rows} == {
-                "strategy_mrms_scalper", "strategy_pullback_trend",
-                "strategy_liquidity_sweep"}
+            assert {s["id"] for s in rows} == set(OWNER_STRATEGY_IDS)
     finally:
         app.dependency_overrides.pop(get_user_id, None)
         State.store = _prev
@@ -160,9 +162,8 @@ def test_registry_has_the_owner_three_after_wipe2():
     """OWNER WIPE 2 (2026-11-02) + the owner's three new strategies: the
     gold specs are UNREGISTERED (modules kept for history, docs purged)."""
     import app.strategies as reg
-    assert set(reg.STRATEGY_CLASSES.keys()) == {
-        "strategy_mrms_scalper", "strategy_pullback_trend",
-        "strategy_liquidity_sweep"}
+    from app.strategies import OWNER_STRATEGY_IDS
+    assert set(reg.STRATEGY_CLASSES.keys()) == set(OWNER_STRATEGY_IDS)
     for sid in NEW_IDS:
         assert sid not in reg.STRATEGY_CLASSES
 
@@ -183,10 +184,14 @@ def test_boot_creates_owner_three_docs_active(tmp_path, monkeypatch):
     store = LocalStore(str(tmp_path / "db.json"))
     monkeypatch.setattr(vc, "get_store", lambda: store)
     vc.ensure_strategy_docs()
+    from app.strategies import OWNER_STRATEGY_IDS
     docs = {d["id"]: d for d in store.list("strategies", limit=1000)}
-    assert set(docs) == {"strategy_mrms_scalper", "strategy_pullback_trend",
-                         "strategy_liquidity_sweep"}
-    assert all(d["status"] == "ACTIVE" for d in docs.values())
+    assert set(docs) == set(OWNER_STRATEGY_IDS)
+    for sid in ("strategy_gold_ny_pullback", "strategy_gold_ny_orb"):
+        assert docs[sid]["status"] == "PAUSED", sid
+    for sid in ("strategy_mrms_scalper", "strategy_pullback_trend",
+                "strategy_liquidity_sweep"):
+        assert docs[sid]["status"] == "ACTIVE", sid
     for sid in NEW_IDS:
         assert not store.list("strategies", filters={"id": sid})
 

@@ -56,4 +56,4 @@ def test_strategy_behaviour_unchanged_since_baseline():
 def test_baseline_fixture_is_self_consistent():
     doc = json.loads(FIXTURE.read_text())
     assert snapshot_hash(doc["snapshot"]).startswith(
-        "f93cc28500ac634b"), "fixture was re-baselined - update this pin"
+        "d288ff3766c90bed"), "fixture was re-baselined - update this pin"

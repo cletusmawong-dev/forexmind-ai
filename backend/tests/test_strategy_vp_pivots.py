@@ -104,9 +104,8 @@ def test_owner_three_are_the_only_registered_strategies():
     """OWNER WIPE 2 (2026-11-02) + the owner's three new strategies; this
     module's strategies stay unregistered but importable for history."""
     import app.strategies as reg
-    assert set(reg.STRATEGY_CLASSES) == {"strategy_mrms_scalper",
-                                         "strategy_pullback_trend",
-                                         "strategy_liquidity_sweep"}
+    from app.strategies import OWNER_STRATEGY_IDS
+    assert set(reg.STRATEGY_CLASSES) == set(OWNER_STRATEGY_IDS)
 
 def test_poc_is_last_max_bin_and_mid_price():
     df = make_df(n=80, seed=5)
@@ -346,10 +345,11 @@ def test_detect_is_causal_future_bars_cannot_create_past_events():
 def test_owner_wipe_boot_purges_unregistered_docs(store):
     """Boot reconciliation: unregistered docs purged; the owner's three
     boot ACTIVE with the scalper pinned to its 5M entry timeframe."""
+    from app.strategies import OWNER_STRATEGY_IDS
     docs = {d["id"]: d for d in store.list("strategies", limit=1000)}
-    assert set(docs) == {"strategy_mrms_scalper", "strategy_pullback_trend",
-                         "strategy_liquidity_sweep"}
-    assert all(d["status"] == "ACTIVE" for d in docs.values())
+    assert set(docs) == set(OWNER_STRATEGY_IDS)
+    for sid in ("strategy_gold_ny_pullback", "strategy_gold_ny_orb"):
+        assert docs[sid]["status"] == "PAUSED", sid
     assert docs["strategy_mrms_scalper"]["entry_timeframe"] == "5M"
 
 def test_set_param_direct_after_wipe_rejects_unknown(store):

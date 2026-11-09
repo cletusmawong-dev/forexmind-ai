@@ -432,9 +432,8 @@ def test_candidates_unregistered_after_wipe2_engines_stay_pure():
     """OWNER WIPE 2: the CRT candidates are unregistered; the research
     engines stay pure (no registry refs, no execution imports)."""
     import app.strategies as reg
-    assert set(reg.STRATEGY_CLASSES.keys()) == {
-        "strategy_mrms_scalper", "strategy_pullback_trend",
-        "strategy_liquidity_sweep"}
+    from app.strategies import OWNER_STRATEGY_IDS
+    assert set(reg.STRATEGY_CLASSES.keys()) == set(OWNER_STRATEGY_IDS)
     for mod in (tb, zs):
         src = inspect.getsource(mod)
         assert "STRATEGY_CLASSES" not in src

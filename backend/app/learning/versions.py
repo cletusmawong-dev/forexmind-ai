@@ -32,6 +32,11 @@ from ..strategies import get_strategy
 START_PAUSED = {
     "strategy_h1_trend_breakout",
     "strategy_gold_orb",
+    # the owner's gold pair (implementation guide 2026-11-02, section 2):
+    # docs boot PAUSED - the owner unpauses only after the 2-4 week demo
+    # forward test. Lifecycle stays default LIVE so activation = trading.
+    "strategy_gold_ny_pullback",
+    "strategy_gold_ny_orb",
 }
 
 LIFECYCLE = {

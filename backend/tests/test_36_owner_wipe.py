@@ -15,10 +15,8 @@ from fastapi.testclient import TestClient
 
 def test_registry_has_exactly_the_owner_three():
     """OWNER WIPE 2 then the owner's three new strategies (2026-11-02)."""
-    from app.strategies import all_strategies, STRATEGY_CLASSES
-    assert set(STRATEGY_CLASSES) == {"strategy_mrms_scalper",
-                                     "strategy_pullback_trend",
-                                     "strategy_liquidity_sweep"}
+    from app.strategies import OWNER_STRATEGY_IDS, all_strategies, STRATEGY_CLASSES
+    assert set(STRATEGY_CLASSES) == set(OWNER_STRATEGY_IDS)
     assert set(all_strategies()) == set(STRATEGY_CLASSES)
 
 
@@ -42,9 +40,14 @@ def test_boot_purges_all_strategy_docs(tmp_path, monkeypatch):
     vc.ensure_strategy_docs()
     # the registered three get docs; everything unregistered is purged
     docs = {d["id"]: d for d in store.list("strategies", limit=1000)}
-    assert set(docs) == {"strategy_mrms_scalper", "strategy_pullback_trend",
-                         "strategy_liquidity_sweep"}
-    assert all(d["status"] == "ACTIVE" for d in docs.values())
+    from app.strategies import OWNER_STRATEGY_IDS
+    assert set(docs) == set(OWNER_STRATEGY_IDS)
+    # the gold pair boots PAUSED (guide section 2); the FX three ACTIVE
+    for sid in ("strategy_gold_ny_pullback", "strategy_gold_ny_orb"):
+        assert docs[sid]["status"] == "PAUSED", sid
+    for sid in ("strategy_mrms_scalper", "strategy_pullback_trend",
+                "strategy_liquidity_sweep"):
+        assert docs[sid]["status"] == "ACTIVE", sid
     # the 5M scalper scans on ITS timeframe via the doc override
     assert docs["strategy_mrms_scalper"]["entry_timeframe"] == "5M"
     for sid in ("strategy_trendbreak_v2", "strategy_hybrid_crt_tbs",
@@ -59,7 +62,7 @@ def test_boot_purges_all_strategy_docs(tmp_path, monkeypatch):
         assert not store.list("strategy_versions", filters={"strategy_id": sid})
         assert not store.list("version_events", filters={"strategy_id": sid})
     vc.ensure_strategy_docs()          # idempotent - same state, no crash
-    assert len(store.list("strategy_versions", limit=1000)) == 3
+    assert len(store.list("strategy_versions", limit=1000)) == 5
 
 
 def test_registered_doc_would_survive_purge(tmp_path, monkeypatch):
@@ -92,9 +95,8 @@ def test_strategies_api_returns_zero():
             r = c.get("/api/strategies")
             assert r.status_code == 200
             rows = r.json()["strategies"]
-            assert {x["id"] for x in rows} == {
-                "strategy_mrms_scalper", "strategy_pullback_trend",
-                "strategy_liquidity_sweep"}
+            from app.strategies import OWNER_STRATEGY_IDS
+            assert {x["id"] for x in rows} == set(OWNER_STRATEGY_IDS)
     finally:
         # never leak the override into other test files (full-suite isolation)
         app.dependency_overrides.pop(get_user_id, None)

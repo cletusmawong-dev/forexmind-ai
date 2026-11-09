@@ -21,9 +21,8 @@ def test_registry_is_the_owner_three_and_their_lifecycle_is_live():
     """OWNER WIPE 2 + the owner's three (2026-11-02)."""
     import app.strategies as reg
     from app.learning.versions import lifecycle_of
-    assert set(reg.STRATEGY_CLASSES.keys()) == {
-        "strategy_mrms_scalper", "strategy_pullback_trend",
-        "strategy_liquidity_sweep"}
+    from app.strategies import OWNER_STRATEGY_IDS
+    assert set(reg.STRATEGY_CLASSES.keys()) == set(OWNER_STRATEGY_IDS)
     for sid in ("strategy_trendbreak_h1", "strategy_zonesweep_m15"):
         assert sid not in reg.STRATEGY_CLASSES
     for sid in reg.STRATEGY_CLASSES:
@@ -180,10 +179,11 @@ def test_strategy_docs_created_active_for_owner_three(fresh_store, monkeypatch):
     from app.learning import versions as vc
     monkeypatch.setattr(vc, "get_store", lambda: fresh_store)
     vc.ensure_strategy_docs()
+    from app.strategies import OWNER_STRATEGY_IDS
     docs = {d["id"]: d for d in fresh_store.list("strategies", limit=1000)}
-    assert set(docs) == {"strategy_mrms_scalper", "strategy_pullback_trend",
-                         "strategy_liquidity_sweep"}
-    assert all(d["status"] == "ACTIVE" for d in docs.values())
+    assert set(docs) == set(OWNER_STRATEGY_IDS)
+    for sid in ("strategy_gold_ny_pullback", "strategy_gold_ny_orb"):
+        assert docs[sid]["status"] == "PAUSED", sid
     assert docs["strategy_mrms_scalper"]["entry_timeframe"] == "5M"
 
 

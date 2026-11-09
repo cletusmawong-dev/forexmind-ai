@@ -563,7 +563,7 @@ def test_pinstripe_pair_unregistered_after_wipe2():
     from app.learning.versions import lifecycle_of
     from app.strategies.research_only.live import (FadeCrtExtensionStrategy,
                                                    HybridCrtTbsStrategy)
-    assert len(reg.STRATEGY_CLASSES) == 3
+    assert len(reg.STRATEGY_CLASSES) == 5
     assert "strategy_hybrid_crt_tbs" not in reg.STRATEGY_CLASSES
     assert "strategy_fade_crt_ext" not in reg.STRATEGY_CLASSES
     assert HybridCrtTbsStrategy.id == "strategy_hybrid_crt_tbs"
@@ -579,8 +579,8 @@ def test_pinstripe_boot_docs_purged(fresh_store, monkeypatch):
     vc.ensure_strategy_docs()
     docs = {d["id"]: d for d in fresh_store.list("strategies", limit=1000)}
     assert "strategy_hybrid_crt_tbs" not in docs
-    assert set(docs) == {"strategy_mrms_scalper", "strategy_pullback_trend",
-                         "strategy_liquidity_sweep"}
+    from app.strategies import OWNER_STRATEGY_IDS
+    assert set(docs) == set(OWNER_STRATEGY_IDS)
 """PINSTRIPE V6 (owner locked rules, 2025) - both strategies.
 
 Hybrid_CRT_TBS (secondary) + Fade_CRT_Extension (primary): CRT definition
@@ -1146,7 +1146,7 @@ def test_pinstripe_pair_unregistered_after_wipe2():
     from app.learning.versions import lifecycle_of
     from app.strategies.research_only.live import (FadeCrtExtensionStrategy,
                                                    HybridCrtTbsStrategy)
-    assert len(reg.STRATEGY_CLASSES) == 3
+    assert len(reg.STRATEGY_CLASSES) == 5
     assert "strategy_hybrid_crt_tbs" not in reg.STRATEGY_CLASSES
     assert "strategy_fade_crt_ext" not in reg.STRATEGY_CLASSES
     assert HybridCrtTbsStrategy.id == "strategy_hybrid_crt_tbs"

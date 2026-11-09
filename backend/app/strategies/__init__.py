@@ -26,21 +26,37 @@ from .base import BaseStrategy, Candidate
 # only registered strategies. Per the specs' own rule 7 the docs are created
 # PAUSED (see learning.versions.START_PAUSED) - activation is an explicit
 # owner step after tests, historical validation and forward demo testing.
-# OWNER WIPE 2 (2026-11-02), then the owner supplied THREE new strategies
-# with an implementation note (same day) - registered exactly as delivered:
-#   strategy_mrms_scalper   (MRMS Scalper, 5M mean-reversion, ~1.35R)
-#   strategy_pullback_trend (H1 bias + 15M pullback rejection, 1:2)
-#   strategy_liquidity_sweep (sweep + rejection, 1:2)
-# All three are managed post-entry by the Universal ladder (note: no
-# strategy-owned management plan). Rules are the owner's files, unmodified.
+# OWNER WIPE 2 (2026-11-02), then the owner supplied strategies with
+# implementation notes (same day) - registered exactly as delivered:
+#   strategy_mrms_scalper     MRMS Scalper      5M  mean-reversion ~1.35R
+#   strategy_pullback_trend   Pullback Trend    15M H1 bias + pullback 1:2
+#   strategy_liquidity_sweep  Liquidity Sweep   15M sweep + rejection 1:2
+#   strategy_gold_ny_pullback Gold NY Pullback  15M XAUUSD-only 3R (LOCKED
+#                             management plan, boots PAUSED per the guide -
+#                             demo forward test before live)
+#   strategy_gold_ny_orb      Gold NY ORB       15M XAUUSD-only 2R (LOCKED
+#                             plan, boots PAUSED per the guide)
+# The FX three run the Universal ladder post-entry; the gold pair carries
+# its own locked plan block in the trade manager (guide section 4).
 from .strategy_mrms_scalper import MRMSScalper
 from .strategy_pullback_trend import PullbackInTrend
 from .strategy_liquidity_sweep import LiquiditySweep
+from .gold_ny_pullback import GoldNYPullbackStrategy
+from .gold_ny_orb import GoldNYORBStrategy
+
+# canonical registry ids - the tests assert against THIS (single source of
+# truth, so adding a strategy never means re-pinning eight files)
+OWNER_STRATEGY_IDS = frozenset({
+    MRMSScalper.id, PullbackInTrend.id, LiquiditySweep.id,
+    GoldNYPullbackStrategy.id, GoldNYORBStrategy.id,
+})
 
 STRATEGY_CLASSES: Dict[str, Type[BaseStrategy]] = {
     MRMSScalper.id: MRMSScalper,
     PullbackInTrend.id: PullbackInTrend,
     LiquiditySweep.id: LiquiditySweep,
+    GoldNYPullbackStrategy.id: GoldNYPullbackStrategy,
+    GoldNYORBStrategy.id: GoldNYORBStrategy,
 }
 
 _INSTANCES: Dict[str, BaseStrategy] = {}

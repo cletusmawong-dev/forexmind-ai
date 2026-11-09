@@ -201,10 +201,10 @@ def test_sweep_refuses_without_an_actual_sweep():
 # registry + platform integration
 # ===========================================================================
 def test_owner_note_registry_contract():
-    from app.strategies import STRATEGY_CLASSES
-    assert set(STRATEGY_CLASSES) == {"strategy_mrms_scalper",
-                                     "strategy_pullback_trend",
-                                     "strategy_liquidity_sweep"}
+    from app.strategies import OWNER_STRATEGY_IDS, STRATEGY_CLASSES
+    assert {"strategy_mrms_scalper", "strategy_pullback_trend",
+            "strategy_liquidity_sweep"} <= set(STRATEGY_CLASSES)
+    assert set(STRATEGY_CLASSES) == set(OWNER_STRATEGY_IDS)
 
 
 def test_all_three_are_live_and_universally_managed():

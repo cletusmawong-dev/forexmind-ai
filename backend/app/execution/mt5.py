@@ -367,6 +367,76 @@ def _reject_pretrade(store, signal: dict, user_id: str, market: str,
         pass
 
 
+def _strategy_entry_gates(store, user_id: str, signal: dict, market: str,
+                          sr: dict) -> tuple:
+    """Owner guide 2026-11-02 section 5 - account-level gates for
+    strategies that declare them (the gold pair). ALL fail-closed:
+    a check that cannot run refuses the entry (missed trade, never a
+    wrong trade)."""
+    import pandas as _pd
+    # (a) one open position per strategy
+    max_open = int(sr.get("max_open_positions") or 0)
+    if max_open >= 1:
+        try:
+            data = bridge_get("/positions", timeout=8) or {}
+            comments = {str(p.get("comment") or "").strip()
+                        for p in (data.get("positions") or [])}
+            open_same = 0
+            for c in comments:
+                if not c:
+                    continue
+                doc = store.list("signals", filters={"signal_id": c}, limit=1)
+                if doc and doc[0].get("strategy_id") == signal.get("strategy_id"):
+                    open_same += 1
+        except Exception as exc:
+            return False, "POSITION_CHECK_FAILED", (
+                f"open-position check could not run ({type(exc).__name__}) - refusing fail-closed")
+        if open_same >= max_open:
+            return False, "MAX_OPEN_POSITIONS", (
+                f"strategy already has {open_same} open position(s) (max {max_open})")
+    # (b) spread cap (USD price units; XAUUSD spread 0.50 = 50 cents)
+    cap = float(sr.get("max_spread_usd") or 0)
+    if cap > 0:
+        try:
+            q = bridge_get(f"/quote?market={market}", timeout=8) or {}
+            bid, ask = float(q.get("bid") or 0), float(q.get("ask") or 0)
+            spr = ask - bid
+            if spr <= 0:
+                return False, "QUOTE_UNUSABLE", (
+                    f"live quote unusable (bid {bid}, ask {ask}) - refusing fail-closed")
+            if spr > cap:
+                return False, "SPREAD_TOO_WIDE", (
+                    f"live spread {spr:.2f} USD > the {cap:.2f} cap (guide section 4)")
+        except Exception as exc:
+            return False, "QUOTE_UNAVAILABLE", (
+                f"live quote unavailable ({type(exc).__name__}) - refusing fail-closed")
+    # (c) shared daily soft stop (pair-level counter)
+    grp = sr.get("soft_stop_group")
+    if grp:
+        from ..risk.strategy_rules import ids_for_group
+        ids = set(ids_for_group(grp))
+        today = _pd.Timestamp.utcnow().strftime("%Y-%m-%d")
+        todays = store.list("signals", filters={"userId": user_id, "day": today},
+                            limit=500) or []
+        pl, losses = 0.0, 0
+        for d in todays:
+            if d.get("strategy_id") not in ids or not d.get("completed"):
+                continue
+            p_ = float(d.get("mt5_pl") or 0.0)
+            pl += p_
+            if p_ < 0:
+                losses += 1
+        cap_usd = float(sr.get("daily_soft_stop_usd") or 0)
+        if cap_usd and pl <= -cap_usd:
+            return False, "DAILY_SOFT_STOP", (
+                f"pair day P&L {pl:+.2f} <= -{cap_usd:.0f} - no new entries today")
+        max_losses = int(sr.get("daily_max_losses") or 0)
+        if max_losses and losses >= max_losses:
+            return False, "DAILY_MAX_LOSSES", (
+                f"{losses} losing trades today (max {max_losses}) - no new entries today")
+    return True, "", ""
+
+
 def _setup_already_sent(store, signal: dict) -> Optional[str]:
     """One broker order per unique setup (market + direction + candle), no
     matter how many user copies of the signal exist.
@@ -568,6 +638,31 @@ def execute_signal(signal: dict, user_id: str) -> None:
             _emit(user_id, "ENTRY", "SKIPPED", market=market, signal=signal,
                   detail=f"stop too tight (< {MIN_STOP_PIPS:g} pips)")
             return
+        # OWNER GOLD-PAIR GUIDE 2026-11-02 (section 5): per-strategy
+        # account-level entry gates - spread cap, one-open-position, shared
+        # daily soft stop. Data-driven (risk/strategy_rules.py); strategies
+        # without a rule set are untouched.
+        from ..risk import strategy_rules as _srr
+        _sr = _srr.rules_for(signal.get("strategy_id"))
+        if _sr:
+            _gok, _gcode, _gwhy = _strategy_entry_gates(store, user_id,
+                                                        signal, market, _sr)
+            if not _gok:
+                store.update("signals", signal["id"], {
+                    "execution_status": f"SKIPPED_RISK_{_gcode}",
+                    "mt5_note": f"{_gcode}: {_gwhy}"})
+                _log(f"Execution skipped - {_gcode}: {_gwhy}.",
+                     market, kind="EXEC_WARN")
+                _emit(user_id, "ENTRY", "SKIPPED", market=market,
+                      signal=signal, detail=f"{_gcode}: {_gwhy}")
+                from ..notifications.fmt import ctx_line
+                notify(user_id, "EXECUTION_SKIPPED",
+                       f"⚠️ NOT EXECUTED - {market} {signal.get('direction')}",
+                       f"{ctx_line(signal)}\n"
+                       f"{_gcode}: {_gwhy} (strategy guide rules).",
+                       signal_id=signal.get("id"))
+                return
+
         # P10 deterministic pre-trade guards: news / spread / vol / correlation.
         # Every refusal is loud (status + ledger + log + notification).
         try:
@@ -726,6 +821,32 @@ def execute_signal(signal: dict, user_id: str) -> None:
                                                          "kind": "risk"}, limit=1) or [{}])[0]
             _risk_usd = float(_risk_doc.get("risk_per_trade_usd", 0.0) or 0.0) \
                 or float(_g.get("risk_per_trade_usd", 50.0) or 0.0)
+            # GOLD-PAIR GUIDE 2026-11-02 (section 5): a strategy that
+            # declares its own risk overrides the account default BEFORE any
+            # sizing, with the profit-protect halving (1.5% -> 0.75% once
+            # equity >= start + 70% of the target). Everything downstream
+            # (risk_pct, calc_lot, broker-truth resize, the 1.35x dollar
+            # guard, the min-lot tier) flows from this number.
+            if _sr.get("risk_usd"):
+                _risk_usd = float(_sr["risk_usd"])
+                try:
+                    from ..risk.strategy_rules import halve_if_in_profit_protect
+                    _accts = store.list("trading_accounts",
+                                        filters={"userId": user_id,
+                                                 "is_active": True}, limit=1)
+                    _pr = (_accts[0].get("prop_rules") or {}) if _accts else {}
+                    _halved = halve_if_in_profit_protect(
+                        _risk_usd, float(acct.get("equity") or 0.0),
+                        float(_pr.get("account_start_balance") or 0),
+                        float(_pr.get("profit_target_pct") or 0),
+                        float(_sr.get("risk_halving_at_target_frac") or 0))
+                    if _halved < _risk_usd:
+                        _risk_usd = _halved
+                        _log(f"{market}: equity in the profit-protect zone - "
+                             f"risk halved to {_risk_usd:.2f} (guide 2026-11-02).",
+                             market)
+                except Exception:
+                    pass   # halving is an optimization, never a blocker
             _bal = float(acct.get("balance") or 0.0)
             if _risk_usd > 0 and _bal > 0:
                 risk_pct = (_risk_usd / _bal) * 100.0

@@ -236,6 +236,17 @@ class TradeManager:
             summary["positions"] += 1
             sig = self._link_signal(user_id, pos)
             st = self._state_for(pos, sig)
+            # GOLD-PAIR LOCKED PLANS (owner guide 2026-11-02, section 4):
+            # deterministic-only management, runs EVERY tick instead of the
+            # Universal ladder and the AI (the ladder cut the tested pass
+            # rate from ~45% to ~21% - the plan is the strategy's locked rule)
+            if (sig or {}).get("strategy_id") in self._GOLD_LOCKED_IDS:
+                gold = self._gold_locked_manage(user_id, pos, sig)
+                if gold.get("actions"):
+                    summary["actions"].extend(gold["actions"])
+                st["last_review"] = now
+                st["last_pl"] = float(pos.get("profit") or 0)
+                continue          # deterministic only - no AI review, ever
             # UNIVERSAL TRADE MANAGER (owner reference impl 2026-10-29):
             # deterministic BE/lock/trail ladder runs EVERY tick - it must
             # never wait for a review trigger or a cooldown. Strategy-owned
@@ -281,6 +292,15 @@ class TradeManager:
         #     entry (ONLY ever tightened) and the 240-bar time exit. The
         #     generic TP ladder and position policy MUST NOT touch a
         #     trail-only position: the strategy IS the management plan.
+        if (sig or {}).get("strategy_id") in self._GOLD_LOCKED_IDS:
+            g = self._gold_locked_manage(user_id, pos, sig)
+            out["actions"].extend(g.get("actions", []))
+            st["last_review"] = now
+            st["last_pl"] = float(pos.get("profit") or 0)
+            recorder.record(user_id, pos, trigger, "deterministic", "local",
+                            None, True, g.get("verdict", "GOLD_LOCKED"),
+                            execution=g, snapshot_ts=now)
+            return out
         if (sig or {}).get("strategy_id") == "strategy_trendbreak_v2":
             v2 = self._trendbreak_v2_manage(user_id, pos, sig)
             out["actions"].extend(v2.get("actions", []))
@@ -599,6 +619,85 @@ class TradeManager:
         except Exception as exc:
             return {"actions": actions, "verdict": "TB2_ERROR",
                     "error": type(exc).__name__, "skip_ai": True}
+
+    # strategy -> locked time exit (15M bars); the candidate's
+    # extra["max_hold_bars"] (travels on the signal doc) wins when present
+    _GOLD_LOCKED_IDS = ("strategy_gold_ny_pullback", "strategy_gold_ny_orb")
+    _GOLD_MAX_HOLD = {"strategy_gold_ny_pullback": 32,
+                      "strategy_gold_ny_orb": 24}
+
+    def _gold_locked_manage(self, user_id: str, pos: dict,
+                            sig: Optional[dict]) -> Dict[str, Any]:
+        """GOLD_NY_PULLBACK_LOCKED / GOLD_NY_ORB_LOCKED (owner guide
+        2026-11-02, section 4): SL never moves; single TP lives broker-side
+        (backstop close here if price reaches it); time exit after
+        max_hold_bars COMPLETED 15M bars (count bars, not minutes); Friday
+        20:45 UTC safety flatten. NO partials / breakeven / lock / trail /
+        AI - nothing else touches the trade."""
+        actions: List[Dict[str, Any]] = []
+        out: Dict[str, Any] = {"actions": actions, "closed": False,
+                               "skip_ai": True}
+        sid = (sig or {}).get("strategy_id") or ""
+        plan = "GOLD_NY_PULLBACK_LOCKED" if sid == "strategy_gold_ny_pullback" \
+            else "GOLD_NY_ORB_LOCKED"
+        is_buy = str(pos.get("type", "")).upper() == "BUY"
+        price = float(pos.get("price_current") or 0)
+
+        # TP backstop: the broker TP carries the exit; if price reached it,
+        # close 100% at market (belt + braces, mirror of the TP3 backstop)
+        tp = (sig or {}).get("tp1")
+        if tp not in (None, "", 0) and price > 0 and \
+                ((price >= float(tp)) if is_buy else (price <= float(tp))):
+            res = risk_gate.execute_plan(user_id, pos, {"close_full": True},
+                                         reason=f"{plan}: TP reached - close 100% (backstop)")
+            if res.get("executed"):
+                actions.append("close_full(tp)")
+                out["closed"] = True
+            return out
+
+        # Friday safety flatten 20:45 UTC (rare; the guide asks for it)
+        from datetime import datetime as _dt, timezone as _tz
+        now_dt = _dt.now(_tz.utc)
+        if now_dt.weekday() == 4 and (now_dt.hour, now_dt.minute) >= (20, 45):
+            res = risk_gate.execute_plan(user_id, pos, {"close_full": True},
+                                         reason=f"{plan}: Friday 20:45 UTC safety flatten")
+            if res.get("executed"):
+                actions.append("close_full(friday_flatten)")
+                out["closed"] = True
+            return out
+
+        # time exit: max_hold_bars COMPLETED 15M bars since entry
+        mh = int((sig or {}).get("max_hold_bars")
+                 or self._GOLD_MAX_HOLD.get(sid) or 32)
+        held = None
+        try:
+            df = None
+            if self.provider is not None:
+                market = pos.get("app_market") or pos.get("symbol", "")
+                df = self.provider.get_candles(market, "15M", limit=200)
+            if df is not None and len(df) >= 2:
+                import pandas as _pd
+                t0 = _pd.Timestamp((sig or {}).get("mt5_executed_at")
+                                   or (sig or {}).get("entry_time")
+                                   or df.index[-1])
+                t0 = t0.tz_localize("UTC") if t0.tzinfo is None \
+                    else t0.tz_convert("UTC")
+                idx = df.index
+                cut = idx.searchsorted(t0)
+                window = df.iloc[max(0, cut - 1):]
+                held = max(0, len(window) - 1)   # entry bar counts as bar 0
+        except Exception:
+            held = None
+        if held is not None and held >= mh:
+            res = risk_gate.execute_plan(user_id, pos, {"close_full": True},
+                                         reason=f"{plan}: time exit ({mh} completed 15M bars)")
+            if res.get("executed"):
+                actions.append(f"close_full(time_exit_{mh}bars)")
+                out["closed"] = True
+            return out
+        out["verdict"] = plan
+        out["held_bars"] = held
+        return out
 
     def _uni_tighten(self, user_id: str, pos: dict, st: dict,
                      new_sl: float, is_buy: bool, reason: str) -> Optional[dict]:

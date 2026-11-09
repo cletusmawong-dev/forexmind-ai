@@ -97,6 +97,15 @@ def _contract_check(candidate, strategy):
             candidate.strategy_version = str(getattr(strategy, "version", ""))
         if not getattr(candidate, "timestamp", ""):
             candidate.timestamp = str(getattr(candidate, "candle_time", ""))
+        # declared-markets rule: a strategy that pins its markets never
+        # signals outside them (the gold pair is XAUUSD-only per its guide)
+        mkts = getattr(strategy, "markets", None) or []
+        if mkts and getattr(candidate, "market", None) not in mkts:
+            logging.getLogger("fxm.strategies").warning(
+                "%s: candidate on %s refused - market not in the strategy's "
+                "declared markets %s", getattr(candidate, "strategy_id", "?"),
+                getattr(candidate, "market", "?"), list(mkts))
+            return None
         reason = validate_candidate(candidate)
         if reason:
             logging.getLogger("fxm.strategies").warning(
@@ -178,9 +187,13 @@ class SignalEngine:
             # it, frame-native strategies simply run on the given bars.
             scan_df, scan_tf, scan_higher = df, timeframe, higher
             eff_tf = sdoc[0].get("entry_timeframe") if sdoc else None
+            # deep-history strategies (the gold pair's D1 SMA200 regime,
+            # guide section 3) fetch more bars than the standard scan
+            from ..risk import strategy_rules as _srr_mod
+            _scan_limit = int(_srr_mod.rules_for(sid).get("scan_bars") or 1600)
             if eff_tf and eff_tf != timeframe:
                 import time as _time
-                df_e = self.provider.get_candles(market, eff_tf, limit=1600)
+                df_e = self.provider.get_candles(market, eff_tf, limit=_scan_limit)
                 if df_e is None or len(df_e) < 300:
                     last = self._tf_warn_ts.get((sid, market, eff_tf), 0)
                     if _time.time() - last > 21600:      # one row / 6h max
@@ -194,6 +207,12 @@ class SignalEngine:
                 scan_df, scan_tf = df_e, eff_tf
             if eff_tf:
                 params = {**(params or {}), "entry_tf": eff_tf}
+            if _scan_limit != 1600 and scan_df is df:
+                scan_df = self.provider.get_candles(market, scan_tf,
+                                                    limit=_scan_limit)
+                if scan_df is None or len(scan_df) < 300:
+                    continue
+                scan_higher = self.provider.higher_frames(market, scan_tf)
             candidate = strategy.detect_signal(
                 scan_df, market, scan_tf, params=params,
                 higher_frames=scan_higher,
@@ -416,7 +435,10 @@ class SignalEngine:
                         "zone_type", "zone_high", "zone_low", "displacement_time",
                         "fvg_type", "fvg_high", "fvg_low", "fvg_mid",
                         "fvg_created_time", "retest_time", "entry_method",
-                        "session", "atr", "setup_sequence")},
+                        "session", "atr", "setup_sequence",
+                        # locked management plans (gold pair guide 2026-11-02)
+                        "management_plan", "max_hold_bars",
+                        "max_open_positions")},
             "dna": None,                # Signal DNA snapshot (filled right below)
             "forensics": None,          # filled automatically on completion
             "adaptive": None,           # Adaptive Quality (filled right below)

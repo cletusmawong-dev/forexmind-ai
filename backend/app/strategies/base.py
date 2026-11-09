@@ -145,6 +145,13 @@ class BaseStrategy(ABC):
                     # sees it. Pure protection - no trading rule is altered.
                     cand.strategy_version = str(self.version)
                     cand.timestamp = str(df.index[i])
+                    mkts = getattr(self, "markets", None) or []
+                    if mkts and market not in mkts:
+                        logging.getLogger("fxm.strategies").warning(
+                            "%s: candidate on %s refused - market not in the "
+                            "strategy's declared markets %s",
+                            self.id, market, list(mkts))
+                        return None
                     reason = validate_candidate(cand)
                     if reason:
                         logging.getLogger("fxm.strategies").warning(
