@@ -52,9 +52,8 @@ export default {
       },
       fontFamily: {
         sans: [
-          '"Space Grotesk"', "-apple-system", "BlinkMacSystemFont",
-          '"SF Pro Display"', '"SF Pro Text"', "Inter", '"Segoe UI"', "Roboto",
-          '"Helvetica Neue"', "sans-serif",
+          "Inter", "-apple-system", "BlinkMacSystemFont",
+          '"SF Pro Display"', '"SF Pro Text"', '"Segoe UI"', "sans-serif",
         ],
         mono: [
           '"JetBrains Mono"', "ui-monospace", "SFMono-Regular", "Menlo",

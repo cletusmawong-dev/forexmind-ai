@@ -1,7 +1,6 @@
 import logoMark from "../assets/logo-mark.png";
 import { useState } from "react";
 import { api, endpoints, setToken } from "../lib/api";
-import { BUILD_STAMP } from "../lib/version";
 
 export function LoginScreen({ onAuthed }: { onAuthed: () => void }) {
   const invite = (() => {
@@ -33,7 +32,7 @@ export function LoginScreen({ onAuthed }: { onAuthed: () => void }) {
       setError(
         e?.status
           ? e.message || "Login failed"
-          : "Can't reach the server right now - it may be waking up. Try again in a few seconds."
+          : "Can't reach the server right now. It may be waking up."
       );
     } finally {
       setBusy(false);
@@ -41,61 +40,53 @@ export function LoginScreen({ onAuthed }: { onAuthed: () => void }) {
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center px-6">
-      <div className="ambient" />
-      <div className="noise" />
-      <div className="w-full max-w-[380px] animate-fadeUp">
-        {/* hero */}
-        <div className="mb-10 flex flex-col items-center text-center">
-          <img src={logoMark} alt="ForexMind AI" className="mb-7 h-[72px] w-[72px] rounded-[20px] object-cover"
-               style={{ boxShadow: "0 2px 10px rgba(16,24,40,0.18)" }} />
-          <h1 className="text-[24px] font-extrabold tracking-tight text-[var(--text-primary)]">
-            FOREXMIND <span className="font-black text-[var(--accent-gold)]">AI</span>
-          </h1>
-          <p className="mt-2 text-[12.5px] leading-relaxed text-txt-low">Your personal AI trading research agent.</p>
-        </div>
-
-        <div className="glass p-6">
-          <div className="mb-5 flex rounded-full border border-[rgba(var(--warm-rgb),0.07)] bg-[rgba(var(--warm-rgb),0.035)] p-1">
-            {(["login", "register"] as const).map((m) => (
-              <button
-                key={m}
-                onClick={() => setMode(m)}
-                className={`flex-1 rounded-full py-2 text-[12px] font-medium transition-all duration-300 ${
-                  mode === m ? "bg-[rgba(var(--warm-rgb),0.10)] text-txt-hi shadow-soft" : "text-txt-low"
-                }`}
-              >
-                {m === "login" ? "Sign in" : "Create account"}
-              </button>
-            ))}
-          </div>
-
-          <div className="space-y-3">
-            {mode === "register" && <input className="input" placeholder="Display name" value={name} onChange={(e) => setName(e.target.value)} />}
-            <input className="input" placeholder="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-            <input className="input" placeholder="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-          </div>
-
-          {mode === "register" && (
-            <div className={`mt-4 rounded-2xl border px-4 py-2.5 text-[11.5px] ${invite ? "border-pos/20 bg-pos/[0.06] text-pos" : "border-warn/20 bg-warn/[0.06] text-warn"}`}>
-              {invite
-                ? "You've been invited - create your account below (signals access; execution stays with the owner)."
-                : "Registration is by invite only - ask the owner for a link."}
-            </div>
-          )}
-          {error && <div className="mt-4 rounded-2xl border border-neg/20 bg-neg/[0.06] px-4 py-2.5 text-[11.5px] text-neg">{error}</div>}
-
-          <button className="btn-primary mt-5 w-full" disabled={busy} onClick={submit}>
-            {busy ? "Connecting..." : mode === "login" ? "Sign in" : "Create account"}
-          </button>
-        </div>
-
-        <p className="mt-8 text-center text-[10px] leading-relaxed text-txt-faint">
-          Research & signals only - ForexMind AI never executes trades.
-          <br />
-          You stay in control of every decision.
+    <div className="relative flex min-h-screen flex-col px-6 pb-10 pt-[max(env(safe-area-inset-top),48px)]">
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(520px 280px at 50% -10%, rgba(76,141,255,0.28), transparent 60%), radial-gradient(400px 240px at 100% 20%, rgba(31,191,117,0.08), transparent 55%)",
+        }}
+      />
+      <div className="relative">
+        <img src={logoMark} alt="" className="h-14 w-14 rounded-2xl object-cover" />
+        <h1 className="mt-8 text-[40px] font-semibold leading-[1.05] tracking-[-0.04em]">
+          Markets,<br />explained.
+        </h1>
+        <p className="mt-3 max-w-[280px] text-[16px] leading-relaxed text-[var(--text-secondary)]">
+          ForexMind watches your pairs and tells you when a setup is real.
         </p>
-        <p className="mt-3 font-mono text-[9.5px] uppercase tracking-[0.14em] text-txt-faint">{BUILD_STAMP}</p>
+      </div>
+
+      <div className="relative mt-auto pt-10">
+        <div className="mb-6 flex gap-6 text-[15px] font-medium">
+          {(["login", "register"] as const).map((m) => (
+            <button
+              key={m}
+              onClick={() => setMode(m)}
+              className={mode === m ? "text-[var(--text-primary)]" : "text-[var(--text-faint)]"}
+            >
+              {m === "login" ? "Sign in" : "Create account"}
+              {mode === m && <span className="mt-1 block h-0.5 w-6 rounded-full bg-[var(--accent)]" />}
+            </button>
+          ))}
+        </div>
+        <div className="space-y-3">
+          {mode === "register" && (
+            <input className="input" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" />
+          )}
+          <input className="input" placeholder="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
+          <input className="input" placeholder="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={mode === "login" ? "current-password" : "new-password"} />
+        </div>
+        {mode === "register" && (
+          <p className={`mt-3 text-[13px] leading-relaxed ${invite ? "text-[var(--accent-green)]" : "text-[var(--text-muted)]"}`}>
+            {invite ? "This invite gives you signal access. Execution stays with the owner." : "Accounts are invite only."}
+          </p>
+        )}
+        {error && <p className="mt-3 text-[13px] text-[var(--accent-red)]">{error}</p>}
+        <button className="btn-primary press mt-5 w-full" disabled={busy} onClick={submit}>
+          {busy ? "Connecting…" : mode === "login" ? "Continue" : "Create account"}
+        </button>
       </div>
     </div>
   );

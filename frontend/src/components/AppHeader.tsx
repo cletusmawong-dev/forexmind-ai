@@ -8,7 +8,7 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Bell, UserRound } from "lucide-react";
-import { Logo } from "./ui";
+import { LogoMark } from "./ui";
 import { AccountSwitcher } from "./AccountSwitcher";
 import { api } from "../lib/api";
 import { endpoints } from "../lib/api";
@@ -42,12 +42,12 @@ export function AppHeader() {
 
   return (
     <header
-      className="hairline-b sticky top-0 z-[70] border-b border-[var(--glass-border)] bg-[var(--bg-primary)]/90 backdrop-blur-md lg:hidden"
+      className="sticky top-0 z-[70] border-b border-white/[0.05] bg-[rgba(7,11,16,0.72)] backdrop-blur-xl lg:hidden"
       style={{ paddingTop: "max(env(safe-area-inset-top, 0px), 10px)" }}
     >
-      <div className="mx-auto flex h-[52px] w-full max-w-[560px] items-center justify-between gap-2 px-4 pb-2.5">
+      <div className="mx-auto flex h-14 w-full max-w-[560px] items-center justify-between gap-2 px-4">
         <Link to="/" aria-label="ForexMind AI home" className="flex min-w-0 items-center">
-          <Logo size={30} />
+          <LogoMark size={32} />
         </Link>
 
         <div className="flex min-w-0 items-center gap-1.5">

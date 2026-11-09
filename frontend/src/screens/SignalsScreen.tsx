@@ -48,12 +48,9 @@ export function SignalsScreen() {
 
   return (
     <div className="anim-fadeUp">
-      <header className="mb-4 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-[30px] font-extrabold leading-[1.1] tracking-[-0.03em]">Signals</h1>
-          <p className="mt-1 text-[13px] text-[var(--text-muted)]">AI-powered trade ideas with full analysis</p>
-        </div>
-        <div className="mt-1.5 shrink-0"><DemoTag /></div>
+      <header className="mb-5 flex items-end justify-between px-1">
+        <h1 className="text-[34px] font-semibold tracking-[-0.03em]">Signals</h1>
+        <DemoTag />
       </header>
 
       {/* live settings gates - exactly what the engine enforces on new signals */}
@@ -121,11 +118,9 @@ export function SignalsScreen() {
           sub={filter === "open" ? "No qualifying setup. Capital protected - the agent is watching for real conditions." : "Completed signals appear here with their outcomes."}
         />
       ) : (
-        <div className="space-y-3">
-          {signals.map((s, i) => (
-            <div key={s.id} data-reveal style={{ transitionDelay: `${Math.min(i * 40, 300)}ms` }}>
-              <SignalRow signal={s} onClick={() => navigate(`/signals/${s.id}`)} />
-            </div>
+        <div className="-mx-4">
+          {signals.map((s) => (
+            <SignalRow key={s.id} signal={s} onClick={() => navigate(`/signals/${s.id}`)} />
           ))}
         </div>
       )}

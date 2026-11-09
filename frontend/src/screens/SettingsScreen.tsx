@@ -278,8 +278,8 @@ export function SettingsScreen() {
               key={k}
               onClick={() => setTheme(k as any)}
               aria-pressed={theme === k}
-              className={`tap min-h-[76px] rounded-2xl border p-3 text-left ${
-                theme === k ? "chip-on" : "chip-off"
+              className={`press min-h-[76px] rounded-2xl p-3 text-left ${
+                theme === k ? "bg-white/[0.08] ring-1 ring-[var(--accent)]" : "bg-white/[0.03]"
               }`}
             >
               <span className="flex items-center gap-1.5">

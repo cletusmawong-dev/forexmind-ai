@@ -350,11 +350,13 @@ export function Spinner({ label }: { label?: string }) {
 
 export function Empty({ title, sub, icon }: { title: string; sub?: string; icon?: React.ReactNode }) {
   return (
-    <Glass level={2} className="py-12 text-center">
-      {icon && <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-[rgba(var(--warm-rgb),0.09)] bg-[rgba(var(--warm-rgb),0.045)] text-[var(--text-muted)]">{icon}</div>}
-      <div className="text-[14px] font-semibold">{title}</div>
-      {sub && <div className="mx-auto mt-1.5 max-w-[280px] text-[12px] leading-relaxed text-[var(--text-muted)]">{sub}</div>}
-    </Glass>
+    <div className="flex flex-col items-center px-8 py-16 text-center">
+      <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-[rgba(255,255,255,0.04)] text-[var(--text-secondary)]">
+        {icon}
+      </div>
+      <div className="text-[20px] font-semibold tracking-tight text-[var(--text-primary)]">{title}</div>
+      {sub && <p className="mt-2 max-w-[280px] text-[14px] leading-relaxed text-[var(--text-muted)]">{sub}</p>}
+    </div>
   );
 }
 

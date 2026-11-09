@@ -29,14 +29,8 @@ export function JournalScreen() {
 
   return (
     <div className="animate-fadeUp">
-      <header className="mb-7 flex items-start justify-between">
-        <div className="flex items-center gap-3.5">
-          <span className="icon-chip icon-chip-cyan" aria-hidden="true"><NotebookPen size={20} /></span>
-          <div>
-            <h1 className="text-[22px] font-semibold tracking-tight">Journal</h1>
-          <p className="mt-1 text-[12.5px] text-txt-low">The complete research record.</p>
-          </div>
-        </div>
+      <header className="mb-6 flex items-end justify-between px-1">
+        <h1 className="text-[34px] font-semibold tracking-[-0.03em]">Journal</h1>
         <DemoTag />
       </header>
 

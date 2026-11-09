@@ -70,7 +70,7 @@ export function SignalRow({ signal: s, variant = "list", onClick }: { signal: Si
     return (
       <button
         onClick={onClick}
-        className={`glass glass-hover tap flex w-full items-center gap-3.5 !py-[16px] p-4 text-left ${s.extra_signal ? "border-l-[3px] border-l-[var(--accent-amber)]" : ""}`}
+        className="press flex w-full items-center gap-3 border-b border-white/[0.06] px-4 py-3.5 text-left active:bg-white/[0.03]"
         aria-label={`${s.market} ${s.direction} signal${s.extra_signal ? " (extra, not entered)" : ""}`}
       >
         <MarketFlag market={s.market} size={40} />
@@ -109,62 +109,28 @@ export function SignalRow({ signal: s, variant = "list", onClick }: { signal: Si
     );
   }
 
-  // ---- full reference card (Signals screen) ----
-  const levels: [string, number | null | undefined, string][] = [
-    ["Entry", s.entry, "var(--text-primary)"],
-    ["SL", s.sl, "var(--accent-red)"],
-    ["TP1", s.tp1, "var(--accent-green)"],
-    ["TP2", s.tp2, "var(--accent-green)"],
-  ];
-  const tagTone = TAG_TONES[Math.abs([...(s.strategy_id || s.strategy_name || "s")].reduce((a, c) => a + c.charCodeAt(0), 0)) % TAG_TONES.length];
-
   return (
     <button
       onClick={onClick}
-      className={`glass glass-hover tap w-full !rounded-2xl p-3.5 text-left ${s.extra_signal ? "border-l-[3px] border-l-[var(--accent-amber)]" : ""}`}
+      className="press flex w-full items-center gap-3 border-b border-white/[0.06] px-4 py-3.5 text-left active:bg-white/[0.03]"
       aria-label={`${s.market} ${s.direction} signal`}
     >
-      <div className="flex items-start gap-3">
-        <MarketFlag market={s.market} size={38} />
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="text-[15px] font-extrabold tracking-tight">{s.market}</span>
-            <span className={`badge ${buy ? "badge-gain" : "badge-loss"}`}>
-              <span className={`h-[5px] w-[5px] rounded-full ${buy ? "bg-gain" : "bg-loss"}`} />
-              {s.direction}
-            </span>
-            <span className="rounded-md bg-[var(--bg-secondary)] px-1.5 py-[2px] text-[9.5px] font-bold text-[var(--text-muted)]">{s.timeframe}</span>
-            <StatusPill s={s} />
-          </div>
-          <div className="mt-1.5 grid grid-cols-4 gap-1">
-            {levels.map(([label, val, color]) => (
-              <div key={label} className="min-w-0">
-                <div className="text-micro font-semibold uppercase" style={{ color: label === "Entry" ? "var(--text-muted)" : label === "SL" ? "var(--accent-red)" : "var(--text-faint)" }}>
-                  {label}
-                </div>
-                <div className="num whitespace-nowrap text-[10.5px] font-bold tracking-[-0.02em]" style={{ color: val == null ? "var(--text-faint)" : color }}>
-                  {val == null ? "—" : fmtPrice(val)}
-                </div>
-              </div>
-            ))}
-          </div>
+      <MarketFlag market={s.market} size={40} />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline gap-2">
+          <span className="text-[16px] font-semibold tracking-tight">{s.market}</span>
+          <span className={`text-[13px] font-medium ${buy ? "text-pos" : "text-neg"}`}>{s.direction === "BUY" ? "Buy" : "Sell"}</span>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-1">
-          {age && <span className="text-[9.5px] font-medium text-[var(--text-faint)]">{age}</span>}
-          <MiniChart market={s.market} width={54} />
+        <div className="mt-0.5 truncate text-[13px] text-[var(--text-muted)]">
+          {s.strategy_name || "Strategy"} · {s.timeframe}
+          {notEntered ? ` · ${notEntered}` : ""}
         </div>
       </div>
-      <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-[var(--glass-border-soft)] pt-2">
-        <div className="flex min-w-0 items-center gap-1.5">
-          <span className="truncate text-[10px] text-[var(--text-muted)]">
-            {s.signal_id}
-          </span>
-          <span className={`shrink-0 rounded-md px-1.5 py-[2px] text-[9px] font-bold ${tagTone}`}>
-            {s.strategy_name || "Strategy"}
-          </span>
-          {notEntered && <span className="shrink-0 text-[9.5px] font-semibold text-[var(--accent-amber)]">· {notEntered}</span>}
+      <div className="text-right">
+        <div className="num text-[16px] font-medium">{fmtPrice(s.entry)}</div>
+        <div className={`num text-[13px] ${s.outcome === "LOSS" ? "text-neg" : s.outcome === "WIN" ? "text-pos" : "text-[var(--text-muted)]"}`}>
+          {s.rr_primary ? `1:${Number(s.rr_primary).toFixed(1)}` : s.status?.replaceAll("_", " ").toLowerCase()}
         </div>
-        <ChevronRight size={15} className="shrink-0 text-[var(--text-muted)] opacity-60" />
       </div>
     </button>
   );

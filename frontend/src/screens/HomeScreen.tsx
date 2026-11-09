@@ -12,6 +12,8 @@ import {
   StatusDot, ConnectionState, Pill,
 } from "../components/ui";
 import { fmtPct, fmtPrice, greeting } from "../lib/format";
+import { MarketFlag } from "../components/MarketFlag";
+import { MiniChart } from "../components/MiniChart";
 import { SignalRow } from "../components/SignalRow";
 import { notEnteredReason as notEnteredSignal } from "../lib/execution";
 import { AgentPulse } from "../components/AgentPulse";
@@ -112,6 +114,11 @@ export function HomeScreen() {
     String(acct.trading_status || "").startsWith("LOSS LIMIT") ? "neg" :
     acct.execution_mode === "off" ? "neutral" : "pos";
 
+  const liveSignals = (signals.data?.signals ?? []).filter((s) => !s.extra_signal && !notEnteredSignal(s)).slice(0, 3);
+  const todayLabel = acct.today_pl_usd != null
+    ? `${acct.today_pl_usd >= 0 ? "+" : "−"}$${Math.abs(acct.today_pl_usd).toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+    : acct.daily_pl_pct != null ? fmtPct(acct.daily_pl_pct) : null;
+
   return (
     <div onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} className="lg:grid lg:grid-cols-12 lg:gap-10">
       {/* pull indicator */}
@@ -156,80 +163,38 @@ export function HomeScreen() {
 
         {/* active trading account */}
 
-        {/* ---- hero: ANSWER 1 - your account -------------------------------- */}
-        <Glass className="hero-card relative overflow-hidden" pad={false} data-reveal>
-          <div className="relative p-6">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-[13px] font-medium text-[var(--text-secondary)]">{greeting()}</p>
-              <Pill tone={statusTone as any}>{acct.trading_status || "STATUS UNAVAILABLE"}</Pill>
-            </div>
-            <AnimatedNumber
-              value={balance}
-              format={(v) => `$${v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-              className="num mt-2.5 block text-[38px] font-extrabold leading-none tracking-[-0.03em] lg:text-[48px]"
-            />
-            <p className="mt-1.5 text-[10px] text-txt-faint">
-              {vpsLive
-                ? `MT5 live equity - ${acct.server || "your VPS terminal"}`
-                : acct.goal_balance != null
-                  ? "Objective account balance"
-                  : "DATA UNAVAILABLE - connect your MT5 bridge"}
-            </p>
-
-            {/* account facts: today / open / drawdown / week - broker truth or honest empty */}
-            <div className="mt-4 grid grid-cols-4 gap-2">
-              <div className="rounded-xl border border-[var(--glass-border-soft)] bg-[var(--bg-secondary)] px-2 py-2.5 text-center">
-                <div className="whitespace-nowrap text-[8px] font-bold uppercase tracking-[0.1em] text-txt-faint">Today P/L</div>
-                <div className={`num mt-1 text-[14px] font-extrabold ${upToday ? "text-pos" : "text-neg"}`}>
-                  {acct.today_pl_usd != null
-                    ? `${acct.today_pl_usd >= 0 ? "+" : ""}$${Math.abs(acct.today_pl_usd).toLocaleString(undefined, { maximumFractionDigits: 2 })}`
-                    : acct.daily_pl_pct != null ? fmtPct(acct.daily_pl_pct) : "-"}
-                </div>
-              </div>
-              <div className="rounded-xl border border-[var(--glass-border-soft)] bg-[var(--bg-secondary)] px-2 py-2.5 text-center">
-                <div className="whitespace-nowrap text-[8px] font-bold uppercase tracking-[0.1em] text-txt-faint">Open P/L</div>
-                <div className={`num mt-1 text-[14px] font-extrabold ${Number(acct.open_pl ?? 0) >= 0 ? "text-pos" : "text-neg"}`}>
-                  {acct.open_pl != null
-                    ? `${acct.open_pl >= 0 ? "+" : "-"}$${Math.abs(acct.open_pl).toLocaleString(undefined, { maximumFractionDigits: 2 })}`
-                    : "-"}
-                </div>
-              </div>
-              <div className="rounded-xl border border-[var(--glass-border-soft)] bg-[var(--bg-secondary)] px-2 py-2.5 text-center">
-                <div className="whitespace-nowrap text-[8px] font-bold uppercase tracking-[0.1em] text-txt-faint">Drawdown</div>
-                <div className="num mt-1 text-[14px] font-extrabold text-neg">
-                  {acct.drawdown_pct != null && acct.drawdown_pct > 0 ? `${acct.drawdown_pct.toFixed(2)}%` : "0.00%"}
-                </div>
-              </div>
-              <div className="rounded-xl border border-[var(--glass-border-soft)] bg-[var(--bg-secondary)] px-2 py-2.5 text-center">
-                <div className="whitespace-nowrap text-[8px] font-bold uppercase tracking-[0.1em] text-txt-faint">Week Trades</div>
-                <div className="num mt-1 text-[14px] font-extrabold">
-                  {acct.week_trades != null ? acct.week_trades : "-"}
-                </div>
-                <div className="text-[8px] text-txt-faint">
-                  {acct.week_wins != null ? `${acct.week_wins} win${acct.week_wins === 1 ? "" : "s"}` : "last 7 days"}
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              {acct.daily_pl_pct != null && acct.objective_pct != null && (
-                <span className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold"
-                      style={{
-                        borderColor: upToday ? "rgba(var(--p-rgb),0.3)" : "rgba(var(--neg-rgb),0.3)",
-                        color: upToday ? "var(--accent-green)" : "var(--accent-red)",
-                        background: upToday ? "rgba(var(--p-rgb),0.08)" : "rgba(var(--neg-rgb),0.08)",
-                      }}>
-                  {upToday ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
-                  {fmtPct(acct.daily_pl_pct)} / +{acct.objective_pct}% objective
-                </span>
-              )}
-              <span className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)]">
-                <Shield size={11} /> {acct.risk_per_trade_pct ?? "-"}% risk per signal
-                {acct.execution_mode === "vps" && (acct.trades_today != null) ? ` - ${acct.trades_today}/${acct.max_per_day ?? "-"} trades today` : ""}
-              </span>
+        <section className="px-1 pb-2 pt-1">
+          <p className="text-[15px] text-[var(--text-secondary)]">{greeting()}</p>
+          <AnimatedNumber
+            value={balance}
+            format={(v) => `$${v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            className="num mt-1 block text-[44px] font-semibold leading-none tracking-[-0.04em]"
+          />
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className={`num text-[15px] font-medium ${todayLabel ? (upToday ? "text-pos" : "text-neg") : "text-[var(--text-muted)]"}`}>
+              {todayLabel ?? "No P&L yet"}
+            </span>
+            <span className="text-[13px] text-[var(--text-muted)]">today</span>
+          </div>
+          <p className="mt-1 text-[13px] text-[var(--text-muted)]">
+            {vpsLive
+              ? `Live equity · ${acct.server || "MT5"}`
+              : acct.goal_balance != null
+                ? "Objective balance"
+                : "Connect MT5 to see a live balance"}
+          </p>
+          <div className="mt-4 flex items-end justify-between gap-4">
+            <MiniChart market="XAUUSD" width={168} height={48} />
+            <div className="text-right text-[12px] leading-relaxed text-[var(--text-muted)]">
+              <div>Open {acct.open_pl != null ? `${Number(acct.open_pl) >= 0 ? "+" : "−"}$${Math.abs(Number(acct.open_pl)).toFixed(0)}` : "—"}</div>
+              <div>Drawdown {acct.drawdown_pct != null ? `${Number(acct.drawdown_pct).toFixed(2)}%` : "0.00%"}</div>
+              <div>{acct.risk_per_trade_pct ?? "—"}% risk</div>
             </div>
           </div>
-        </Glass>
+          {acct.trading_status && (
+            <p className="mt-3 text-[13px] text-[var(--text-secondary)]">{acct.trading_status}</p>
+          )}
+        </section>
 
         {/* MT5 bridge line (vps mode) */}
         {acct.execution_mode === "vps" && (
@@ -294,163 +259,82 @@ export function HomeScreen() {
           </Glass>
         )}
 
-        {/* ---- ANSWER 2 - market sessions ---------------------------------- */}
-        <div className="mt-4 grid grid-cols-4 gap-2">
+        <div className="no-scrollbar -mx-4 mt-6 flex gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
           {(ov.sessions ?? []).map((s) => (
-            <div key={s.name}
-                 className={`glass flex flex-col items-center gap-0.5 px-1 py-2.5 text-center transition-all ${s.active ? "!border-[rgba(var(--p-rgb),0.4)]" : "opacity-60"}`}
-                 style={s.active ? { boxShadow: "0 0 16px rgba(var(--p-rgb),0.25)" } : undefined}>
-              <div className="flex items-center gap-1 text-[10.5px] font-bold tracking-tight">
-                {s.active && <StatusDot tone="green" size={5} pulse />}
-                {s.name}
+            <div key={s.name} className="flex w-[72px] shrink-0 flex-col items-center gap-2">
+              <div className={`flex h-16 w-16 items-center justify-center rounded-full ${s.active ? "bg-[rgba(31,191,117,0.16)] ring-2 ring-[var(--accent-green)]" : "bg-white/[0.04]"}`}>
+                <span className={`text-[15px] font-semibold ${s.active ? "text-[var(--accent-green)]" : "text-[var(--text-muted)]"}`}>
+                  {s.name.slice(0, 1)}
+                </span>
               </div>
-              <div className="text-[8.5px] text-txt-faint">{s.active ? "OPEN" : `opens in ${s.opens_in_hours}h`}</div>
+              <div className="text-center">
+                <div className="text-[12px] font-medium">{s.name}</div>
+                <div className="text-[11px] text-[var(--text-muted)]">{s.active ? "Open" : `${s.opens_in_hours}h`}</div>
+              </div>
             </div>
           ))}
         </div>
 
-        {/* ---- ANSWER 3 - what FOREXMIND finds ------------------------------ */}
-        <SectionHeader className="mt-6" right={<Link to="/charts" className="text-[11.5px] font-semibold text-[#1b69b8] transition hover:text-[var(--accent-cyan)]">Open chart</Link>}>
-          What FOREXMIND finds
-        </SectionHeader>
-        <Glass pad={false} className="overflow-hidden !p-1.5" data-reveal>
+        <div className="mt-8 flex items-baseline justify-between px-1">
+          <h2 className="text-[20px] font-semibold tracking-tight">Markets</h2>
+          <Link to="/charts" className="text-[14px] font-medium text-[var(--accent)]">See all</Link>
+        </div>
+        <div className="-mx-4 mt-2">
           {findingRows.length === 0 && (
-            <div className="px-4 py-6 text-center text-[12px] text-[var(--text-muted)]">DATA UNAVAILABLE - market list not loaded yet.</div>
+            <p className="px-5 py-8 text-center text-[14px] text-[var(--text-muted)]">Markets will show here once the feed answers.</p>
           )}
-          <div className="space-y-1">
-            {findingRows.map((r) => (
+          {findingRows.map((r) => {
+            const up = (r.change_pct ?? 0) >= 0;
+            const note = r.s2?.word && r.s2.word !== "NO DATA" && r.s2.word !== "NO SETUP"
+              ? r.s2.word.toLowerCase()
+              : r.s1?.active ? `${r.s1.direction === "SELL" ? "Sell" : "Buy"} live` : null;
+            return (
               <Link key={r.symbol} to={`/charts?symbol=${r.symbol}`}
-                    className="tap flex items-center gap-3 rounded-2xl px-3.5 py-3 transition hover:bg-[rgba(var(--warm-rgb),0.045)]">
+                className="press flex items-center gap-3 border-b border-white/[0.06] px-4 py-3.5 active:bg-white/[0.03]">
+                <MarketFlag market={r.symbol} size={36} />
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-[13px] font-bold tracking-tight">{r.symbol}</span>
-                    <span className="num text-[11px] text-[var(--text-muted)]">{fmtPrice(r.price, r.symbol)}</span>
-                    <span className={`num text-[9.5px] ${(r.change_pct ?? 0) >= 0 ? "text-[var(--accent-green)]" : "text-[var(--accent-red)]"}`}>{fmtPct(r.change_pct)}</span>
-                  </div>
-                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                    <span className="text-[8.5px] font-bold uppercase tracking-[0.08em] text-txt-faint">9/21 EMA</span>
-                    <Pill tone={S1_TONE(r.s1) as any} className="!px-1.5 !py-0.5 !text-[8.5px]">{S1_WORD(r.s1)}</Pill>
-                  </div>
+                  <div className="text-[16px] font-semibold tracking-tight">{r.symbol}</div>
+                  {note && <div className="text-[12px] text-[var(--text-muted)]">{note}</div>}
                 </div>
-                <div className="flex flex-col items-end gap-1">
-                  <span className="text-[8.5px] font-bold uppercase tracking-[0.08em] text-txt-faint">S/D + FVG - 15M</span>
-                  <Pill tone={(S2_TONE[r.s2Word] ?? "neutral") as any} className="!px-2 !py-0.5 !text-[9px]">
-                    {r.s2Word}{r.s2?.direction ? ` - ${r.s2.direction}` : ""}
-                  </Pill>
+                <div className="text-right">
+                  <div className="num text-[16px] font-medium">{r.price == null ? "" : fmtPrice(r.price, r.symbol)}</div>
+                  {r.change_pct != null && (
+                    <div className={`num text-[13px] font-medium ${up ? "text-pos" : "text-neg"}`}>{fmtPct(r.change_pct)}</div>
+                  )}
                 </div>
               </Link>
-            ))}
-          </div>
-        </Glass>
+            );
+          })}
+        </div>
 
-        {/* ---- ANSWER 4 - compact AI insight (real notes only) --------------- */}
-        <SectionHeader className="mt-6" right={<Link to="/agent" className="text-[11.5px] font-semibold text-[#1b69b8]">Ask the AI</Link>}>
-          AI insight
-        </SectionHeader>
-        {ov.ai ? (
-          <Glass level={2} className="cursor-pointer tap !p-4" data-reveal onClick={() => navigate("/agent")}>
-            <div className="flex items-center gap-2">
-              <Cpu size={13} className="text-[var(--accent-cyan)]" />
-              <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--accent-cyan)]">
-                {ov.ai.symbol ? `${ov.ai.symbol} - ` : ""}{ov.ai.action || "AI MANAGER"}
-              </span>
-              {ov.ai.confidence != null && <span className="ml-auto text-[9.5px] text-txt-faint">confidence {ov.ai.confidence}%</span>}
-            </div>
-            <p className="mt-2 line-clamp-3 text-[12px] leading-relaxed text-[var(--text-secondary)]">{ov.ai.message}</p>
-          </Glass>
-        ) : (
-          <Glass level={2} className="!p-4" data-reveal>
-            <p className="text-[12px] text-[var(--text-muted)]">No AI note yet - the AI manager speaks when it has a real trade decision to explain.</p>
-          </Glass>
+        {ov.ai && (
+          <button onClick={() => navigate("/agent")} className="press mt-8 block w-full px-1 text-left">
+            <div className="text-[13px] text-[var(--text-muted)]">{ov.ai.symbol || "Agent"}</div>
+            <p className="mt-1 text-[16px] leading-snug tracking-tight">{ov.ai.message}</p>
+          </button>
         )}
 
-        {/* ---- ANSWER 5 - quick access --------------------------------------- */}
-        <div className="mt-4 grid grid-cols-5 gap-2">
-          {([["/charts", "Chart", CandlestickChart], ["/signals", "Signals", Eye],
-             ["/positions", "Positions", Wallet], ["/agent", "AI", Cpu],
-             ["/community", "Community", Users]] as const).map(
-            ([to, label, Icon]) => (
-              <Link key={to} to={to}
-                className="glass tap flex flex-col items-center gap-1.5 px-1 py-3 text-[9.5px] font-medium text-txt-mid transition-all hover:!border-[rgba(var(--p-rgb),0.4)]">
-                <Icon size={16} className="text-[var(--text-secondary)]" />
-                {label}
-              </Link>
+        <div className="mt-8 flex items-baseline justify-between px-1">
+          <h2 className="text-[20px] font-semibold tracking-tight">Signals</h2>
+          <Link to="/signals" className="text-[14px] font-medium text-[var(--accent)]">View all</Link>
+        </div>
+        {liveSignals.length > 0 ? (
+          <div className="-mx-4 mt-1">
+            {liveSignals.map((s) => (
+              <SignalRow key={s.id} signal={s} variant="home" onClick={() => navigate(`/signals/${s.id}`)} />
             ))}
-        </div>
-
-        {/* ---- agent pulse: live proof the agent is working ------------------- */}
-        <div className="mt-4">
-          <AgentPulse />
-        </div>
-
-        {/* ---- active signals -------------------------------------------------- */}
-        <SectionHeader className="mt-8" right={<Link to="/signals" className="text-[11.5px] font-semibold text-[#1b69b8] transition hover:text-[var(--accent-cyan)]">View all</Link>}>
-          Active Signals
-        </SectionHeader>
-        <div className="space-y-3">
-          {signals.data && signals.data.signals.filter((s) => !s.extra_signal && !notEnteredSignal(s)).slice(0, 3).length > 0 ? (
-            signals.data.signals.filter((s) => !s.extra_signal && !notEnteredSignal(s)).slice(0, 3).map((s, i) => (
-              <div key={s.id} className="anim-fadeUp" style={{ animationDelay: `${i * 60}ms` }}>
-                <SignalRow signal={s} variant="home" onClick={() => navigate(`/signals/${s.id}`)} />
-              </div>
-            ))
-          ) : (
-            <Glass level={2} className="px-5 py-6 text-center">
-              <p className="text-[13px] font-semibold text-[var(--text-secondary)]">No qualifying setup.</p>
-              <p className="mt-1 text-[11.5px] text-[var(--text-muted)]">Capital protected - the agent waits for real conditions.</p>
-            </Glass>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="px-1 py-8">
+            <p className="text-[17px] font-medium tracking-tight">Nothing qualifies right now.</p>
+            <p className="mt-1 text-[14px] leading-relaxed text-[var(--text-muted)]">The agent stays quiet until a setup is real. Capital stays put.</p>
+          </div>
+        )}
       </div>
 
       {/* ---- right column (desktop) / below (mobile) ---- */}
       <div className="mt-10 lg:col-span-5 lg:mt-0 lg:border-l lg:border-[rgba(var(--warm-rgb),0.07)] lg:pl-10 lg:pt-2">
         <MorningBriefCard />
-
-        <SectionHeader className="mt-8" right={<DemoTag />}>Market Watch</SectionHeader>
-        <Glass pad={false} className="overflow-hidden !p-1.5" data-reveal>
-          {marketList.length === 0 && <div className="px-4 py-6 text-center text-[12px] text-[var(--text-muted)]">DATA UNAVAILABLE - markets not loaded yet.</div>}
-          <div className="space-y-1">
-            {marketList.map((m) => {
-              const f2 = s2map[m.symbol.toUpperCase()];
-              return (
-                <Link key={m.symbol} to={`/charts?symbol=${m.symbol.toUpperCase()}`}
-                      className="tap flex items-center gap-3 rounded-2xl px-3.5 py-3 transition hover:bg-[rgba(var(--warm-rgb),0.045)]">
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[13px] font-bold tracking-tight">{m.symbol}</div>
-                    <div className="mt-1 flex items-center gap-1">
-                      {m.mtf &&
-                        Object.entries(m.mtf).map(([tf, v]) => (
-                          <span
-                            key={tf}
-                            title={`${tf} ${["Bearish", "Neutral", "Bullish"][v + 1]}`}
-                            className={`h-1 w-3.5 rounded-full ${
-                              v === 1 ? "bg-[var(--accent-green)]/70" : v === -1 ? "bg-[var(--accent-red)]/70" : "bg-[rgba(var(--warm-rgb),0.18)]"
-                            }`}
-                          />
-                        ))}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="num text-[12.5px] font-semibold">{fmtPrice(m.price, m.symbol)}</div>
-                    <div className={`num text-[10px] ${(m.change_pct ?? 0) >= 0 ? "text-[var(--accent-green)]" : "text-[var(--accent-red)]"}`}>{fmtPct(m.change_pct)}</div>
-                  </div>
-                  <div className="w-[86px] text-right">
-                    <div className={`text-[10.5px] font-bold ${m.bias === "BUY BIAS" ? "text-[var(--accent-green)]" : m.bias === "SELL BIAS" ? "text-[var(--accent-red)]" : "text-[var(--text-muted)]"}`}>
-                      {m.bias.replace(" BIAS", "")}
-                    </div>
-                    <div className={`text-[8.5px] font-bold uppercase tracking-[0.1em] ${
-                      f2?.word === "SIGNAL READY" ? "text-[var(--accent-cyan)]"
-                        : f2?.word === "WATCHING" || f2?.word === "RETESTING" || f2?.word === "DISPLACEMENT" ? "text-[var(--accent-amber)]"
-                        : "text-[var(--text-muted)]"}`}>
-                      {f2?.word ? f2.word.toLowerCase() : "no data"}
-                    </div>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        </Glass>
 
         {/* today's goal (objective bar) */}
         {acct.daily_pl_pct != null && acct.objective_pct != null && (
