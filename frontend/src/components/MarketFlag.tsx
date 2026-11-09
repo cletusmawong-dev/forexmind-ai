@@ -90,8 +90,8 @@ export function MarketFlag({ market, size = 38 }: { market: string; size?: numbe
   // fallback: ticker disc
   return (
     <svg {...common}>
-      <circle cx="20" cy="20" r="19" fill="#f2f4f7" stroke="#e7e9ee" />
-      <text x="20" y="25" textAnchor="middle" fontSize="10" fontWeight="800" fill="#3f4756">
+        <circle cx="20" cy="20" r="19" fill="#1a2432" stroke="rgba(232,238,246,0.16)" />
+      <text x="20" y="25" textAnchor="middle" fontSize="10" fontWeight="800" fill="#f4f7fb">
         {m.slice(0, 3)}
       </text>
     </svg>

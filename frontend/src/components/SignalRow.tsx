@@ -11,10 +11,10 @@ import { MarketFlag } from "./MarketFlag";
 import { MiniChart } from "./MiniChart";
 
 const TAG_TONES = [
-  "bg-[rgba(18,160,92,0.10)] text-[#0d8a4e]",
-  "bg-[rgba(37,99,235,0.10)] text-[#2563eb]",
-  "bg-[rgba(184,145,47,0.12)] text-[#96742a]",
-  "bg-[rgba(109,90,224,0.10)] text-[#5b4bc4]",
+  "badge-gain",
+  "badge-accent",
+  "badge",
+  "badge-loss",
 ];
 
 export function CircleDirIcon({ dir, size = 44 }: { dir: "BUY" | "SELL"; size?: number }) {
@@ -43,14 +43,14 @@ function StatusPill({ s }: { s: Signal }) {
   if (notEntered)
     return <span className="shrink-0 whitespace-nowrap rounded-full border border-[var(--glass-border)] bg-[var(--bg-secondary)] px-2 py-[3px] text-[8.5px] font-bold tracking-[0.06em] text-[var(--text-muted)]">NOT ENTERED</span>;
   if (s.outcome === "WIN")
-    return <span className="shrink-0 whitespace-nowrap rounded-full border border-[rgba(18,160,92,0.35)] bg-[rgba(18,160,92,0.08)] px-2 py-[3px] text-[8.5px] font-bold tracking-[0.06em] text-[#0d8a4e]">WON</span>;
+    return <span className="badge badge-gain">WON</span>;
   if (s.outcome === "LOSS")
-    return <span className="shrink-0 whitespace-nowrap rounded-full border border-[rgba(229,72,77,0.35)] bg-[rgba(229,72,77,0.07)] px-2 py-[3px] text-[8.5px] font-bold tracking-[0.06em] text-[#c33d42]">LOSS</span>;
+    return <span className="badge badge-loss">LOSS</span>;
   if ((s as any).mt5_ticket && !s.completed)
-    return <span className="shrink-0 whitespace-nowrap rounded-full border border-[rgba(37,99,235,0.35)] bg-[rgba(37,99,235,0.08)] px-2 py-[3px] text-[8.5px] font-bold tracking-[0.06em] text-[#2563eb]">IN TRADE</span>;
+    return <span className="badge badge-accent">IN TRADE</span>;
   if (s.completed)
     return <span className="shrink-0 whitespace-nowrap rounded-full border border-[var(--glass-border)] bg-[var(--bg-secondary)] px-2 py-[3px] text-[8.5px] font-bold tracking-[0.06em] text-[var(--text-muted)]">{statusToneShort(s.status).toUpperCase()}</span>;
-  return <span className="shrink-0 whitespace-nowrap rounded-full border border-[rgba(18,160,92,0.35)] bg-[rgba(18,160,92,0.08)] px-2 py-[3px] text-[8.5px] font-bold tracking-[0.06em] text-[#0d8a4e]">LIVE</span>;
+  return <span className="badge badge-gain">LIVE</span>;
 }
 
 export function SignalRow({ signal: s, variant = "list", onClick }: { signal: Signal; variant?: "list" | "home"; onClick?: () => void }) {
@@ -77,7 +77,7 @@ export function SignalRow({ signal: s, variant = "list", onClick }: { signal: Si
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="text-[14.5px] font-bold tracking-tight">{s.market}</span>
-            <span className={`rounded-md px-1.5 py-[2px] text-[9px] font-extrabold tracking-[0.04em] ${buy ? "bg-[rgba(18,160,92,0.12)] text-[#0d8a4e]" : "bg-[rgba(229,72,77,0.10)] text-[#c33d42]"}`}>
+            <span className={`badge ${buy ? "badge-gain" : "badge-loss"}`}>
               {s.direction}
             </span>
             <span className="text-[10.5px] font-medium text-[var(--text-muted)]">{s.timeframe}</span>
@@ -94,12 +94,12 @@ export function SignalRow({ signal: s, variant = "list", onClick }: { signal: Si
               if (s.extra_signal) return <span className="text-[var(--accent-amber)]">advisory</span>;
               if (notEntered) return <span className="text-[var(--accent-amber)]">not entered</span>;
               if ((s as any).mt5_ticket && !s.completed)
-                return <span className="text-[#2563eb]">live · in position</span>;
+                return <span className="text-accent">live · in position</span>;
               const tp = (s.status || "").match(/TP(\d)/);
-              if (tp) return <span className="text-[#0d8a4e]">TP{tp[1]}: {fmtR(s.r_multiple)}</span>;
-              if (s.outcome === "WIN") return <span className="text-[#0d8a4e]">{fmtR(s.r_multiple)}</span>;
-              if (s.outcome === "LOSS") return <span className="text-[#c33d42]">{fmtR(s.r_multiple)}</span>;
-              if (s.status === "ACTIVE") return <span className="text-[#2563eb]">score {s.score}</span>;
+              if (tp) return <span className="text-gain">TP{tp[1]}: {fmtR(s.r_multiple)}</span>;
+              if (s.outcome === "WIN") return <span className="text-gain">{fmtR(s.r_multiple)}</span>;
+              if (s.outcome === "LOSS") return <span className="text-loss">{fmtR(s.r_multiple)}</span>;
+              if (s.status === "ACTIVE") return <span className="text-accent">score {s.score}</span>;
               return <span className="text-[var(--text-muted)]">{statusToneShort(s.status)}</span>;
             })()}
           </div>
@@ -111,10 +111,10 @@ export function SignalRow({ signal: s, variant = "list", onClick }: { signal: Si
 
   // ---- full reference card (Signals screen) ----
   const levels: [string, number | null | undefined, string][] = [
-    ["Entry", s.entry, "#101828"],
-    ["SL", s.sl, "#c33d42"],
-    ["TP1", s.tp1, "#0d8a4e"],
-    ["TP2", s.tp2, "#0d8a4e"],
+    ["Entry", s.entry, "var(--text-primary)"],
+    ["SL", s.sl, "var(--accent-red)"],
+    ["TP1", s.tp1, "var(--accent-green)"],
+    ["TP2", s.tp2, "var(--accent-green)"],
   ];
   const tagTone = TAG_TONES[Math.abs([...(s.strategy_id || s.strategy_name || "s")].reduce((a, c) => a + c.charCodeAt(0), 0)) % TAG_TONES.length];
 
@@ -129,8 +129,8 @@ export function SignalRow({ signal: s, variant = "list", onClick }: { signal: Si
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span className="text-[15px] font-extrabold tracking-tight">{s.market}</span>
-            <span className={`flex items-center gap-1 rounded-md px-1.5 py-[2px] text-[9.5px] font-extrabold ${buy ? "bg-[rgba(18,160,92,0.12)] text-[#0d8a4e]" : "bg-[rgba(229,72,77,0.10)] text-[#c33d42]"}`}>
-              <span className={`h-[5px] w-[5px] rounded-full ${buy ? "bg-[#12a05c]" : "bg-[#e5484d]"}`} />
+            <span className={`badge ${buy ? "badge-gain" : "badge-loss"}`}>
+              <span className={`h-[5px] w-[5px] rounded-full ${buy ? "bg-gain" : "bg-loss"}`} />
               {s.direction}
             </span>
             <span className="rounded-md bg-[var(--bg-secondary)] px-1.5 py-[2px] text-[9.5px] font-bold text-[var(--text-muted)]">{s.timeframe}</span>
@@ -139,7 +139,7 @@ export function SignalRow({ signal: s, variant = "list", onClick }: { signal: Si
           <div className="mt-1.5 grid grid-cols-4 gap-1">
             {levels.map(([label, val, color]) => (
               <div key={label} className="min-w-0">
-                <div className="text-[8.5px] font-bold uppercase tracking-[0.08em]" style={{ color: label === "Entry" ? "#0d8a4e" : label === "SL" ? "#c33d42" : "var(--text-faint)" }}>
+                <div className="text-micro font-semibold uppercase" style={{ color: label === "Entry" ? "var(--text-muted)" : label === "SL" ? "var(--accent-red)" : "var(--text-faint)" }}>
                   {label}
                 </div>
                 <div className="num whitespace-nowrap text-[10.5px] font-bold tracking-[-0.02em]" style={{ color: val == null ? "var(--text-faint)" : color }}>

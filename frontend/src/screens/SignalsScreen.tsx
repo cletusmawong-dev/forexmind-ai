@@ -4,7 +4,7 @@ import { Crosshair, SlidersHorizontal } from "lucide-react";
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
 import type { Signal } from "../lib/types";
-import { DemoTag, Empty, Eyebrow, Segmented, Spinner } from "../components/ui";
+import { DemoTag, Empty, Eyebrow, Segmented, SkeletonList } from "../components/ui";
 import { SignalRow } from "../components/SignalRow";
 
 export function SignalsScreen() {
@@ -74,17 +74,17 @@ export function SignalsScreen() {
 
       <div className="no-scrollbar -mx-4 mb-2.5 flex items-center gap-2 overflow-x-auto px-4 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <button onClick={() => setMarket("all")} aria-pressed={market === "all"}
-          className={`tap shrink-0 rounded-full px-4 py-2 text-[12px] font-bold ${market === "all" ? "bg-[#101828] text-white" : "chip-off"}`}>
+          className={`tap min-h-11 shrink-0 rounded-full px-4 py-2 text-caption font-semibold ${market === "all" ? "chip-on" : "chip-off"}`}>
           All
         </button>
         {(marketsQ.data?.markets ?? []).map((m) => (
           <button key={m.symbol} onClick={() => setMarket(m.symbol)} aria-pressed={market === m.symbol}
-            className={`tap shrink-0 rounded-full border px-4 py-2 text-[12px] font-bold ${market === m.symbol ? "bg-[#101828] text-white border-transparent" : "chip-off"}`}>
+            className={`tap min-h-11 shrink-0 rounded-full border px-4 py-2 text-caption font-semibold ${market === m.symbol ? "chip-on border-transparent" : "chip-off"}`}>
             {m.symbol}
           </button>
         ))}
         <button onClick={() => setFiltersOpen((o) => !o)} aria-expanded={filtersOpen}
-          className={`tap ml-auto flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-[12px] font-bold ${filtersOpen ? "border-transparent bg-[#101828] text-white" : "chip-off"}`}>
+          className={`tap ml-auto flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-caption font-semibold ${filtersOpen ? "chip-on border-transparent" : "chip-off"}`}>
           <SlidersHorizontal size={13} /> Filters
         </button>
       </div>
@@ -113,7 +113,7 @@ export function SignalsScreen() {
       )}
 
       {loading && !data ? (
-        <Spinner label="Loading signals..." />
+        <SkeletonList rows={3} />
       ) : signals.length === 0 ? (
         <Empty
           icon={<Crosshair size={20} strokeWidth={1.6} />}

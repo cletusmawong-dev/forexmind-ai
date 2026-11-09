@@ -85,7 +85,7 @@ export function PageHeader({ title, sub, right, icon, tone = "blue" }: { title: 
       <div className="flex min-w-0 items-center gap-2.5">
         {icon && <span className={`${chip} !h-9 !w-9 !rounded-xl`} aria-hidden="true">{icon}</span>}
         <div className="min-w-0">
-          <h1 className="truncate text-[21px] font-bold leading-tight tracking-[-0.02em]">{title}</h1>
+          <h1 className="truncate text-title font-semibold">{title}</h1>
           {sub && <p className="mt-0.5 truncate text-[11.5px] text-[var(--text-muted)]">{sub}</p>}
         </div>
       </div>
@@ -314,6 +314,28 @@ export function BtnSpinner({ className = "" }: { className?: string }) {
       className={`inline-block h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 align-[-2px] ${className}`}
       style={{ borderColor: "color-mix(in srgb, currentColor 22%, transparent)", borderTopColor: "currentColor" }}
     />
+  );
+}
+
+export function Skeleton({ className = "" }: { className?: string }) {
+  return <div className={`skeleton ${className}`} aria-hidden="true" />;
+}
+
+export function SkeletonList({ rows = 4 }: { rows?: number }) {
+  return (
+    <div className="space-y-3" aria-busy="true" aria-label="Loading">
+      <Skeleton className="h-8 w-40" />
+      <Skeleton className="h-28 w-full rounded-card" />
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="glass flex items-center gap-3 p-4">
+          <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
+          <div className="min-w-0 flex-1 space-y-2">
+            <Skeleton className="h-3 w-1/3" />
+            <Skeleton className="h-3 w-2/3" />
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 

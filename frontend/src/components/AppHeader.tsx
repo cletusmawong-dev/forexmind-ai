@@ -42,7 +42,7 @@ export function AppHeader() {
 
   return (
     <header
-      className="hairline-b sticky top-0 z-[70] bg-[var(--bg-primary)]/95 backdrop-blur-sm lg:hidden"
+      className="hairline-b sticky top-0 z-[70] border-b border-[var(--glass-border)] bg-[var(--bg-primary)]/90 backdrop-blur-md lg:hidden"
       style={{ paddingTop: "max(env(safe-area-inset-top, 0px), 10px)" }}
     >
       <div className="mx-auto flex h-[52px] w-full max-w-[560px] items-center justify-between gap-2 px-4 pb-2.5">
@@ -58,8 +58,8 @@ export function AppHeader() {
           <Link
             to="/notifications"
             aria-label="Notifications"
-            className={`tap relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border ${
-              onNotifications ? "border-transparent bg-[rgb(var(--p-rgb))] text-white" : "border-[var(--glass-border)] bg-white text-[var(--text-secondary)]"
+            className={`tap relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full border ${
+              onNotifications ? "border-transparent bg-[rgb(var(--p-rgb))] text-white" : "border-[var(--glass-border)] bg-[var(--bg-elevated)] text-[var(--text-secondary)]"
             }`}
           >
             <Bell size={16} strokeWidth={onNotifications ? 2.2 : 1.8} />
@@ -73,10 +73,10 @@ export function AppHeader() {
           <Link
             to="/more"
             aria-label="Profile and settings"
-            className={`tap flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-[12px] font-bold ${
+            className={`tap flex h-11 w-11 shrink-0 items-center justify-center rounded-full border text-[12px] font-bold ${
               onMore
                 ? "border-transparent bg-[rgb(var(--p-rgb))] text-white"
-                : "border-[var(--glass-border)] bg-white text-[var(--text-secondary)]"
+                : "border-[var(--glass-border)] bg-[var(--bg-elevated)] text-[var(--text-secondary)]"
             }`}
           >
             {me.loaded && me.initial !== "F" ? me.initial : <UserRound size={15} strokeWidth={1.9} />}

@@ -4,7 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
 import type { Notification } from "../lib/types";
-import { Divider, Empty, Glass, GlowDot, Pill, Spinner } from "../components/ui";
+import { Divider, Empty, Glass, GlowDot, Pill, SkeletonList } from "../components/ui";
 import { shortAgo } from "../lib/format";
 
 const toneFor: Record<string, "pos" | "neg" | "warn" | "acc" | "violet" | "cyan"> = {
@@ -28,7 +28,7 @@ export function NotificationsScreen() {
     if (data && data.unread > 0) api.post(endpoints.notificationsRead, {}).catch(() => {});
   }, [data?.unread]);
 
-  if (loading && !data) return <Spinner label="Loading notifications..." />;
+  if (loading && !data) return <SkeletonList rows={5} />;
 
   return (
     <div className="animate-fadeUp">

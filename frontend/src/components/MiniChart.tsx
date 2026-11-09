@@ -39,7 +39,7 @@ export function MiniChart({ market, width = 62, height = 40 }: { market: string;
   const span = max - min || 1;
   const step = width / (pts.length - 1);
   const up = pts[pts.length - 1] >= pts[0];
-  const color = up ? "#16a34a" : "#e5484d";
+  const color = up ? "#1fbf75" : "#f0434a";
   const d = pts
     .map((v, i) => `${i === 0 ? "M" : "L"}${(i * step).toFixed(1)},${(height - 3 - ((v - min) / span) * (height - 6)).toFixed(1)}`)
     .join(" ");

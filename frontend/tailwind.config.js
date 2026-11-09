@@ -26,6 +26,29 @@ export default {
         pos: "var(--accent-green)",
         neg: "var(--accent-red)",
         warn: "var(--accent-amber)",
+        accent: "var(--accent)",
+        surface: {
+          DEFAULT: "var(--bg-secondary)",
+          raised: "var(--bg-elevated)",
+          sunken: "var(--bg-primary)",
+        },
+        gain: "var(--accent-green)",
+        loss: "var(--accent-red)",
+      },
+      fontSize: {
+        display: ["32px", { lineHeight: "1.1", letterSpacing: "-0.03em" }],
+        title: ["22px", { lineHeight: "1.2", letterSpacing: "-0.02em" }],
+        body: ["14px", { lineHeight: "1.45" }],
+        caption: ["12px", { lineHeight: "1.4" }],
+        micro: ["10px", { lineHeight: "1.3", letterSpacing: "0.06em" }],
+      },
+      borderRadius: {
+        card: "16px",
+        control: "12px",
+      },
+      spacing: {
+        18: "4.5rem",
+        nav: "4.75rem",
       },
       fontFamily: {
         sans: [
@@ -39,11 +62,11 @@ export default {
         ],
       },
       boxShadow: {
-        soft: "0 12px 32px rgba(122,92,34,0.12)",
-        float: "0 18px 44px rgba(122,92,34,0.16)",
-        glow: "0 10px 24px rgba(18,155,127,0.22)",
-        glowp: "0 10px 24px rgba(242,105,92,0.18)",
-        glows: "0 10px 24px rgba(184,145,47,0.20)",
+        soft: "0 1px 0 rgba(255,255,255,0.04) inset, 0 12px 32px rgba(0,0,0,0.38)",
+        float: "0 18px 48px rgba(0,0,0,0.5)",
+        glow: "none",
+        glowp: "none",
+        glows: "none",
       },
       keyframes: {
         fadeUp: { from: { opacity: "0", transform: "translateY(10px)" }, to: { opacity: "1", transform: "translateY(0)" } },

@@ -6,10 +6,10 @@ export function Splash() {
       <div className="noise" />
       <div className="flex flex-col items-center gap-7 animate-fadeIn">
         <img src={logoMark} alt="ForexMind AI" className="h-[84px] w-[84px] rounded-[22px] object-cover"
-             style={{ boxShadow: "0 2px 10px rgba(16,24,40,0.18)" }} />
+             style={{ boxShadow: "0 12px 32px rgba(0,0,0,0.45)" }} />
         <div className="text-center">
           <div className="text-[21px] font-extrabold tracking-tight text-[var(--text-primary)]">
-            FOREXMIND <span className="font-black text-[var(--accent-gold)]">AI</span>
+            FOREXMIND <span className="font-black text-accent">AI</span>
           </div>
           <div className="mt-1.5 text-[11.5px] font-normal tracking-wide text-txt-low">Your Personal AI Trading Research Agent</div>
         </div>

@@ -8,7 +8,7 @@ import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
 import type { MarketCard, Signal } from "../lib/types";
 import {
-  AnimatedNumber, DemoTag, Glass, ProgressBar, SectionHeader, Spinner,
+  AnimatedNumber, DemoTag, Glass, ProgressBar, SectionHeader, SkeletonList,
   StatusDot, ConnectionState, Pill,
 } from "../components/ui";
 import { fmtPct, fmtPrice, greeting } from "../lib/format";
@@ -79,7 +79,7 @@ export function HomeScreen() {
   }, [pulling, refresh]);
 
   if (!overview.data) {
-    if (overview.loading) return <Spinner label="Connecting to your agent..." />;
+    if (overview.loading) return <SkeletonList rows={4} />;
     return (
       <div className="pt-10">
         <ConnectionState onRetry={refresh} label="Can't reach your agent" />
@@ -130,7 +130,7 @@ export function HomeScreen() {
             </div>
             <Link
               to="/notifications"
-              className="tap relative flex h-10 w-10 items-center justify-center rounded-full border border-[rgba(var(--p-rgb),0.28)] bg-[rgba(240,231,210,0.55)] text-[var(--text-secondary)] backdrop-blur-xl transition-all duration-300 hover:border-[rgba(var(--p-rgb),0.5)] hover:text-[var(--text-primary)]"
+              className="tap relative flex h-11 w-11 items-center justify-center rounded-full border border-[var(--glass-border)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] transition-all duration-300 hover:border-[rgba(var(--p-rgb),0.5)] hover:text-[var(--text-primary)]"
               style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.12)" }}
               aria-label="Notifications"
             >

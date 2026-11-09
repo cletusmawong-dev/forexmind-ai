@@ -17,7 +17,7 @@ const tabs = [
 export function BottomNav() {
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-[80] border-t border-[var(--glass-border)] bg-white lg:hidden"
+      className="fixed inset-x-0 bottom-0 z-[80] border-t border-[var(--glass-border)] bg-[var(--bg-primary)]/95 backdrop-blur-md lg:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       aria-label="Primary"
     >
@@ -28,16 +28,16 @@ export function BottomNav() {
             to={to}
             end={to === "/"}
             className={({ isActive }) =>
-              `tap mx-0.5 my-[5px] flex min-w-0 flex-1 flex-col items-center justify-center gap-[2px] rounded-2xl py-[6px] ${
-                isActive ? "bg-[rgba(var(--p-rgb),0.10)] text-[var(--accent-blue)]" : "text-[var(--text-faint)]"
+              `tap mx-px my-1 flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 overflow-hidden rounded-xl px-0.5 py-1.5 ${
+                isActive ? "bg-[rgba(var(--p-rgb),0.16)] text-[var(--accent)]" : "text-[var(--text-faint)]"
               }`
             }
             aria-label={label}
           >
             {({ isActive }) => (
               <>
-                <Icon size={20} strokeWidth={isActive ? 2.2 : 1.7} />
-                <span className="max-w-full whitespace-nowrap px-0.25 text-[8px] font-semibold tracking-[-0.01em]">
+                <Icon size={18} strokeWidth={isActive ? 2.2 : 1.7} />
+                <span className="w-full truncate text-center text-[9px] font-medium leading-none tracking-tight">
                   {label}
                 </span>
               </>

@@ -4,7 +4,7 @@ import { Activity, BrainCircuit, RefreshCw } from "lucide-react";
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
 import { useAsyncAction } from "../lib/useAsyncAction";
-import { ActionButton, Empty, ErrorNote, Glass, PageHeader, Pill, SectionHeader, Spinner } from "../components/ui";
+import { ActionButton, Empty, ErrorNote, Glass, PageHeader, Pill, SectionHeader, SkeletonList } from "../components/ui";
 import { shortAgo } from "../lib/format";
 
 type LivePosition = {
@@ -38,7 +38,7 @@ export function PositionsScreen() {
         } />
       <ErrorNote message={pos.error} onDismiss={() => pos.setData(null)} />
 
-      {pos.loading && !pos.data ? <Spinner label="Reading broker positions..." /> :
+      {pos.loading && !pos.data ? <SkeletonList rows={3} /> :
         rows.length === 0 ? (
           <Glass className="p-8 text-center">
             <Empty title="No open positions"

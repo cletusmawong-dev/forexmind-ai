@@ -25,9 +25,9 @@ const SYMBOLS = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "USDCHF", "USDCAD",
   "AUDUSD", "NZDUSD", "EURGBP", "EURJPY", "GBPJPY", "AUDJPY", "XAGUSD",
   "BTCUSD", "ETHUSD"];
 
-const GOLD = "#d4af37";
-const UP = "#26a69a";
-const DOWN = "#ef5350";
+const GOLD = "#4c8dff";
+const UP = "#1fbf75";
+const DOWN = "#f0434a";
 
 type Candle = { time: string; open: number; high: number; low: number; close: number; volume?: number };
 type Overlay = { time: string; value: number };
@@ -93,10 +93,10 @@ export function ChartsScreen() {
       .getPropertyValue("--txt-low-rgb").trim() || "122,132,150";
     const chart = createChart(boxRef.current, {
       layout: { background: { type: ColorType.Solid, color: "transparent" }, textColor: `rgb(${_txtRgb})`, fontSize: 11 },
-      grid: { vertLines: { color: "#f2f4f7" }, horzLines: { color: "#f2f4f7" } },
+      grid: { vertLines: { color: "rgba(232,238,246,0.06)" }, horzLines: { color: "rgba(232,238,246,0.06)" } },
       crosshair: { mode: CrosshairMode.Normal },
-      rightPriceScale: { borderColor: "#e7e9ee" },
-      timeScale: { borderColor: "#e7e9ee", timeVisible: true, secondsVisible: false },
+      rightPriceScale: { borderColor: "rgba(232,238,246,0.10)" },
+      timeScale: { borderColor: "rgba(232,238,246,0.10)", timeVisible: true, secondsVisible: false },
       autoSize: true,
     });
     const candleSeries = chart.addCandlestickSeries({
@@ -105,8 +105,8 @@ export function ChartsScreen() {
     });
     const volSeries = chart.addHistogramSeries({ priceScaleId: "vol", priceFormat: { type: "volume" } });
     chart.priceScale("vol").applyOptions({ scaleMargins: { top: 0.85, bottom: 0 } });
-    const e9 = chart.addLineSeries({ color: "#eab308", lineWidth: 1, priceLineVisible: false, lastValueVisible: false, title: "EMA9" });
-    const e21 = chart.addLineSeries({ color: "#2563eb", lineWidth: 1, priceLineVisible: false, lastValueVisible: false, title: "EMA21" });
+    const e9 = chart.addLineSeries({ color: "#e3a008", lineWidth: 1, priceLineVisible: false, lastValueVisible: false, title: "EMA9" });
+    const e21 = chart.addLineSeries({ color: "#4c8dff", lineWidth: 1, priceLineVisible: false, lastValueVisible: false, title: "EMA21" });
     Object.assign(chartRef, { current: chart });
     candleRef.current = candleSeries; volRef.current = volSeries;
     e9Ref.current = e9; e21Ref.current = e21;
@@ -293,11 +293,11 @@ export function ChartsScreen() {
       <Glass pad={false} className="overflow-hidden !rounded-2xl">
         <div className="flex items-center justify-between gap-2 px-3.5 pt-3">
           <div className="flex items-center gap-3 text-[10.5px] font-bold">
-            <span className="text-[var(--text-secondary)]">EMA 9 <span className="num text-[#ca9a06]">{lastEma9 ? fmt(lastEma9, lastEma9 >= 1000 ? 2 : 3) : "—"}</span></span>
-            <span className="text-[var(--text-secondary)]">EMA 21 <span className="num text-[#2563eb]">{lastEma21 ? fmt(lastEma21, lastEma21 >= 1000 ? 2 : 3) : "—"}</span></span>
+            <span className="text-[var(--text-secondary)]">EMA 9 <span className="num text-warn">{lastEma9 ? fmt(lastEma9, lastEma9 >= 1000 ? 2 : 3) : "—"}</span></span>
+            <span className="text-[var(--text-secondary)]">EMA 21 <span className="num text-accent">{lastEma21 ? fmt(lastEma21, lastEma21 >= 1000 ? 2 : 3) : "—"}</span></span>
           </div>
           <button onClick={loadData} aria-label="Refresh chart"
-            className="tap flex h-7 w-7 items-center justify-center rounded-full border border-[var(--glass-border)] bg-white text-[var(--text-secondary)]">
+            className="tap flex h-11 w-11 items-center justify-center rounded-full border border-[var(--glass-border)] bg-[var(--bg-elevated)] text-[var(--text-secondary)]">
             <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
           </button>
         </div>
@@ -312,7 +312,7 @@ export function ChartsScreen() {
             ))}
           </div>
         )}
-        <div ref={boxRef} className="h-[360px] w-full" />
+        <div ref={boxRef} className="relative h-[300px] w-full overflow-hidden" />
         {loading && !candles.length && (
           <p className="px-4 pb-4 text-center text-[11.5px] text-txt-faint">Loading {symbol} candles…</p>
         )}
