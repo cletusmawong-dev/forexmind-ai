@@ -1,8 +1,8 @@
 {
  "meta": {
-  "captured_at_git_head": "77f1626",
+  "captured_at_git_head": "1cb4b34",
   "n_bars": 900,
-  "note": "registered-8 fire only on structure-specific data (pinned by their own rule-test suites); zero_lag/ema_atr produce live trade fingerprints; fvg backtest error is a documented pre-existing dormant-module bug",
+  "note": "re-baselined after OWNER WIPE 2 (2026-11-02): registry intentionally empty; dormant EMA-family modules keep their behaviour anchors for when new strategies arrive",
   "purpose": "strategy architecture upgrade 2026-11-02 - behaviour regression anchor",
   "seed": 20261102
  },
@@ -1320,112 +1320,6 @@
      "backtest": {
       "error": "ImportError: cannot import name 'atr' from 'app.strategies.base' (/home/user/forexmind-ai/backend/app/strategies/base.py)"
      },
-     "detect_0": null,
-     "detect_25": null,
-     "detect_60": null
-    }
-   }
-  },
-  "strategy_fade_crt_ext": {
-   "hash": "8ba99fe844f63ac17c0ee04905223167f3fb895d0dffdf28dd67e637b44809be",
-   "markets": {
-    "EURUSD": {
-     "backtest": [],
-     "detect_0": null,
-     "detect_25": null,
-     "detect_60": null
-    }
-   }
-  },
-  "strategy_gold_orb": {
-   "hash": "8ba99fe844f63ac17c0ee04905223167f3fb895d0dffdf28dd67e637b44809be",
-   "markets": {
-    "EURUSD": {
-     "backtest": [],
-     "detect_0": null,
-     "detect_25": null,
-     "detect_60": null
-    }
-   }
-  },
-  "strategy_h1_trend_breakout": {
-   "hash": "8ba99fe844f63ac17c0ee04905223167f3fb895d0dffdf28dd67e637b44809be",
-   "markets": {
-    "EURUSD": {
-     "backtest": [],
-     "detect_0": null,
-     "detect_25": null,
-     "detect_60": null
-    }
-   }
-  },
-  "strategy_hybrid_crt_tbs": {
-   "hash": "8ba99fe844f63ac17c0ee04905223167f3fb895d0dffdf28dd67e637b44809be",
-   "markets": {
-    "EURUSD": {
-     "backtest": [],
-     "detect_0": null,
-     "detect_25": null,
-     "detect_60": null
-    }
-   }
-  },
-  "strategy_tpc15_pullback": {
-   "hash": "8ba99fe844f63ac17c0ee04905223167f3fb895d0dffdf28dd67e637b44809be",
-   "markets": {
-    "EURUSD": {
-     "backtest": [],
-     "detect_0": null,
-     "detect_25": null,
-     "detect_60": null
-    }
-   }
-  },
-  "strategy_trendbreak_h1": {
-   "hash": "7ddfa204b5a87684abe10641e3f50534d4d40b5aa999e0ebe7c3ccaca68ad54f",
-   "markets": {
-    "EURUSD": {
-     "backtest": [],
-     "detect_0": null,
-     "detect_25": null,
-     "detect_60": null
-    },
-    "GBPUSD": {
-     "backtest": [],
-     "detect_0": null,
-     "detect_25": null,
-     "detect_60": null
-    }
-   }
-  },
-  "strategy_trendbreak_v2": {
-   "hash": "7ddfa204b5a87684abe10641e3f50534d4d40b5aa999e0ebe7c3ccaca68ad54f",
-   "markets": {
-    "EURUSD": {
-     "backtest": [],
-     "detect_0": null,
-     "detect_25": null,
-     "detect_60": null
-    },
-    "GBPUSD": {
-     "backtest": [],
-     "detect_0": null,
-     "detect_25": null,
-     "detect_60": null
-    }
-   }
-  },
-  "strategy_zonesweep_m15": {
-   "hash": "7ddfa204b5a87684abe10641e3f50534d4d40b5aa999e0ebe7c3ccaca68ad54f",
-   "markets": {
-    "EURUSD": {
-     "backtest": [],
-     "detect_0": null,
-     "detect_25": null,
-     "detect_60": null
-    },
-    "GBPUSD": {
-     "backtest": [],
      "detect_0": null,
      "detect_25": null,
      "detect_60": null

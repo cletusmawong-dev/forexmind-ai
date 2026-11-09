@@ -14,20 +14,14 @@ Guarantees after the wipe:
 from fastapi.testclient import TestClient
 
 
-def test_registry_has_only_the_owner_spec_pair():
-    """Later on 2026-10-10 the owner supplied two new gold specs and asked
-    for exactly those to be implemented - they are the only registered
-    strategies; everything wiped earlier stays out."""
+def test_registry_is_empty_after_owner_wipe_2():
+    """OWNER WIPE 2 (2026-11-02): the owner ordered every strategy removed
+    (old and new) and will supply new specifications. The registry is
+    intentionally EMPTY - nothing scans, nothing trades - until the owner's
+    new strategies are registered."""
     from app.strategies import all_strategies, STRATEGY_CLASSES
-    assert set(STRATEGY_CLASSES) == {"strategy_h1_trend_breakout",
-                                     "strategy_gold_orb",
-                                     "strategy_tpc15_pullback",
-                                     "strategy_trendbreak_h1",
-                                     "strategy_zonesweep_m15",
-                                     "strategy_trendbreak_v2",
-                                     "strategy_hybrid_crt_tbs",
-                                     "strategy_fade_crt_ext"}
-    assert set(all_strategies()) == set(STRATEGY_CLASSES)
+    assert set(STRATEGY_CLASSES) == set()
+    assert set(all_strategies()) == set()
 
 
 def test_boot_purges_all_strategy_docs(tmp_path, monkeypatch):
@@ -48,19 +42,14 @@ def test_boot_purges_all_strategy_docs(tmp_path, monkeypatch):
                      doc_id=f"{sid}-evt")
     monkeypatch.setattr(vc, "get_store", lambda: store)
     vc.ensure_strategy_docs()
-    # the old five are purged; the two owner-spec strategies are created
-    # PAUSED (spec rule 7), TPC-15 ACTIVE (owner directive 2026-10-24)
+    # OWNER WIPE 2: with an empty registry, EVERY strategy doc is purged
     docs = {d["id"]: d for d in store.list("strategies", limit=1000)}
-    assert set(docs) == {"strategy_h1_trend_breakout", "strategy_gold_orb",
-                         "strategy_tpc15_pullback", "strategy_trendbreak_h1",
-                         "strategy_zonesweep_m15", "strategy_trendbreak_v2",
-                         "strategy_hybrid_crt_tbs", "strategy_fade_crt_ext"}
-    for sid in ("strategy_h1_trend_breakout", "strategy_gold_orb"):
-        assert docs[sid]["status"] == "PAUSED"
-    assert docs["strategy_tpc15_pullback"]["status"] == "ACTIVE"
-    assert docs["strategy_trendbreak_v2"]["status"] == "ACTIVE"
-    assert docs["strategy_hybrid_crt_tbs"]["status"] == "ACTIVE"
-    assert docs["strategy_fade_crt_ext"]["status"] == "ACTIVE"
+    assert set(docs) == set()
+    # and every flavour of version/event doc for unregistered ids is gone
+    for sid in ("strategy_trendbreak_v2", "strategy_hybrid_crt_tbs",
+                "strategy_fade_crt_ext"):
+        assert not store.list("strategy_versions", filters={"strategy_id": sid})
+        assert not store.list("version_events", filters={"strategy_id": sid})
     for sid in ("strategy_1_vp_pivots", "strategy_2_ema_atr",
                 "strategy_2_supply_demand_fvg", "strategy_1_zero_lag",
                 "strategy_3_h1_breakout"):
@@ -68,7 +57,7 @@ def test_boot_purges_all_strategy_docs(tmp_path, monkeypatch):
         assert not store.list("strategy_versions", filters={"strategy_id": sid})
         assert not store.list("version_events", filters={"strategy_id": sid})
     vc.ensure_strategy_docs()          # idempotent - same state, no crash
-    assert len(store.list("strategy_versions", limit=1000)) == 8
+    assert len(store.list("strategy_versions", limit=1000)) == 0   # WIPE 2
 
 
 def test_registered_doc_would_survive_purge(tmp_path, monkeypatch):
@@ -101,14 +90,7 @@ def test_strategies_api_returns_zero():
             r = c.get("/api/strategies")
             assert r.status_code == 200
             rows = r.json()["strategies"]
-            assert {x["id"] for x in rows} == {"strategy_h1_trend_breakout",
-                                               "strategy_gold_orb",
-                                               "strategy_tpc15_pullback",
-                                               "strategy_trendbreak_h1",
-                                               "strategy_zonesweep_m15",
-                                               "strategy_trendbreak_v2",
-                                               "strategy_hybrid_crt_tbs",
-                                               "strategy_fade_crt_ext"}
+            assert {x["id"] for x in rows} == set()   # OWNER WIPE 2
     finally:
         # never leak the override into other test files (full-suite isolation)
         app.dependency_overrides.pop(get_user_id, None)

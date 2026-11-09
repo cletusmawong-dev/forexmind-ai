@@ -26,40 +26,14 @@ from .base import BaseStrategy, Candidate
 # only registered strategies. Per the specs' own rule 7 the docs are created
 # PAUSED (see learning.versions.START_PAUSED) - activation is an explicit
 # owner step after tests, historical validation and forward demo testing.
-from .gold_specs import GoldOrbStrategy, H1TrendBreakoutStrategy
-from .research_only.live import (FadeCrtExtensionStrategy,
-                                      HybridCrtTbsStrategy,
-                                      TrendBreakStrategy,
-                                      TrendBreakV2Strategy,
-                                      ZoneSweepStrategy)
-from .tpc15.live import TPC15PullbackStrategy
-
-STRATEGY_CLASSES: Dict[str, Type[BaseStrategy]] = {
-    H1TrendBreakoutStrategy.id: H1TrendBreakoutStrategy,
-    GoldOrbStrategy.id: GoldOrbStrategy,
-    # Owner directive 2026-10-24 ("Make the tpc-15 live"): registered with a
-    # boot-ACTIVE doc (deliberately NOT in START_PAUSED) and lifecycle LIVE.
-    # Rules are the owner's guide, unmodified; instrument-agnostic.
-    TPC15PullbackStrategy.id: TPC15PullbackStrategy,
-    # Owner directive 2026-10-24 ("implement the strategies per the rules,
-    # add it to the app and make them live"): the two research candidates
-    # go live through thin adapters - rules UNCHANGED, the spec's own
-    # market list enforced (EURUSD/GBPUSD/USDJPY/XAUUSD, no XAGUSD).
-    TrendBreakStrategy.id: TrendBreakStrategy,
-    ZoneSweepStrategy.id: ZoneSweepStrategy,
-    # Owner directive 2026-10-24 ("Add this too as a new strategy name it
-    # H1 very.2.0"): TrendBreak v2 (H1) - trail-riding (no fixed TP by
-    # rule); exits = 5xATR tighten-only trail + 240-bar time exit,
-    # maintained by the trade manager's strategy-owned block (engine 0a).
-    TrendBreakV2Strategy.id: TrendBreakV2Strategy,
-    # Owner directive 2026-10-25: PINSTRIPE V6 (locked rules) - the two
-    # strategies run independently and may trade the same pair at the same
-    # time (spec rule 7). Deterministic common management (50% partial at
-    # TP1, SL to breakeven, remainder exits TP2) lives in the trade
-    # manager's strategy-owned block; the broker ticket carries TP2.
-    HybridCrtTbsStrategy.id: HybridCrtTbsStrategy,
-    FadeCrtExtensionStrategy.id: FadeCrtExtensionStrategy,
-}
+# OWNER WIPE 2 (2026-11-02): the owner ordered every strategy removed -
+# old and new - and will supply brand-new specifications. The registry is
+# INTENTIONALLY EMPTY: nothing is scanned, nothing generates signals,
+# nothing can trade. Strategy modules remain in the repo UNREGISTERED for
+# history (same doctrine as the 2026-10-10 wipe); ensure_strategy_docs()
+# purges their database docs on every boot. Adding a new strategy = its
+# module + one registry entry here (see strategies/versions/README.md).
+STRATEGY_CLASSES: Dict[str, Type[BaseStrategy]] = {}
 
 _INSTANCES: Dict[str, BaseStrategy] = {}
 
