@@ -51,6 +51,26 @@ def is_live(strategy_id: str) -> bool:
     return lifecycle_of(strategy_id) == "LIVE"
 
 
+# Full state set (owner spec 2026-11-02, section 7). States live HERE -
+# never inside a strategy module: changing a strategy's state must not
+# touch its trading logic. Definitions:
+#   LIVE     - approved, may generate executable signals (all gates apply)
+#   SHADOW   - runs the real signal engine over recorded candles and
+#              collects hypothetical trades (research/shadow.py) - never
+#              executes
+#   RESEARCH - experiments, backtests, walk-forward only - never executes
+#   SLEEPING - monitored/retained for future research, not trading
+#   RETIRED  - frozen history; no signals, no execution
+ALL_LIFECYCLE_STATES = ("LIVE", "SHADOW", "RESEARCH", "SLEEPING", "RETIRED")
+
+
+def can_execute(strategy_id: str) -> bool:
+    """True only for LIVE. SHADOW/RESEARCH/SLEEPING/RETIRED strategies are
+    structurally barred from broker execution (server-side gates in
+    mt5.py + pretrade.py refuse every state that is not LIVE)."""
+    return lifecycle_of(strategy_id) == "LIVE"
+
+
 RETIRED_STRATEGIES = {sid: "DISABLED" for sid, st in LIFECYCLE.items()
                       if st == "RETIRED"}
 

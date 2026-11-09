@@ -7,7 +7,7 @@ Journal and the Learning Lab.
 """
 from __future__ import annotations
 
-from typing import Dict, Type
+from typing import Any, Dict, Type
 
 from .base import BaseStrategy, Candidate
 
@@ -75,3 +75,32 @@ def get_strategy(strategy_id: str) -> BaseStrategy:
 
 def all_strategies() -> Dict[str, BaseStrategy]:
     return {sid: get_strategy(sid) for sid in STRATEGY_CLASSES}
+
+
+# ---------------------------------------------------------------------------
+# Architecture (owner spec 2026-11-02): ONE strategy = ONE protected module.
+# The registry is the ONLY door to existence; the state of a strategy lives
+# in learning.versions.LIFECYCLE (never in the module); new rule logic is a
+# NEW module + registry entry approved by a human - never an edit of a live
+# file. Promotion doctrine: strategies/versions/README.md.
+# ---------------------------------------------------------------------------
+
+
+def manifest() -> Dict[str, Dict[str, Any]]:
+    """id -> {module, class, version, state, executable} for every registered
+    strategy. Lazy lifecycle import - learning.versions sits on top of this
+    registry; importing it at module level would be circular."""
+    from ..learning.versions import can_execute, lifecycle_of
+    out: Dict[str, Dict[str, Any]] = {}
+    for sid, cls in STRATEGY_CLASSES.items():
+        out[sid] = {"module": cls.__module__, "class": cls.__name__,
+                    "version": cls.version, "state": lifecycle_of(sid),
+                    "executable": can_execute(sid)}
+    return out
+
+
+def strategies_by_state(state: str) -> Dict[str, BaseStrategy]:
+    """All registered strategies currently in a lifecycle state
+    (LIVE / SHADOW / RESEARCH / SLEEPING / RETIRED)."""
+    return {sid: get_strategy(sid) for sid, m in manifest().items()
+            if m["state"] == state}

@@ -10,6 +10,7 @@ the Learning Lab (SPEC §48). The AI may NEVER invent strategies (SPEC §12, §5
 """
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
@@ -41,6 +42,39 @@ class Candidate:
     params: Dict[str, Any] = field(default_factory=dict)
     params_version: str = "1.0"
     extra: Dict[str, Any] = field(default_factory=dict)
+    # ---- signal contract (owner spec 2026-11-02, section 8) ---------------
+    # Every signal carries the identity of the strategy + version that made
+    # it. strategy_version/timestamp are stamped by the detection flow;
+    # signal_id is assigned downstream by the signal engine (SIG-YYYYMMDD-NNN)
+    # and metadata is free-form strategy-owned context.
+    strategy_version: str = ""
+    timestamp: str = ""
+    signal_id: str = ""
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+def validate_candidate(cand) -> Optional[str]:
+    """Signal-contract validation (owner spec 2026-11-02, section 4): a
+    strategy must never emit a trade with missing or incoherent levels.
+    Returns None when valid, else a short reason. Trail strategies may
+    legitimately declare NO fixed targets (tps == []) - that is valid;
+    a target on the WRONG side of entry is not."""
+    try:
+        if cand.direction not in ("BUY", "SELL"):
+            return f"invalid direction {cand.direction!r}"
+        entry, sl = float(cand.entry), float(cand.sl)
+        if not (entry > 0) or not (sl > 0):
+            return "entry/sl must be positive numbers"
+        if entry == sl:
+            return "entry == sl (zero risk)"
+        for tp in (cand.tps or []):
+            tp = float(tp)
+            if ((cand.direction == "BUY" and tp <= entry)
+                    or (cand.direction == "SELL" and tp >= entry)):
+                return f"TP {tp} on the wrong side of entry for {cand.direction}"
+        return None
+    except (TypeError, ValueError) as e:
+        return f"non-numeric level ({e})"
 
 
 class BaseStrategy(ABC):
@@ -106,6 +140,17 @@ class BaseStrategy(ABC):
                 cand = self.build_candidate(state, i, event, df, market, timeframe, params,
                                             higher_frames or {}, score_context or {})
                 if cand is not None:
+                    # signal contract (owner spec 2026-11-02): stamp identity,
+                    # refuse anything incoherent BEFORE the risk engine ever
+                    # sees it. Pure protection - no trading rule is altered.
+                    cand.strategy_version = str(self.version)
+                    cand.timestamp = str(df.index[i])
+                    reason = validate_candidate(cand)
+                    if reason:
+                        logging.getLogger("fxm.strategies").warning(
+                            "%s: invalid candidate on %s %s refused: %s",
+                            self.id, market, timeframe, reason)
+                        return None
                     return cand
         return None
 

@@ -1,0 +1,1436 @@
+{
+ "meta": {
+  "captured_at_git_head": "77f1626",
+  "n_bars": 900,
+  "note": "registered-8 fire only on structure-specific data (pinned by their own rule-test suites); zero_lag/ema_atr produce live trade fingerprints; fvg backtest error is a documented pre-existing dormant-module bug",
+  "purpose": "strategy architecture upgrade 2026-11-02 - behaviour regression anchor",
+  "seed": 20261102
+ },
+ "snapshot": {
+  "strategy_1_zero_lag": {
+   "hash": "72910d378dcc3b43a2eb67f36084c026a8a1946b4915b6acc413bb0e0252de77",
+   "markets": {
+    "NAS100": {
+     "backtest": [
+      {
+       "direction": "SELL",
+       "duration_bars": 24,
+       "entry": 114.4189251673,
+       "entry_time": "2026-10-25 09:30:00",
+       "exit_price": 116.6617329403,
+       "exit_time": "2026-10-25 15:30:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 2.242807773,
+       "sl": 116.6617329403,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_1_zero_lag",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        112.1761173943,
+        109.9333096214,
+        107.6905018484
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 49,
+       "entry": 116.419323957,
+       "entry_time": "2026-10-25 18:30:00",
+       "exit_price": 118.8834195477,
+       "exit_time": "2026-10-26 06:45:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 1.0,
+       "risk": 2.4640955907,
+       "sl": 118.8834195477,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_1_zero_lag",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        113.9552283663,
+        111.4911327757,
+        109.027037185
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 15,
+       "entry": 118.9905593812,
+       "entry_time": "2026-10-26 10:45:00",
+       "exit_price": 121.7223270015,
+       "exit_time": "2026-10-26 14:30:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 2.7317676203,
+       "sl": 121.7223270015,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_1_zero_lag",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        116.2587917609,
+        113.5270241405,
+        110.7952565202
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 79,
+       "entry": 121.121856114,
+       "entry_time": "2026-10-26 15:30:00",
+       "exit_price": 123.7236015548,
+       "exit_time": "2026-10-27 11:15:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 1.0,
+       "risk": 2.6017454408,
+       "sl": 123.7236015548,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_1_zero_lag",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        118.5201106733,
+        115.9183652325,
+        113.3166197917
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 34,
+       "entry": 129.4245171633,
+       "entry_time": "2026-10-27 20:30:00",
+       "exit_price": 137.1400637255,
+       "exit_time": "2026-10-28 05:00:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 3.0,
+       "risk": 2.5718488541,
+       "sl": 126.8526683092,
+       "status": "TP3_HIT",
+       "strategy_id": "strategy_1_zero_lag",
+       "timeframe": "",
+       "tp_hits": 3,
+       "tps": [
+        131.9963660174,
+        134.5682148714,
+        137.1400637255
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 3,
+       "entry": 138.7807699258,
+       "entry_time": "2026-10-28 08:00:00",
+       "exit_price": 135.9717406975,
+       "exit_time": "2026-10-28 08:45:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 2.8090292284,
+       "sl": 135.9717406975,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_1_zero_lag",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        141.5897991542,
+        144.3988283826,
+        147.207857611
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 5,
+       "entry": 133.4914240951,
+       "entry_time": "2026-10-28 19:45:00",
+       "exit_price": 136.4873788007,
+       "exit_time": "2026-10-28 21:00:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 2.9959547056,
+       "sl": 136.4873788007,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_1_zero_lag",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        130.4954693895,
+        127.4995146839,
+        124.5035599783
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 7,
+       "entry": 136.0467767475,
+       "entry_time": "2026-10-29 01:45:00",
+       "exit_price": 133.0950984486,
+       "exit_time": "2026-10-29 03:30:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 2.9516782989,
+       "sl": 133.0950984486,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_1_zero_lag",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        138.9984550464,
+        141.9501333453,
+        144.9018116443
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 58,
+       "entry": 135.5598078,
+       "entry_time": "2026-10-29 05:30:00",
+       "exit_price": 132.5020145711,
+       "exit_time": "2026-10-29 20:00:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 3.0577932289,
+       "sl": 132.5020145711,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_1_zero_lag",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        138.6176010289,
+        141.6753942578,
+        144.7331874867
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 125,
+       "entry": 131.8945713902,
+       "entry_time": "2026-10-30 01:45:00",
+       "exit_price": 142.3096829592,
+       "exit_time": "2026-10-31 09:00:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 3.0,
+       "risk": 3.4717038563,
+       "sl": 128.4228675339,
+       "status": "TP3_HIT",
+       "strategy_id": "strategy_1_zero_lag",
+       "timeframe": "",
+       "tp_hits": 3,
+       "tps": [
+        135.3662752465,
+        138.8379791029,
+        142.3096829592
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 12,
+       "entry": 141.4826362047,
+       "entry_time": "2026-10-31 10:45:00",
+       "exit_price": 138.3150736553,
+       "exit_time": "2026-10-31 13:45:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 3.1675625494,
+       "sl": 138.3150736553,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_1_zero_lag",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        144.6501987541,
+        147.8177613035,
+        150.9853238529
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 41,
+       "entry": 136.2534714644,
+       "entry_time": "2026-11-01 09:00:00",
+       "exit_price": 125.4368492804,
+       "exit_time": "2026-11-01 19:15:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 3.0,
+       "risk": 3.605540728,
+       "sl": 139.8590121924,
+       "status": "TP3_HIT",
+       "strategy_id": "strategy_1_zero_lag",
+       "timeframe": "",
+       "tp_hits": 3,
+       "tps": [
+        132.6479307364,
+        129.0423900084,
+        125.4368492804
+       ]
+      }
+     ],
+     "detect_0": null,
+     "detect_25": null,
+     "detect_60": {
+      "analysis": "The signal qualifies because the strategy's bearish entry condition has been confirmed (close crossed below the Zero-Lag EMA) while the bearish volatility-band trend remains established, with 0 of 5 timeframes aligned bearish.",
+      "candle_time": "2026-11-01 09:00:00",
+      "checks": [
+       {
+        "detail": "trend = Bearish (previous: Bearish)",
+        "label": "Trend condition confirmed",
+        "ok": true
+       },
+       {
+        "detail": "close crossed below the Zero-Lag EMA on the last closed bar",
+        "label": "Entry condition confirmed",
+        "ok": true
+       },
+       {
+        "detail": "5M Neut / 15M Neut / 1H Neut / 4H Neut / 1D Neut",
+        "label": "Higher-timeframe conditions",
+        "ok": false
+       },
+       {
+        "detail": "1 : 3.0 to TP2",
+        "label": "Risk/reward acceptable",
+        "ok": true
+       }
+      ],
+      "direction": "SELL",
+      "entry": 136.2534714644,
+      "entry_zone": [
+       136.1453052426,
+       136.3616376862
+      ],
+      "extra": {},
+      "mtf": {
+       "1H": 0,
+       "4H": 0
+      },
+      "params": {
+       "band_mult": 1.2,
+       "expire_bars": 200,
+       "length": 70,
+       "tp1_rr": 1.0,
+       "tp2_rr": 2.0,
+       "tp3_rr": 3.0
+      },
+      "params_version": "1.1",
+      "risk": 3.605540728,
+      "rr_primary": 3.0,
+      "score": 72,
+      "score_components": {
+       "Band proximity": 17.3,
+       "MTF alignment": 20.0,
+       "Risk/Reward": 20.0,
+       "Volatility regime": 14.5
+      },
+      "sl": 139.8590121924,
+      "tps": [
+       132.6479307364,
+       129.0423900084,
+       125.4368492804
+      ]
+     }
+    },
+    "XAUUSD": {
+     "backtest": [
+      {
+       "direction": "BUY",
+       "duration_bars": 61,
+       "entry": 108.0995817556,
+       "entry_time": "2026-10-25 01:30:00",
+       "exit_price": 105.9268771538,
+       "exit_time": "2026-10-25 16:45:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 1.0,
+       "risk": 2.1727046018,
+       "sl": 105.9268771538,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_1_zero_lag",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        110.2722863573,
+        112.4449909591,
+        114.6176955608
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 112,
+       "entry": 107.5657279675,
+       "entry_time": "2026-10-26 00:15:00",
+       "exit_price": 109.9036243574,
+       "exit_time": "2026-10-27 04:15:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 2.0,
+       "risk": 2.3378963898,
+       "sl": 109.9036243574,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_1_zero_lag",
+       "timeframe": "",
+       "tp_hits": 2,
+       "tps": [
+        105.2278315777,
+        102.8899351879,
+        100.552038798
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 12,
+       "entry": 112.1265100295,
+       "entry_time": "2026-10-27 22:30:00",
+       "exit_price": 114.4004381832,
+       "exit_time": "2026-10-28 01:30:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 2.2739281537,
+       "sl": 114.4004381832,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_1_zero_lag",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        109.8525818759,
+        107.5786537222,
+        105.3047255685
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 26,
+       "entry": 115.754977906,
+       "entry_time": "2026-10-28 06:45:00",
+       "exit_price": 118.0496277735,
+       "exit_time": "2026-10-28 13:15:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 2.2946498675,
+       "sl": 118.0496277735,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_1_zero_lag",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        113.4603280384,
+        111.1656781709,
+        108.8710283034
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 80,
+       "entry": 117.4053170176,
+       "entry_time": "2026-10-28 14:15:00",
+       "exit_price": 109.3443367183,
+       "exit_time": "2026-10-29 10:15:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 3.0,
+       "risk": 2.6869934331,
+       "sl": 120.0923104507,
+       "status": "TP3_HIT",
+       "strategy_id": "strategy_1_zero_lag",
+       "timeframe": "",
+       "tp_hits": 3,
+       "tps": [
+        114.7183235845,
+        112.0313301514,
+        109.3443367183
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 131,
+       "entry": 107.8584313496,
+       "entry_time": "2026-10-29 19:30:00",
+       "exit_price": 117.3970865164,
+       "exit_time": "2026-10-31 04:15:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 3.0,
+       "risk": 3.1795517223,
+       "sl": 104.6788796273,
+       "status": "TP3_HIT",
+       "strategy_id": "strategy_1_zero_lag",
+       "timeframe": "",
+       "tp_hits": 3,
+       "tps": [
+        111.0379830719,
+        114.2175347941,
+        117.3970865164
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 53,
+       "entry": 119.5784618342,
+       "entry_time": "2026-10-31 08:45:00",
+       "exit_price": 116.8063480335,
+       "exit_time": "2026-10-31 22:00:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 2.7721138008,
+       "sl": 116.8063480335,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_1_zero_lag",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        122.350575635,
+        125.1226894358,
+        127.8948032366
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 46,
+       "entry": 118.4989787462,
+       "entry_time": "2026-11-01 01:00:00",
+       "exit_price": 120.9308785172,
+       "exit_time": "2026-11-01 12:30:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 2.431899771,
+       "sl": 120.9308785172,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_1_zero_lag",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        116.0670789752,
+        113.6351792043,
+        111.2032794333
+       ]
+      }
+     ],
+     "detect_0": null,
+     "detect_25": null,
+     "detect_60": null
+    }
+   }
+  },
+  "strategy_2_ema_atr": {
+   "hash": "29ccbf77d70dcd2c5de7c8ed80f69b9e839e9cdb8898e88a185a0984aaa6cdaa",
+   "markets": {
+    "NAS100": {
+     "backtest": [
+      {
+       "direction": "SELL",
+       "duration_bars": 1,
+       "entry": 112.747059927,
+       "entry_time": "2026-10-25 03:00:00",
+       "exit_price": 113.4698596619,
+       "exit_time": "2026-10-25 03:15:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.7227997348,
+       "sl": 113.4698596619,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_2_ema_atr",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        112.0242601922,
+        111.3014604573,
+        110.5786607225
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 3,
+       "entry": 113.5011733054,
+       "entry_time": "2026-10-25 08:30:00",
+       "exit_price": 114.3859466632,
+       "exit_time": "2026-10-25 09:15:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.8847733578,
+       "sl": 114.3859466632,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_2_ema_atr",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        112.6163999476,
+        111.7316265898,
+        110.846853232
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 22,
+       "entry": 115.2199716796,
+       "entry_time": "2026-10-25 19:45:00",
+       "exit_price": 116.43369116,
+       "exit_time": "2026-10-26 01:15:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 1.0,
+       "risk": 1.2137194804,
+       "sl": 116.43369116,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_2_ema_atr",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        114.0062521993,
+        112.7925327189,
+        111.5788132386
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 55,
+       "entry": 119.5140183709,
+       "entry_time": "2026-10-26 17:45:00",
+       "exit_price": 120.4723447953,
+       "exit_time": "2026-10-27 07:30:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 2.0,
+       "risk": 0.9583264244,
+       "sl": 120.4723447953,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_2_ema_atr",
+       "timeframe": "",
+       "tp_hits": 2,
+       "tps": [
+        118.5556919465,
+        117.5973655221,
+        116.6390390977
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 13,
+       "entry": 136.4271933131,
+       "entry_time": "2026-10-28 11:00:00",
+       "exit_price": 132.1209860647,
+       "exit_time": "2026-10-28 14:15:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 3.0,
+       "risk": 1.4354024161,
+       "sl": 137.8625957292,
+       "status": "TP3_HIT",
+       "strategy_id": "strategy_2_ema_atr",
+       "timeframe": "",
+       "tp_hits": 3,
+       "tps": [
+        134.9917908969,
+        133.5563884808,
+        132.1209860647
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 9,
+       "entry": 134.2200112612,
+       "entry_time": "2026-10-28 20:00:00",
+       "exit_price": 137.6148214358,
+       "exit_time": "2026-10-28 22:15:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 3.0,
+       "risk": 1.1316033915,
+       "sl": 133.0884078696,
+       "status": "TP3_HIT",
+       "strategy_id": "strategy_2_ema_atr",
+       "timeframe": "",
+       "tp_hits": 3,
+       "tps": [
+        135.3516146527,
+        136.4832180442,
+        137.6148214358
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 29,
+       "entry": 135.3316534479,
+       "entry_time": "2026-10-29 01:30:00",
+       "exit_price": 136.6706521232,
+       "exit_time": "2026-10-29 08:45:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 1.0,
+       "risk": 1.3389986753,
+       "sl": 136.6706521232,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_2_ema_atr",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        133.9926547725,
+        132.6536560972,
+        131.3146574218
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 3,
+       "entry": 134.9222884939,
+       "entry_time": "2026-10-29 12:15:00",
+       "exit_price": 136.1288704156,
+       "exit_time": "2026-10-29 13:00:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 1.2065819217,
+       "sl": 136.1288704156,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_2_ema_atr",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        133.7157065722,
+        132.5091246505,
+        131.3025427288
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 5,
+       "entry": 136.4458728833,
+       "entry_time": "2026-10-29 13:30:00",
+       "exit_price": 135.2287404569,
+       "exit_time": "2026-10-29 14:45:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 1.2171324265,
+       "sl": 135.2287404569,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_2_ema_atr",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        137.6630053098,
+        138.8801377362,
+        140.0972701627
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 4,
+       "entry": 136.5346398115,
+       "entry_time": "2026-10-29 17:15:00",
+       "exit_price": 135.2672049854,
+       "exit_time": "2026-10-29 18:15:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 1.2674348261,
+       "sl": 135.2672049854,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_2_ema_atr",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        137.8020746375,
+        139.0695094636,
+        140.3369442897
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 11,
+       "entry": 132.604087425,
+       "entry_time": "2026-10-30 05:15:00",
+       "exit_price": 135.8758091489,
+       "exit_time": "2026-10-30 08:00:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 3.0,
+       "risk": 1.0905739079,
+       "sl": 131.5135135171,
+       "status": "TP3_HIT",
+       "strategy_id": "strategy_2_ema_atr",
+       "timeframe": "",
+       "tp_hits": 3,
+       "tps": [
+        133.694661333,
+        134.7852352409,
+        135.8758091489
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 13,
+       "entry": 135.1229778259,
+       "entry_time": "2026-10-30 14:30:00",
+       "exit_price": 131.4846645144,
+       "exit_time": "2026-10-30 17:45:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 3.0,
+       "risk": 1.2127711038,
+       "sl": 136.3357489297,
+       "status": "TP3_HIT",
+       "strategy_id": "strategy_2_ema_atr",
+       "timeframe": "",
+       "tp_hits": 3,
+       "tps": [
+        133.9102067221,
+        132.6974356182,
+        131.4846645144
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 11,
+       "entry": 134.0440536557,
+       "entry_time": "2026-10-30 22:15:00",
+       "exit_price": 137.7573041917,
+       "exit_time": "2026-10-31 01:00:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 3.0,
+       "risk": 1.2377501786,
+       "sl": 132.8063034771,
+       "status": "TP3_HIT",
+       "strategy_id": "strategy_2_ema_atr",
+       "timeframe": "",
+       "tp_hits": 3,
+       "tps": [
+        135.2818038344,
+        136.519554013,
+        137.7573041917
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 87,
+       "entry": 138.8282636623,
+       "entry_time": "2026-10-31 13:30:00",
+       "exit_price": 134.3046264049,
+       "exit_time": "2026-11-01 11:15:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 3.0,
+       "risk": 1.5078790858,
+       "sl": 140.3361427481,
+       "status": "TP3_HIT",
+       "strategy_id": "strategy_2_ema_atr",
+       "timeframe": "",
+       "tp_hits": 3,
+       "tps": [
+        137.3203845765,
+        135.8125054907,
+        134.3046264049
+       ]
+      }
+     ],
+     "detect_0": null,
+     "detect_25": null,
+     "detect_60": null
+    },
+    "XAUUSD": {
+     "backtest": [
+      {
+       "direction": "SELL",
+       "duration_bars": 25,
+       "entry": 108.8016432027,
+       "entry_time": "2026-10-25 10:30:00",
+       "exit_price": 106.2024378441,
+       "exit_time": "2026-10-25 16:45:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 3.0,
+       "risk": 0.8664017862,
+       "sl": 109.6680449889,
+       "status": "TP3_HIT",
+       "strategy_id": "strategy_2_ema_atr",
+       "timeframe": "",
+       "tp_hits": 3,
+       "tps": [
+        107.9352414165,
+        107.0688396303,
+        106.2024378441
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 18,
+       "entry": 107.9939999653,
+       "entry_time": "2026-10-25 20:15:00",
+       "exit_price": 106.8846792976,
+       "exit_time": "2026-10-26 00:45:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 1.0,
+       "risk": 1.1093206677,
+       "sl": 106.8846792976,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_2_ema_atr",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        109.103320633,
+        110.2126413006,
+        111.3219619683
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 18,
+       "entry": 105.6159588879,
+       "entry_time": "2026-10-26 11:45:00",
+       "exit_price": 104.7938899916,
+       "exit_time": "2026-10-26 16:15:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 1.0,
+       "risk": 0.8220688963,
+       "sl": 104.7938899916,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_2_ema_atr",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        106.4380277841,
+        107.2600966804,
+        108.0821655767
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 10,
+       "entry": 105.1648858065,
+       "entry_time": "2026-10-26 22:45:00",
+       "exit_price": 107.9165735426,
+       "exit_time": "2026-10-27 01:15:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 3.0,
+       "risk": 0.9172292454,
+       "sl": 104.2476565612,
+       "status": "TP3_HIT",
+       "strategy_id": "strategy_2_ema_atr",
+       "timeframe": "",
+       "tp_hits": 3,
+       "tps": [
+        106.0821150519,
+        106.9993442973,
+        107.9165735426
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 24,
+       "entry": 110.905393876,
+       "entry_time": "2026-10-27 11:45:00",
+       "exit_price": 111.5280708884,
+       "exit_time": "2026-10-27 17:45:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 2.0,
+       "risk": 0.6226770124,
+       "sl": 111.5280708884,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_2_ema_atr",
+       "timeframe": "",
+       "tp_hits": 2,
+       "tps": [
+        110.2827168636,
+        109.6600398511,
+        109.0373628387
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 37,
+       "entry": 115.7428479308,
+       "entry_time": "2026-10-28 16:00:00",
+       "exit_price": 112.3082072531,
+       "exit_time": "2026-10-29 01:15:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 3.0,
+       "risk": 1.1448802259,
+       "sl": 116.8877281567,
+       "status": "TP3_HIT",
+       "strategy_id": "strategy_2_ema_atr",
+       "timeframe": "",
+       "tp_hits": 3,
+       "tps": [
+        114.5979677049,
+        113.453087479,
+        112.3082072531
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 2,
+       "entry": 110.3117320777,
+       "entry_time": "2026-10-29 16:30:00",
+       "exit_price": 109.1053144657,
+       "exit_time": "2026-10-29 17:00:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 1.206417612,
+       "sl": 109.1053144657,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_2_ema_atr",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        111.5181496897,
+        112.7245673018,
+        113.9309849138
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 43,
+       "entry": 108.1389876503,
+       "entry_time": "2026-10-29 18:00:00",
+       "exit_price": 109.3024006721,
+       "exit_time": "2026-10-30 04:45:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 2.0,
+       "risk": 1.1634130218,
+       "sl": 109.3024006721,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_2_ema_atr",
+       "timeframe": "",
+       "tp_hits": 2,
+       "tps": [
+        106.9755746284,
+        105.8121616066,
+        104.6487485847
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 5,
+       "entry": 118.7260347633,
+       "entry_time": "2026-10-31 13:30:00",
+       "exit_price": 119.5883609616,
+       "exit_time": "2026-10-31 14:45:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.8623261983,
+       "sl": 119.5883609616,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_2_ema_atr",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        117.863708565,
+        117.0013823667,
+        116.1390561684
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 3,
+       "entry": 119.9681221978,
+       "entry_time": "2026-10-31 17:30:00",
+       "exit_price": 118.9148657538,
+       "exit_time": "2026-10-31 18:15:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 1.0532564441,
+       "sl": 118.9148657538,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_2_ema_atr",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        121.0213786419,
+        122.074635086,
+        123.12789153
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 13,
+       "entry": 117.9830585193,
+       "entry_time": "2026-10-31 21:30:00",
+       "exit_price": 118.9183594494,
+       "exit_time": "2026-11-01 00:45:00",
+       "market": "",
+       "outcome": "WIN",
+       "r_multiple": 1.0,
+       "risk": 0.9353009301,
+       "sl": 118.9183594494,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_2_ema_atr",
+       "timeframe": "",
+       "tp_hits": 1,
+       "tps": [
+        117.0477575892,
+        116.112456659,
+        115.1771557289
+       ]
+      },
+      {
+       "direction": "BUY",
+       "duration_bars": 2,
+       "entry": 118.8890268711,
+       "entry_time": "2026-11-01 02:15:00",
+       "exit_price": 117.8844397261,
+       "exit_time": "2026-11-01 02:45:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 1.004587145,
+       "sl": 117.8844397261,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_2_ema_atr",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        119.8936140161,
+        120.8982011611,
+        121.9027883061
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 4,
+       "entry": 117.9028940844,
+       "entry_time": "2026-11-01 03:45:00",
+       "exit_price": 118.9555866792,
+       "exit_time": "2026-11-01 04:45:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 1.0526925948,
+       "sl": 118.9555866792,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_2_ema_atr",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        116.8502014897,
+        115.7975088949,
+        114.7448163001
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 6,
+       "entry": 117.9929035197,
+       "entry_time": "2026-11-01 07:45:00",
+       "exit_price": 118.9505520522,
+       "exit_time": "2026-11-01 09:15:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 0.9576485325,
+       "sl": 118.9505520522,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_2_ema_atr",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        117.0352549872,
+        116.0776064547,
+        115.1199579222
+       ]
+      },
+      {
+       "direction": "SELL",
+       "duration_bars": 2,
+       "entry": 121.3667143053,
+       "entry_time": "2026-11-01 20:00:00",
+       "exit_price": 122.563771361,
+       "exit_time": "2026-11-01 20:30:00",
+       "market": "",
+       "outcome": "LOSS",
+       "r_multiple": -1.0,
+       "risk": 1.1970570557,
+       "sl": 122.563771361,
+       "status": "SL_HIT",
+       "strategy_id": "strategy_2_ema_atr",
+       "timeframe": "",
+       "tp_hits": 0,
+       "tps": [
+        120.1696572496,
+        118.9726001939,
+        117.7755431382
+       ]
+      }
+     ],
+     "detect_0": {
+      "analysis": "The signal qualifies because the 9-EMA crossed below the 21-EMA, confirming the bearish entry condition, with the stop-loss calculated from 1.5 x ATR(14) and targets at 1R, 2R and 3R.",
+      "candle_time": "2026-11-01 23:45:00",
+      "checks": [
+       {
+        "detail": "fast EMA crossed below slow EMA on the last closed bar",
+        "label": "9/21 EMA crossover confirmed",
+        "ok": true
+       },
+       {
+        "detail": "entry at close, SL = 1.5 x ATR(14)",
+        "label": "Entry condition confirmed",
+        "ok": true
+       },
+       {
+        "detail": "1H bullish, 4H bullish - 0 of 2 higher timeframes agree with the bearish setup; 100 EMA assist: 1H above 100 EMA - 0 of 1 assist the sell",
+        "label": "Higher-timeframe alignment (confidence basis)",
+        "ok": true
+       },
+       {
+        "detail": "TP1 1R / TP2 2R / TP3 3R from a 1.2242 stop distance",
+        "label": "Risk/reward acceptable",
+        "ok": true
+       }
+      ],
+      "direction": "SELL",
+      "entry": 121.3308049222,
+      "entry_zone": [
+       121.3308049222,
+       121.3308049222
+      ],
+      "extra": {},
+      "mtf": {
+       "1H": 1,
+       "4H": 1
+      },
+      "params": {
+       "atr_len": 14,
+       "expire_bars": 200,
+       "fast_len": 9,
+       "sl_mult": 1.5,
+       "slow_len": 21,
+       "tp1_rr": 1.0,
+       "tp2_rr": 2.0,
+       "tp3_rr": 3.0
+      },
+      "params_version": "1.0",
+      "risk": 1.2241562782,
+      "rr_primary": 3.0,
+      "score": 6,
+      "score_components": {
+       "Crossover strength": 6.0,
+       "HTF 100 EMA": 0.0,
+       "HTF alignment": 0.0
+      },
+      "sl": 122.5549612005,
+      "tps": [
+       120.106648644,
+       118.8824923658,
+       117.6583360875
+      ]
+     },
+     "detect_25": null,
+     "detect_60": {
+      "analysis": "The signal qualifies because the 9-EMA crossed above the 21-EMA, confirming the bullish entry condition, with the stop-loss calculated from 1.5 x ATR(14) and targets at 1R, 2R and 3R.",
+      "candle_time": "2026-11-01 09:00:00",
+      "checks": [
+       {
+        "detail": "fast EMA crossed above slow EMA on the last closed bar",
+        "label": "9/21 EMA crossover confirmed",
+        "ok": true
+       },
+       {
+        "detail": "entry at close, SL = 1.5 x ATR(14)",
+        "label": "Entry condition confirmed",
+        "ok": true
+       },
+       {
+        "detail": "1H bullish, 4H bullish - 2 of 2 higher timeframes agree with the bullish setup; 100 EMA assist: 1H above 100 EMA - 1 of 1 assist the buy",
+        "label": "Higher-timeframe alignment (confidence basis)",
+        "ok": true
+       },
+       {
+        "detail": "TP1 1R / TP2 2R / TP3 3R from a 0.81367 stop distance",
+        "label": "Risk/reward acceptable",
+        "ok": true
+       }
+      ],
+      "direction": "BUY",
+      "entry": 118.9230005785,
+      "entry_zone": [
+       118.9230005785,
+       118.9230005785
+      ],
+      "extra": {},
+      "mtf": {
+       "1H": 1,
+       "4H": 1
+      },
+      "params": {
+       "atr_len": 14,
+       "expire_bars": 200,
+       "fast_len": 9,
+       "sl_mult": 1.5,
+       "slow_len": 21,
+       "tp1_rr": 1.0,
+       "tp2_rr": 2.0,
+       "tp3_rr": 3.0
+      },
+      "params_version": "1.0",
+      "risk": 0.813673515,
+      "rr_primary": 3.0,
+      "score": 82,
+      "score_components": {
+       "Crossover strength": 1.5,
+       "HTF 100 EMA": 20.0,
+       "HTF alignment": 60.0
+      },
+      "sl": 118.1093270634,
+      "tps": [
+       119.7366740935,
+       120.5503476085,
+       121.3640211235
+      ]
+     }
+    }
+   }
+  },
+  "strategy_2_supply_demand_fvg": {
+   "hash": "adf031d1c675738774c60efa095eb70b3a8f0d07958f94d5700ac110c25f58ee",
+   "markets": {
+    "EURUSD": {
+     "backtest": {
+      "error": "ImportError: cannot import name 'atr' from 'app.strategies.base' (/home/user/forexmind-ai/backend/app/strategies/base.py)"
+     },
+     "detect_0": null,
+     "detect_25": null,
+     "detect_60": null
+    },
+    "XAUUSD": {
+     "backtest": {
+      "error": "ImportError: cannot import name 'atr' from 'app.strategies.base' (/home/user/forexmind-ai/backend/app/strategies/base.py)"
+     },
+     "detect_0": null,
+     "detect_25": null,
+     "detect_60": null
+    }
+   }
+  },
+  "strategy_fade_crt_ext": {
+   "hash": "8ba99fe844f63ac17c0ee04905223167f3fb895d0dffdf28dd67e637b44809be",
+   "markets": {
+    "EURUSD": {
+     "backtest": [],
+     "detect_0": null,
+     "detect_25": null,
+     "detect_60": null
+    }
+   }
+  },
+  "strategy_gold_orb": {
+   "hash": "8ba99fe844f63ac17c0ee04905223167f3fb895d0dffdf28dd67e637b44809be",
+   "markets": {
+    "EURUSD": {
+     "backtest": [],
+     "detect_0": null,
+     "detect_25": null,
+     "detect_60": null
+    }
+   }
+  },
+  "strategy_h1_trend_breakout": {
+   "hash": "8ba99fe844f63ac17c0ee04905223167f3fb895d0dffdf28dd67e637b44809be",
+   "markets": {
+    "EURUSD": {
+     "backtest": [],
+     "detect_0": null,
+     "detect_25": null,
+     "detect_60": null
+    }
+   }
+  },
+  "strategy_hybrid_crt_tbs": {
+   "hash": "8ba99fe844f63ac17c0ee04905223167f3fb895d0dffdf28dd67e637b44809be",
+   "markets": {
+    "EURUSD": {
+     "backtest": [],
+     "detect_0": null,
+     "detect_25": null,
+     "detect_60": null
+    }
+   }
+  },
+  "strategy_tpc15_pullback": {
+   "hash": "8ba99fe844f63ac17c0ee04905223167f3fb895d0dffdf28dd67e637b44809be",
+   "markets": {
+    "EURUSD": {
+     "backtest": [],
+     "detect_0": null,
+     "detect_25": null,
+     "detect_60": null
+    }
+   }
+  },
+  "strategy_trendbreak_h1": {
+   "hash": "7ddfa204b5a87684abe10641e3f50534d4d40b5aa999e0ebe7c3ccaca68ad54f",
+   "markets": {
+    "EURUSD": {
+     "backtest": [],
+     "detect_0": null,
+     "detect_25": null,
+     "detect_60": null
+    },
+    "GBPUSD": {
+     "backtest": [],
+     "detect_0": null,
+     "detect_25": null,
+     "detect_60": null
+    }
+   }
+  },
+  "strategy_trendbreak_v2": {
+   "hash": "7ddfa204b5a87684abe10641e3f50534d4d40b5aa999e0ebe7c3ccaca68ad54f",
+   "markets": {
+    "EURUSD": {
+     "backtest": [],
+     "detect_0": null,
+     "detect_25": null,
+     "detect_60": null
+    },
+    "GBPUSD": {
+     "backtest": [],
+     "detect_0": null,
+     "detect_25": null,
+     "detect_60": null
+    }
+   }
+  },
+  "strategy_zonesweep_m15": {
+   "hash": "7ddfa204b5a87684abe10641e3f50534d4d40b5aa999e0ebe7c3ccaca68ad54f",
+   "markets": {
+    "EURUSD": {
+     "backtest": [],
+     "detect_0": null,
+     "detect_25": null,
+     "detect_60": null
+    },
+    "GBPUSD": {
+     "backtest": [],
+     "detect_0": null,
+     "detect_25": null,
+     "detect_60": null
+    }
+   }
+  }
+ }
+}

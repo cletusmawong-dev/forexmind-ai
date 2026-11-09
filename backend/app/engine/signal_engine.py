@@ -7,6 +7,8 @@ setup. Capital protected." is a valid outcome - the goal NEVER forces a trade.
 """
 from __future__ import annotations
 
+import logging
+
 import pandas as pd
 from typing import Any, Dict, List, Optional
 
@@ -70,6 +72,7 @@ from ..db.store import get_store
 from ..learning.versions import active_params, active_version
 from ..notifications.service import notify
 from ..strategies import all_strategies, get_strategy
+from ..strategies.base import validate_candidate
 
 
 def volatility_regime(rank: float) -> str:
@@ -80,6 +83,31 @@ def volatility_regime(rank: float) -> str:
     if rank > 0.75:
         return "high"
     return "normal"
+
+
+def _contract_check(candidate, strategy):
+    """Signal contract enforcement (owner spec 2026-11-02, sections 4+8).
+
+    Single choke point for EVERY strategy - the research-candidate adapters
+    override detect_signal and would bypass a base-class-only gate. Stamps
+    missing identity fields (never touches levels/rules) and refuses an
+    incoherent candidate before guards/risk/execution can see it."""
+    try:
+        if not getattr(candidate, "strategy_version", ""):
+            candidate.strategy_version = str(getattr(strategy, "version", ""))
+        if not getattr(candidate, "timestamp", ""):
+            candidate.timestamp = str(getattr(candidate, "candle_time", ""))
+        reason = validate_candidate(candidate)
+        if reason:
+            logging.getLogger("fxm.strategies").warning(
+                "%s: invalid candidate on %s %s refused: %s",
+                getattr(candidate, "strategy_id", "?"),
+                getattr(candidate, "market", "?"),
+                getattr(candidate, "timeframe", "?"), reason)
+            return None
+        return candidate
+    except Exception:
+        return None
 
 
 class SignalEngine:
@@ -172,6 +200,9 @@ class SignalEngine:
                 score_context={"session": session})
             if candidate is None:
                 continue
+            candidate = _contract_check(candidate, strategy)
+            if candidate is None:
+                continue   # invalid signal - never reaches risk/execution
 
             ok, reason = self._guards(user_id, candidate, session)
             if not ok:
@@ -565,6 +596,8 @@ class SignalEngine:
                                           params=active_params(sid),
                                           higher_frames=higher,
                                           score_context={"session": session})
+            if cand is not None:
+                cand = _contract_check(cand, strategy)
             results.append({
                 "strategy_id": sid, "strategy_name": strategy.short_name,
                 "qualified": cand is not None,
