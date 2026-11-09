@@ -31,6 +31,11 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 GOLD_NY_GROUP = "gold_ny"
+GOLD_ASIA_GROUP = "gold_asia"
+# GOLDASIA guide section 6: ONE open gold position at a time across the gold
+# strategies (shared lock, not per-strategy) so the book never stacks the
+# Aqua -$200/-$500 walls with concurrent gold breakouts.
+GOLD_LOCK_GROUP = "gold_xau"
 
 STRATEGY_RISK_RULES: Dict[str, Dict[str, Any]] = {
     "strategy_gold_ny_pullback": {
@@ -42,6 +47,7 @@ STRATEGY_RISK_RULES: Dict[str, Dict[str, Any]] = {
         "soft_stop_group": GOLD_NY_GROUP,
         "daily_soft_stop_usd": 150.0,
         "daily_max_losses": 2,
+        "position_lock_group": GOLD_LOCK_GROUP,
     },
     "strategy_gold_ny_orb": {
         "scan_bars": 12000,   # D1 SMA200 regime needs ~10k+ 15M bars (guide section 3)
@@ -52,6 +58,22 @@ STRATEGY_RISK_RULES: Dict[str, Dict[str, Any]] = {
         "soft_stop_group": GOLD_NY_GROUP,
         "daily_soft_stop_usd": 150.0,
         "daily_max_losses": 2,
+        "position_lock_group": GOLD_LOCK_GROUP,
+    },
+    # GOLDASIA (owner guide IMPLEMENTATION_GUIDE_GOLDASIA.md, section 5):
+    # borderline edge -> 1.0% risk ($50 on $5k), halved at 70% of target.
+    # Own daily counter, same thresholds. Section 6: shares the one-gold-
+    # position lock with the rest of the gold book.
+    "strategy_gold_asia_range_bo": {
+        "scan_bars": 22000,   # guide section 8: >=10k needed, ~22k better (D1 SMA200)
+        "risk_usd": 50.0,
+        "risk_halving_at_target_frac": 0.7,
+        "max_open_positions": 1,
+        "max_spread_usd": 0.50,
+        "soft_stop_group": GOLD_ASIA_GROUP,
+        "daily_soft_stop_usd": 150.0,
+        "daily_max_losses": 2,
+        "position_lock_group": GOLD_LOCK_GROUP,
     },
 }
 
@@ -65,6 +87,12 @@ def ids_for_group(group: str) -> List[str]:
     """Every strategy sharing a soft-stop counter (they see the same day)."""
     return [sid for sid, r in STRATEGY_RISK_RULES.items()
             if r.get("soft_stop_group") == group]
+
+
+def ids_for_lock_group(group: str) -> List[str]:
+    """Every strategy sharing a one-open-position lock (GOLDASIA guide §6)."""
+    return [sid for sid, r in STRATEGY_RISK_RULES.items()
+            if r.get("position_lock_group") == group]
 
 
 def halve_if_in_profit_protect(risk_usd: float, equity: float,

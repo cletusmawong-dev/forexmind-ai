@@ -258,14 +258,17 @@ class LiveProvider(MarketDataProvider):
         # closed H1 bars) page backwards with before=<oldest ts>. If the
         # bridge ignores the parameter the second window equals the first
         # and stitching stops - we stay honest with whatever depth exists.
-        want = min(max(int(limit), 300), 1500)   # bridge /rates documented cap
+        # bridge /rates serves deep history (up to 30000 - the gold D1
+        # regime); an old bridge build caps at 1500 and the stitch below
+        # simply stops there - we stay honest with whatever depth exists
+        want = min(max(int(limit), 300), 30000)
         if 0 < len(bars) < want:
             seen = {b.get("ts") for b in bars}
-            for _page in range(2):
+            for _page in range(10):
                 oldest = min(t for t in seen if t is not None)
                 try:
                     d2 = bridge_get(f"/rates?market={market}&tf={tfk}"
-                                    f"&count=400&before={int(oldest)}", timeout=25)
+                                    f"&count=1500&before={int(oldest)}", timeout=25)
                 except Exception:
                     break
                 bars2 = (d2 or {}).get("bars") or []
@@ -322,7 +325,7 @@ class LiveProvider(MarketDataProvider):
         (floor 300 bars) and small callers are served via tail()."""
         key = (market, tf)
         fetch_n = max(int(limit), MIN_CACHE_BARS)
-        want = min(fetch_n, 1500)          # bridge /rates documented cap
+        want = min(fetch_n, 30000)         # deep scans get full bridge depth
         now = time.monotonic()
         with self._lock:
             hit = self._cache.get(key)

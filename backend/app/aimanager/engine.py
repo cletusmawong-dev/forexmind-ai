@@ -621,8 +621,11 @@ class TradeManager:
                     "error": type(exc).__name__, "skip_ai": True}
 
     # strategy -> locked time exit (15M bars); the candidate's
-    # extra["max_hold_bars"] (travels on the signal doc) wins when present
-    _GOLD_LOCKED_IDS = ("strategy_gold_ny_pullback", "strategy_gold_ny_orb")
+    # extra["max_hold_bars"] (travels on the signal doc) wins when present.
+    # GOLDASIA (guide GOLDASIA section 4) shares the locked-plan dispatch but
+    # runs its own plan: BE move + 20:45 session clock, no bar-count exit.
+    _GOLD_LOCKED_IDS = ("strategy_gold_ny_pullback", "strategy_gold_ny_orb",
+                        "strategy_gold_asia_range_bo")
     _GOLD_MAX_HOLD = {"strategy_gold_ny_pullback": 32,
                       "strategy_gold_ny_orb": 24}
 
@@ -638,6 +641,8 @@ class TradeManager:
         out: Dict[str, Any] = {"actions": actions, "closed": False,
                                "skip_ai": True}
         sid = (sig or {}).get("strategy_id") or ""
+        if sid == "strategy_gold_asia_range_bo":
+            return self._gold_asia_locked_manage(user_id, pos, sig)
         plan = "GOLD_NY_PULLBACK_LOCKED" if sid == "strategy_gold_ny_pullback" \
             else "GOLD_NY_ORB_LOCKED"
         is_buy = str(pos.get("type", "")).upper() == "BUY"
@@ -697,6 +702,93 @@ class TradeManager:
             return out
         out["verdict"] = plan
         out["held_bars"] = held
+        return out
+
+    @staticmethod
+    def _now_utc():
+        from datetime import datetime as _dt, timezone as _tz
+        return _dt.now(_tz.utc)
+
+    def _gold_asia_locked_manage(self, user_id: str, pos: dict,
+                                 sig: Optional[dict]) -> Dict[str, Any]:
+        """GOLD_ASIA_BO_LOCKED (owner guide GOLDASIA section 4). NO fixed TP -
+        the candidate's far 20R tps is a placeholder and is NEVER acted on.
+        ONE breakeven move: once unrealised reaches +be_trigger_r (0.75R) the
+        stop moves to entry +/- be_lock_r (0.1R) x risk - once, never trailed
+        again. Session flatten 100% at 20:45 UTC (the sig's session_close_utc
+        extra), which on a Friday IS the Friday flatten. No partials, no
+        ladder, no AI. BE/lock/session values ride on the signal from the
+        module's candidate.extra - the engine never hard-codes its own.
+        Restart-safe: the broker-side stop itself is the truth, so a moved
+        stop is never moved again even after a manager restart."""
+        actions: List[Dict[str, Any]] = []
+        out: Dict[str, Any] = {"actions": actions, "closed": False,
+                               "skip_ai": True}
+        plan = str((sig or {}).get("management_plan") or "GOLD_ASIA_BO_LOCKED")
+        is_buy = str(pos.get("type", "")).upper() == "BUY"
+        sign = 1.0 if is_buy else -1.0
+        price = float(pos.get("price_current") or 0)
+        entry = float(pos.get("price_open") or 0)
+        cur_sl = float(pos.get("sl") or 0)
+        st = self._state.setdefault(int(pos["ticket"]), {})
+
+        now_dt = self._now_utc()
+        hhmm = str((sig or {}).get("session_close_utc") or "20:45")
+        try:
+            close_h, close_m = (int(x) for x in hhmm.split(":")[:2])
+        except Exception:
+            close_h, close_m = 20, 45
+
+        # 1) session flatten at 20:45 UTC (guide section 3 rule 4) - same-day
+        #    close; the same clock on Friday is the Friday flatten (section 3)
+        if (now_dt.hour, now_dt.minute) >= (close_h, close_m):
+            res = risk_gate.execute_plan(
+                user_id, pos, {"close_full": True},
+                reason=f"{plan}: session close {close_h:02d}:{close_m:02d} UTC")
+            if res.get("executed"):
+                actions.append(f"close_full(session_{hhmm})")
+                out["closed"] = True
+            return out
+
+        # 1b) overnight backstop: the trade must never survive past its
+        #     session close (e.g. manager was down at 20:45). If it was
+        #     opened on a previous UTC day, flatten now (same rule, late).
+        t_open = ((sig or {}).get("mt5_executed_at")
+                  or (sig or {}).get("entry_time"))
+        try:
+            import pandas as _pd
+            d0 = _pd.Timestamp(t_open)
+            d0 = d0.tz_convert("UTC") if d0.tzinfo is not None \
+                else d0.tz_localize("UTC")
+            if d0.date() < now_dt.date():
+                res = risk_gate.execute_plan(
+                    user_id, pos, {"close_full": True},
+                    reason=f"{plan}: overnight backstop (missed session close)")
+                if res.get("executed"):
+                    actions.append("close_full(overnight_backstop)")
+                    out["closed"] = True
+                return out
+        except Exception:
+            pass
+
+        # 2) the ONE breakeven move (guide section 3 rule 4): at +0.75R
+        #    unrealised, stop -> entry +/- 0.1R. Ratchet via _uni_tighten
+        #    (never loosens, never re-sends) + broker-truth restart safety.
+        trig = float((sig or {}).get("be_trigger_r") or 0.75)
+        lock_r = float((sig or {}).get("be_lock_r") or 0.1)
+        risk_abs = abs(entry - cur_sl) if entry > 0 and cur_sl > 0 else 0.0
+        if risk_abs > 0 and price > 0:
+            unreal_r = sign * (price - entry) / risk_abs
+            out["unreal_r"] = round(unreal_r, 3)
+            be_target = entry + sign * lock_r * risk_abs
+            moved = (cur_sl >= be_target - 1e-9) if is_buy \
+                else (0 < cur_sl <= be_target + 1e-9)
+            if not moved and unreal_r >= trig:
+                if self._uni_tighten(user_id, pos, st, be_target, is_buy,
+                                     f"{plan}: BE at +{trig}R -> "
+                                     f"entry{'+' if is_buy else '-'}{lock_r}R"):
+                    actions.append(f"modify_sl(be {lock_r}R)")
+        out["verdict"] = plan
         return out
 
     def _uni_tighten(self, user_id: str, pos: dict, st: dict,

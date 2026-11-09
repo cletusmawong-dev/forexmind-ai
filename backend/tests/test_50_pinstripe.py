@@ -563,7 +563,7 @@ def test_pinstripe_pair_unregistered_after_wipe2():
     from app.learning.versions import lifecycle_of
     from app.strategies.research_only.live import (FadeCrtExtensionStrategy,
                                                    HybridCrtTbsStrategy)
-    assert len(reg.STRATEGY_CLASSES) == 5
+    assert len(reg.STRATEGY_CLASSES) == len(reg.OWNER_STRATEGY_IDS)
     assert "strategy_hybrid_crt_tbs" not in reg.STRATEGY_CLASSES
     assert "strategy_fade_crt_ext" not in reg.STRATEGY_CLASSES
     assert HybridCrtTbsStrategy.id == "strategy_hybrid_crt_tbs"
@@ -1146,7 +1146,7 @@ def test_pinstripe_pair_unregistered_after_wipe2():
     from app.learning.versions import lifecycle_of
     from app.strategies.research_only.live import (FadeCrtExtensionStrategy,
                                                    HybridCrtTbsStrategy)
-    assert len(reg.STRATEGY_CLASSES) == 5
+    assert len(reg.STRATEGY_CLASSES) == len(reg.OWNER_STRATEGY_IDS)
     assert "strategy_hybrid_crt_tbs" not in reg.STRATEGY_CLASSES
     assert "strategy_fade_crt_ext" not in reg.STRATEGY_CLASSES
     assert HybridCrtTbsStrategy.id == "strategy_hybrid_crt_tbs"

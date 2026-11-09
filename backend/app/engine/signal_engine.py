@@ -438,7 +438,11 @@ class SignalEngine:
                         "session", "atr", "setup_sequence",
                         # locked management plans (gold pair guide 2026-11-02)
                         "management_plan", "max_hold_bars",
-                        "max_open_positions")},
+                        "max_open_positions",
+                        # GOLDASIA locked plan (guide GOLDASIA section 4):
+                        # the engine reads BE + session values from the
+                        # candidate so it never hard-codes different numbers
+                        "be_trigger_r", "be_lock_r", "session_close_utc")},
             "dna": None,                # Signal DNA snapshot (filled right below)
             "forensics": None,          # filled automatically on completion
             "adaptive": None,           # Adaptive Quality (filled right below)

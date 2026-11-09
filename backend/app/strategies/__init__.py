@@ -43,12 +43,14 @@ from .strategy_pullback_trend import PullbackInTrend
 from .strategy_liquidity_sweep import LiquiditySweep
 from .gold_ny_pullback import GoldNYPullbackStrategy
 from .gold_ny_orb import GoldNYORBStrategy
+from .gold_asia_range_bo import GoldAsiaRangeBOStrategy
 
 # canonical registry ids - the tests assert against THIS (single source of
 # truth, so adding a strategy never means re-pinning eight files)
 OWNER_STRATEGY_IDS = frozenset({
     MRMSScalper.id, PullbackInTrend.id, LiquiditySweep.id,
     GoldNYPullbackStrategy.id, GoldNYORBStrategy.id,
+    GoldAsiaRangeBOStrategy.id,
 })
 
 STRATEGY_CLASSES: Dict[str, Type[BaseStrategy]] = {
@@ -57,6 +59,7 @@ STRATEGY_CLASSES: Dict[str, Type[BaseStrategy]] = {
     LiquiditySweep.id: LiquiditySweep,
     GoldNYPullbackStrategy.id: GoldNYPullbackStrategy,
     GoldNYORBStrategy.id: GoldNYORBStrategy,
+    GoldAsiaRangeBOStrategy.id: GoldAsiaRangeBOStrategy,
 }
 
 _INSTANCES: Dict[str, BaseStrategy] = {}

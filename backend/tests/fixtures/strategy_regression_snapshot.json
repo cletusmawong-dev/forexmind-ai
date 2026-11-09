@@ -1,9 +1,9 @@
 {
  "meta": {
-  "captured_at_git_head": "bc46d78",
+  "captured_at_git_head": "702008e",
   "n_bars": 900,
-  "note": "re-baselined 2026-11-09: gold pair registered (5 strategies; gold pair boots PAUSED, dormant on synthetic frames - regime needs 10k+ bars)",
-  "purpose": "strategy regression anchor - re-baselined with 5 registered strategies (gold pair PAUSED/dormant on synthetic frames)",
+  "note": "re-baselined 2026-11-09 (GOLDASIA): 6 registered strategies; gold trio boots PAUSED, dormant on synthetic frames - D1 regime needs 10k+ real bars",
+  "purpose": "strategy regression anchor - behaviour of pre-existing strategies unchanged",
   "seed": 20261102
  },
  "snapshot": {
@@ -1320,6 +1320,17 @@
      "backtest": {
       "error": "ImportError: cannot import name 'atr' from 'app.strategies.base' (/home/user/forexmind-ai/backend/app/strategies/base.py)"
      },
+     "detect_0": null,
+     "detect_25": null,
+     "detect_60": null
+    }
+   }
+  },
+  "strategy_gold_asia_range_bo": {
+   "hash": "29a740790dce959d36066047fdb2d1b73223e1dbaa29404e1de5ef06f2d0e54a",
+   "markets": {
+    "XAUUSD": {
+     "backtest": [],
      "detect_0": null,
      "detect_25": null,
      "detect_60": null

@@ -374,26 +374,41 @@ def _strategy_entry_gates(store, user_id: str, signal: dict, market: str,
     a check that cannot run refuses the entry (missed trade, never a
     wrong trade)."""
     import pandas as _pd
-    # (a) one open position per strategy
+    # (a) one open position per strategy + the shared gold lock (GOLDASIA
+    #     guide section 6: one open gold position at a time ACROSS the gold
+    #     strategies, so the book never stacks the Aqua walls)
     max_open = int(sr.get("max_open_positions") or 0)
-    if max_open >= 1:
+    lock_grp = sr.get("position_lock_group")
+    lock_ids = set()
+    if lock_grp:
+        from ..risk.strategy_rules import ids_for_lock_group
+        lock_ids = set(ids_for_lock_group(lock_grp)) - {signal.get("strategy_id")}
+    if max_open >= 1 or lock_ids:
         try:
             data = bridge_get("/positions", timeout=8) or {}
             comments = {str(p.get("comment") or "").strip()
                         for p in (data.get("positions") or [])}
-            open_same = 0
+            open_same, open_lock = 0, 0
             for c in comments:
                 if not c:
                     continue
                 doc = store.list("signals", filters={"signal_id": c}, limit=1)
-                if doc and doc[0].get("strategy_id") == signal.get("strategy_id"):
-                    open_same += 1
+                if doc:
+                    dsid = doc[0].get("strategy_id")
+                    if dsid == signal.get("strategy_id"):
+                        open_same += 1
+                    elif dsid in lock_ids:
+                        open_lock += 1
         except Exception as exc:
             return False, "POSITION_CHECK_FAILED", (
                 f"open-position check could not run ({type(exc).__name__}) - refusing fail-closed")
-        if open_same >= max_open:
+        if max_open >= 1 and open_same >= max_open:
             return False, "MAX_OPEN_POSITIONS", (
                 f"strategy already has {open_same} open position(s) (max {max_open})")
+        if open_lock >= 1:
+            return False, "MAX_OPEN_POSITIONS", (
+                f"one open gold position at a time across the gold strategies "
+                f"(guide section 6) - {open_lock} other gold trade(s) running")
     # (b) spread cap (USD price units; XAUUSD spread 0.50 = 50 cents)
     cap = float(sr.get("max_spread_usd") or 0)
     if cap > 0:

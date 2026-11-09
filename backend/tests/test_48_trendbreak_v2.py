@@ -516,7 +516,7 @@ def test_v2_unregistered_after_wipe2():
     from app.strategies.research_only.live import TrendBreakV2Strategy
     assert "strategy_trendbreak_v2" not in reg.STRATEGY_CLASSES
     assert TrendBreakV2Strategy.id == "strategy_trendbreak_v2"
-    assert len(reg.STRATEGY_CLASSES) == 5
+    assert len(reg.STRATEGY_CLASSES) == len(reg.OWNER_STRATEGY_IDS)
 
 def test_v2_boot_doc_is_purged(tmp_path, monkeypatch):
     from app.db.store import LocalStore

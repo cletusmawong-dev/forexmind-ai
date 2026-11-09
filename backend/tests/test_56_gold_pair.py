@@ -339,7 +339,7 @@ def test_registry_and_paused_docs():
     from app.strategies import OWNER_STRATEGY_IDS, STRATEGY_CLASSES
     assert {"strategy_gold_ny_pullback", "strategy_gold_ny_orb"} <= \
         set(STRATEGY_CLASSES)
-    assert len(OWNER_STRATEGY_IDS) == 5
+    assert len(OWNER_STRATEGY_IDS) == 6
     from app.learning.versions import START_PAUSED, lifecycle_of
     for sid in ("strategy_gold_ny_pullback", "strategy_gold_ny_orb"):
         assert sid in START_PAUSED            # boots PAUSED (guide section 2)

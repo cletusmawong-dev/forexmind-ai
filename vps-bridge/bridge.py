@@ -17,7 +17,7 @@ import math
 import os
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple
 
 import MetaTrader5 as mt5
@@ -449,6 +449,7 @@ APP_TF = {"5M": "M5", "15M": "M15", "30M": "M30", "1H": "H1", "4H": "H4", "1D": 
 
 @app.get("/rates")
 def rates(market: str, tf: str = Query("15M"), count: int = Query(400),
+          before: Optional[int] = Query(None),
           x_bridge_token: Optional[str] = Header(None)):
     """Closed OHLCV candles straight from the terminal (broker ground truth).
 
@@ -456,24 +457,43 @@ def rates(market: str, tf: str = Query("15M"), count: int = Query(400),
     connected, so charts/strategies price off the SAME feed the trades execute
     on (Twelve Data remains the fallback for non-VPS setups). Only CLOSED
     candles are returned - the forming bar is dropped here AND re-checked in
-    the cloud."""
+    the cloud.
+
+    Deep history (gold D1-regime strategies need >=10k 15M bars):
+      * count up to 30000 - CopyRates reads the terminal's local history,
+        so a deep request is one fast local call (older builds capped 1500)
+      * before=<epoch sec UTC> returns bars STRICTLY OLDER than that time
+        (pages never overlap), which the cloud stitches backwards. Deep
+        paging serves the same bars the trades execute on."""
     _auth(x_bridge_token)
     tfk = APP_TF.get(tf.upper())
     mt5_tf = getattr(mt5, "TIMEFRAME_" + tfk, None) if tfk else None
     if mt5_tf is None:
         raise HTTPException(422, f"unsupported timeframe {tf}")
-    count = max(60, min(int(count), 1500))
+    count = max(60, min(int(count), 30000))
     symbol = resolve_symbol(market)
     with _mt5_lock:
         _ensure()
         mt5.symbol_select(symbol, True)
-        rr = mt5.copy_rates_from_pos(symbol, mt5_tf, 0, count + 1)
+        if before:
+            tf_min = {"M1": 1, "M5": 5, "M15": 15, "M30": 30,
+                      "H1": 60, "H4": 240, "D1": 1440}.get(tfk, 15)
+            b_dt = datetime.fromtimestamp(int(before), tz=timezone.utc)
+            f_dt = b_dt - timedelta(minutes=tf_min * (count + 4))
+            rr = mt5.copy_rates_range(symbol, mt5_tf, f_dt, b_dt)
+            rr = [r for r in (rr or ()) if int(r["time"]) < int(before)][-count:]
+            if not rr:
+                return {"ok": True, "symbol": symbol, "tf": tfk, "bars": []}
+        else:
+            rr = mt5.copy_rates_from_pos(symbol, mt5_tf, 0, count + 1)
     if rr is None or len(rr) < 60:
         raise HTTPException(503, f"no rates for {symbol} {tfk}: {mt5.last_error()}")
     bars = [{"ts": int(r["time"]), "o": float(r["open"]), "h": float(r["high"]),
              "l": float(r["low"]), "c": float(r["close"]), "v": float(r["tick_volume"] or 0)}
             for r in rr]
-    if len(bars) > 1:
+    if before:
+        pass                      # historical page: every bar is already closed
+    elif len(bars) > 1:
         bars = bars[:-1]          # forming candle - never feed it to strategies
     return {"ok": True, "symbol": symbol, "tf": tfk, "bars": bars}
 

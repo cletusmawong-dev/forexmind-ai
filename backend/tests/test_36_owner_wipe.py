@@ -62,7 +62,7 @@ def test_boot_purges_all_strategy_docs(tmp_path, monkeypatch):
         assert not store.list("strategy_versions", filters={"strategy_id": sid})
         assert not store.list("version_events", filters={"strategy_id": sid})
     vc.ensure_strategy_docs()          # idempotent - same state, no crash
-    assert len(store.list("strategy_versions", limit=1000)) == 5
+    assert len(store.list("strategy_versions", limit=1000)) == 6
 
 
 def test_registered_doc_would_survive_purge(tmp_path, monkeypatch):

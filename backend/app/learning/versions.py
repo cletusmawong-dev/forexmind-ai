@@ -37,6 +37,10 @@ START_PAUSED = {
     # forward test. Lifecycle stays default LIVE so activation = trading.
     "strategy_gold_ny_pullback",
     "strategy_gold_ny_orb",
+    # GOLDASIA (owner guide GOLDASIA section 2): boots PAUSED at 1.0.
+    # BORDERLINE/FRAGILE edge - the guide's own gate is a demo forward test
+    # before unpausing on a challenge account.
+    "strategy_gold_asia_range_bo",
 }
 
 LIFECYCLE = {
