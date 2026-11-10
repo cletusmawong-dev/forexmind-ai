@@ -78,6 +78,19 @@ STRATEGY_RISK_RULES: Dict[str, Dict[str, Any]] = {
 }
 
 
+# The bridge serves MT5 bars stamped in the BROKER'S SERVER time (Aqua
+# runs UTC+2 winter / UTC+3 summer), while the gold guides define every
+# session in UTC (GOLDASIA guide section 8: "convert to UTC upstream").
+# These strategies read the label index directly, so the scan engine
+# injects server_utc_offset_hours (the guide-sanctioned parameter) from
+# the live bridge clock - dynamic, so EU DST changes need no redeploy.
+SERVER_TZ_IDS = frozenset({
+    "strategy_gold_ny_pullback",
+    "strategy_gold_ny_orb",
+    "strategy_gold_asia_range_bo",
+})
+
+
 def rules_for(strategy_id) -> Dict[str, Any]:
     """Account-level rule set for a strategy (empty = standard path)."""
     return dict(STRATEGY_RISK_RULES.get(strategy_id or "", {}) or {})

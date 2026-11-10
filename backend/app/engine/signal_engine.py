@@ -207,6 +207,11 @@ class SignalEngine:
                 scan_df, scan_tf = df_e, eff_tf
             if eff_tf:
                 params = {**(params or {}), "entry_tf": eff_tf}
+            # broker-server bar labels -> true UTC for the gold trio
+            # (guides define sessions in UTC; bridge stamps server time)
+            if sid in _srr_mod.SERVER_TZ_IDS:
+                params = {**(params or {}),
+                          "server_utc_offset_hours": self._server_utc_offset()}
             if _scan_limit != 1600 and scan_df is df:
                 scan_df = self.provider.get_candles(market, scan_tf,
                                                     limit=_scan_limit)
@@ -596,6 +601,28 @@ class SignalEngine:
         return store.get("signals", doc["id"])
 
     # ------------------------------------------------------------------
+    def _server_utc_offset(self) -> float:
+        """Hours to SUBTRACT from broker-stamped bar labels to get true UTC,
+        read live from the bridge clock (quote time vs our UTC clock) so the
+        EU DST switch (UTC+2 <-> UTC+3) needs no redeploy. Cached 1 h;
+        falls back to the last known value, then +2.0 (Aqua winter time)."""
+        import time as _time
+        now = _time.time()
+        if now - getattr(self, "_tz_off_ts", 0.0) < 3600:
+            return getattr(self, "_tz_off", 2.0)
+        try:
+            from ..execution.mt5 import bridge_get
+            q = bridge_get("/quote?market=XAUUSD", timeout=8) or {}
+            t = float(q.get("time") or 0)
+            if t > 0:
+                off = round((t - now) / 1800.0) * 0.5     # nearest 0.5 h
+                if 0 < abs(off) < 14:
+                    self._tz_off, self._tz_off_ts = off, now
+                    return off
+        except Exception:
+            pass
+        return getattr(self, "_tz_off", 2.0)
+
     def _log(self, message: str, kind: str = "INFO", market: Optional[str] = None):
         store = get_store()
         store.create("agent_activity", {
