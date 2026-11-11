@@ -538,6 +538,13 @@ def test_execute_signal_stacking_refusal_is_loud(env, monkeypatch):
                         "type": "BUY", "profit": 0.0}]} if p == "/positions" else {})
     X.bridge_post = lambda p, j=None, timeout=30: posts.append(p) or {}
     try:
+        slot = next((a for a in store.list("trading_accounts", limit=10)
+                     if a.get("userId") == "boss"), None)
+        if slot:
+            picks = list(slot.get("strategy_ids") or [])
+            if "strategy_2_ema_atr" not in picks:
+                picks.append("strategy_2_ema_atr")
+                store.update("trading_accounts", slot["id"], {"strategy_ids": picks})
         store.create("signals", {"id": "sg-stack", "userId": "boss",
                                  "signal_id": "STACK-1", "market": "USDJPY"})
         sig = {"id": "sg-stack", "signal_id": "STACK-1", "market": "USDJPY",

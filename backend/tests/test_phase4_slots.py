@@ -64,18 +64,27 @@ def test_slot1_still_sends_when_slot2_is_only_being_watched(env, monkeypatch):
 
 
 def test_viewing_slot2_does_not_send_on_the_slot1_bridge(env, monkeypatch):
+    """Phase 4 guard: a slot-2 row is not eligible until fan-out, and a
+    strategy-less signal with an explicit pick-list is not a slot-1 send.
+    Fan-out (phase 5) sends this signal to slot 2's own bridge instead."""
     env.create("trading_accounts", {
         "userId": "u1", "label": "Second", "mode": "vps_bridge",
         "is_active": True, "trading_enabled": True, "bridge_slot": 2,
         "bridge_url": "http://127.0.0.1:8701", "strategy_ids": ["strategy_mrms_scalper"],
         "kill_switch": False,
     }, doc_id="slot2")
-    posts = []
+    urls = []
+
+    def post(path, payload, timeout=15):
+        from app.execution.mt5 import _bridge_target
+        urls.append(_bridge_target()[0])
+        return {"ok": True, "ticket": 9, "volume": payload.get("lots"), "price": 1.1}
+
     monkeypatch.setattr(X, "bridge_get", _get)
-    monkeypatch.setattr(X, "bridge_post", lambda *a, **k: posts.append(1))
-    X.execute_signal(dict(SIG), "u1")
-    assert posts == []
-    assert env.get("signals", "sig1")["execution_status"] == "SKIPPED_SLOT_HEALTH_ONLY"
+    monkeypatch.setattr(X, "bridge_post", post)
+    X.execute_signal(dict(SIG, strategy_id="strategy_mrms_scalper"), "u1")
+    assert urls == ["http://127.0.0.1:8701"]
+    assert env.get("signals", "sig1")["execution_status"] == "SUBMITTED"
 
 
 def test_health_poll_does_not_place_orders(env, monkeypatch):

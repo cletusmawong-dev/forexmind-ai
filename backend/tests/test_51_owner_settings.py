@@ -362,6 +362,13 @@ def test_record_only_strategy_signals_are_recorded_not_executed(env):
     from app.db import store as store_mod
     real_store = store
     monkeypatch.setattr(X, "get_store", lambda: real_store)
+    slot = next((a for a in real_store.list("trading_accounts", limit=10)
+                 if a.get("userId") == "boss"), None)
+    if slot:
+        picks = list(slot.get("strategy_ids") or [])
+        if "strategy_gold_orb" not in picks:
+            picks.append("strategy_gold_orb")
+            real_store.update("trading_accounts", slot["id"], {"strategy_ids": picks})
     sig = {"id": "sig_ro1", "userId": "boss", "signal_id": "SIG-RO1",
            "strategy_id": "strategy_gold_orb", "market": "XAUUSD",
            "direction": "BUY", "timeframe": "15M", "entry": 2400.0,

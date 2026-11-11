@@ -13,6 +13,7 @@ failure degrades to "signal only" with an honest activity log.
 """
 from __future__ import annotations
 
+import contextvars
 import math
 import os
 import secrets
@@ -319,25 +320,40 @@ def _log(msg: str, market: Optional[str] = None, kind: str = "EXEC") -> None:
 # ---------------------------------------------------------------------------
 # bridge transport (vps mode)
 # ---------------------------------------------------------------------------
+# Unset on the legacy path, so slot 1 keeps using MT5_BRIDGE_URL.
+# Fan-out sets it inside the worker thread for that account only.
+_bridge_ctx: contextvars.ContextVar = contextvars.ContextVar("fxm_bridge", default=None)
+
+
+def _bridge_target() -> tuple:
+    ctx = _bridge_ctx.get()
+    if ctx and ctx.get("url"):
+        return ctx["url"], ctx.get("token") or settings.bridge_token
+    return settings.bridge_url, settings.bridge_token
+
+
 def _headers() -> Dict[str, str]:
-    return {"X-Bridge-Token": settings.bridge_token, "Content-Type": "application/json"}
+    _url, token = _bridge_target()
+    return {"X-Bridge-Token": token, "Content-Type": "application/json"}
 
 
 def bridge_get(path: str, timeout: int = 8) -> Optional[dict]:
-    if not settings.bridge_url:
+    url, _token = _bridge_target()
+    if not url:
         return None
     try:
-        r = requests.get(f"{settings.bridge_url}{path}", headers=_headers(), timeout=timeout)
+        r = requests.get(f"{url}{path}", headers=_headers(), timeout=timeout)
         return r.json() if r.status_code == 200 else None
     except Exception:
         return None
 
 
 def bridge_post(path: str, payload: dict, timeout: int = 15) -> Optional[dict]:
-    if not settings.bridge_url:
+    url, _token = _bridge_target()
+    if not url:
         return None
     try:
-        r = requests.post(f"{settings.bridge_url}{path}", headers=_headers(),
+        r = requests.post(f"{url}{path}", headers=_headers(),
                           json=payload, timeout=timeout)
         try:
             body = r.json()
@@ -618,6 +634,21 @@ def execute_signal(signal: dict, user_id: str) -> None:
     # account. Resolve it server-side (never from the frontend) and refuse
     # when that account is disabled or disconnected.
     account_id = None
+    fanout_targets = None
+    try:
+        from .fanout import decide
+        kind, fanout_targets = decide(user_id, signal.get("strategy_id"), get_store())
+    except Exception:
+        kind = "legacy"
+        fanout_targets = None
+    if kind == "skip":
+        if signal.get("id"):
+            get_store().update("signals", signal["id"], {
+                "execution_status": "SKIPPED_NO_ELIGIBLE_ACCOUNT",
+                "mt5_note": "No account has trading on for this strategy"})
+        _emit(user_id, "ENTRY", "SKIPPED", market=signal.get("market"),
+              signal=signal, detail="no eligible account")
+        return
     try:
         from ..api.routes_accounts import active_account
         acct = active_account(user_id)
@@ -633,7 +664,7 @@ def execute_signal(signal: dict, user_id: str) -> None:
                   signal=signal, detail=f"account registry unreadable ({type(exc).__name__})")
             return
         acct = None
-    if acct:
+    if acct and kind != "fanout":
         account_id = acct.get("id")
         if acct.get("mode") != "signals_only" and not acct.get("trading_enabled"):
             if signal.get("id"):
@@ -896,6 +927,11 @@ def execute_signal(signal: dict, user_id: str) -> None:
                 except Exception:
                     tp_level = 2
         tp = signal.get(f"tp{max(1, min(3, tp_level))}") or signal.get("tp1")
+
+        if mode == "vps" and kind == "fanout":
+            from .fanout import fanout_signal
+            fanout_signal(signal, user_id, store, fanout_targets or [])
+            return
 
         if mode == "vps":
             acct = bridge_get("/account")

@@ -298,6 +298,13 @@ def test_chaos_bridge_dead_during_entry_is_loud_not_fatal(env, monkeypatch):
         raise ConnectionError("VPS unreachable mid-flight")
 
     monkeypatch.setattr(mt5, "bridge_get", flaky)
+    slot = next((a for a in store.list("trading_accounts", limit=10)
+                 if a.get("userId") == "boss"), None)
+    if slot:
+        picks = list(slot.get("strategy_ids") or [])
+        if "strategy_2_ema_atr" not in picks:
+            picks.append("strategy_2_ema_atr")
+            store.update("trading_accounts", slot["id"], {"strategy_ids": picks})
     sig = {"id": "sig-chaos-1", "signal_id": "CHAOS-1", "market": "EURUSD",
            "direction": "BUY", "strategy_id": "strategy_2_ema_atr",
            "strategy_name": "EMA", "entry": 1.1, "sl": 1.098,
