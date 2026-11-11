@@ -340,3 +340,30 @@ def test_cloud_modify_sl_never_raises(xenv):
     monkeypatch.setattr(X, "bridge_post", boom)
     res = X.modify_sl("u1", 1, 2400.0)
     assert res["ok"] is False
+
+
+def test_execute_adopts_existing_comment_instead_of_sending(bridge_mod):
+    """Same comment + magic already on the terminal: no second order_send."""
+    fake = FakeMT5()
+    fake._pos.comment = "SIG-DUP"
+    fake._pos.magic = 20260914
+    bridge_mod.mt5 = fake
+    res = bridge_mod.execute(bridge_mod.OrderIn(
+        signal_id="SIG-DUP", symbol="XAUUSD", direction="BUY",
+        lots=0.01, sl=2390.0, tp=2440.0, magic=20260914),
+        x_bridge_token="test-token")
+    assert res["ok"] is True and res["duplicate"] is True
+    assert res["ticket"] == 1
+    assert fake.sent == []
+
+
+def test_execute_sends_when_comment_is_new(bridge_mod):
+    fake = FakeMT5()
+    bridge_mod.mt5 = fake
+    res = bridge_mod.execute(bridge_mod.OrderIn(
+        signal_id="OTHER-SIGNAL", symbol="XAUUSD", direction="BUY",
+        lots=0.01, sl=2390.0, tp=2440.0, magic=20260914),
+        x_bridge_token="test-token")
+    assert res["ok"] is True and not res.get("duplicate")
+    assert len(fake.sent) == 1
+    assert fake.sent[0]["comment"] == "OTHER-SIGNAL"

@@ -217,12 +217,52 @@ def quote(market: str, x_bridge_token: Optional[str] = Header(None)):
                 "time": int(getattr(tick, "time", 0) or 0)}
 
 
+def _existing_order(comment: str, magic: int) -> Optional[dict]:
+    """Open position or entry deal in the last 48h with this comment and magic.
+
+    Called under _mt5_lock. A read failure raises 503 so the caller does not
+    send blind. No match returns None and the order proceeds."""
+    want = (comment or "")[:31]
+    if not want:
+        return None
+    try:
+        positions = list(mt5.positions_get() or [])
+    except Exception as exc:
+        raise HTTPException(503, f"cannot read positions before send: {exc}")
+    for p in positions:
+        if (str(getattr(p, "comment", "") or "")[:31] == want
+                and int(getattr(p, "magic", 0) or 0) == int(magic)):
+            return {"ticket": getattr(p, "ticket", None),
+                    "position_id": getattr(p, "ticket", None),
+                    "volume": getattr(p, "volume", None),
+                    "price": getattr(p, "price_open", None)}
+    try:
+        frm = datetime.now(timezone.utc) - timedelta(hours=48)
+        deals = list(mt5.history_deals_get(frm, datetime.now(timezone.utc)) or [])
+    except Exception as exc:
+        raise HTTPException(503, f"cannot read deals before send: {exc}")
+    for d in deals:
+        if int(getattr(d, "entry", 0) or 0) != 0:
+            continue
+        if (str(getattr(d, "comment", "") or "")[:31] == want
+                and int(getattr(d, "magic", 0) or 0) == int(magic)):
+            return {"ticket": getattr(d, "order", None) or getattr(d, "position_id", None),
+                    "position_id": getattr(d, "position_id", None),
+                    "volume": getattr(d, "volume", None),
+                    "price": getattr(d, "price", None)}
+    return None
+
+
 @app.post("/execute")
 def execute(order: OrderIn, x_bridge_token: Optional[str] = Header(None)):
     _auth(x_bridge_token)
     symbol = resolve_symbol(order.symbol)
     with _mt5_lock:
         _ensure()
+        prior = _existing_order((order.signal_id or "")[:31], int(order.magic))
+        if prior:
+            return {"ok": True, "duplicate": True, "symbol": symbol,
+                    "retcode": mt5.TRADE_RETCODE_DONE, **prior}
         info = mt5.symbol_info(symbol)
         if info is None:
             raise HTTPException(404, f"symbol_info failed for {symbol}")

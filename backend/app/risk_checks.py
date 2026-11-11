@@ -234,8 +234,9 @@ def check_entry(user_id: str, market: str,
         ok, why = ks_check(market, strategy_id)
         if not ok:
             return False, "KILLSWITCH", why
-    except Exception:
-        pass
+    except Exception as exc:
+        return False, "KILLSWITCH", (
+            f"kill switch unreadable ({type(exc).__name__}) - entry blocked")
     if not settings_value("risk_guards_enabled"):
         return True, "", ""
     for name, fn in (("CONSEC_LOSSES", lambda uid, mkt: _consecutive_losses_ok(uid)),

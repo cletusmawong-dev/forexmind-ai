@@ -64,23 +64,26 @@ def set_level(level: int, by: str, reason: str = "",
 
 
 def check(market: Optional[str] = None, strategy_id: Optional[str] = None) -> Tuple[bool, str]:
-    """Deterministic enforcement. (True, "") at level 0 or when not covered."""
+    """Deterministic enforcement. (True, "") only at a successfully read level 0.
+
+    A failed read blocks the entry. Treating a dead store as level 0 would
+    send an order while the kill switch might be on."""
     try:
         k = current_level()
-        lvl = k["level"]
-        if lvl == 0:
-            return True, ""
-        if lvl == 5 or lvl == 1 or lvl == 4:
-            return False, f"KILLSWITCH_L{lvl}_{k['name']}"
-        if lvl == 3 and market and (market or "").upper() in k["instruments"]:
-            return False, f"KILLSWITCH_L3_INSTRUMENT_{(market or '').upper()}"
-        if lvl == 2 and strategy_id and strategy_id in k["strategies"]:
-            return False, f"KILLSWITCH_L2_STRATEGY_{strategy_id}"
-        return True, ""
     except Exception:
-        return True, ""   # fail-open for a READ of a safety flag is wrong only
-                          # if the store is down; entries also pass the whole
-                          # remaining gate chain - recorded honestly in chaos tests
+        return False, "KILLSWITCH_READ_FAILED"
+    if k.get("degraded_read"):
+        return False, "KILLSWITCH_READ_FAILED"
+    lvl = k["level"]
+    if lvl == 0:
+        return True, ""
+    if lvl == 5 or lvl == 1 or lvl == 4:
+        return False, f"KILLSWITCH_L{lvl}_{k['name']}"
+    if lvl == 3 and market and (market or "").upper() in k["instruments"]:
+        return False, f"KILLSWITCH_L3_INSTRUMENT_{(market or '').upper()}"
+    if lvl == 2 and strategy_id and strategy_id in k["strategies"]:
+        return False, f"KILLSWITCH_L2_STRATEGY_{strategy_id}"
+    return True, ""
 
 
 def emergency_close_all(by: str) -> dict:

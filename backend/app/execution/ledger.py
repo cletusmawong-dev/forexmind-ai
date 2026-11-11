@@ -20,19 +20,20 @@ from ..db.store import get_store
 COLL = "exec_events"        # registered in store.COLLECTIONS
 KINDS = ("ENTRY", "MODIFY_SL", "PARTIAL_CLOSE", "CLOSE_FULL", "TP_AUDIT")
 STAGES = ("REQUESTED", "SENT", "CONFIRMED", "FAILED", "EXPIRED", "QUEUED",
-          "SKIPPED")
+          "SKIPPED", "UNKNOWN")
 
 
 def emit(user_id: Optional[str], kind: str, stage: str,
          market: Optional[str] = None, signal_id: Optional[str] = None,
          signal_doc_id: Optional[str] = None, ticket: Optional[int] = None,
          detail: str = "", latency_ms: Optional[float] = None,
-         extra: Optional[Dict[str, Any]] = None) -> Optional[dict]:
+         extra: Optional[Dict[str, Any]] = None,
+         idempotency_key: Optional[str] = None) -> Optional[dict]:
     """Append one lifecycle event. Never raises; truncates noisy fields."""
     if kind not in KINDS or stage not in STAGES:
         return None
     try:
-        return get_store().create(COLL, {
+        doc = {
             "userId": user_id,
             "kind": kind,
             "stage": stage,
@@ -46,7 +47,10 @@ def emit(user_id: Optional[str], kind: str, stage: str,
                            if latency_ms is not None else None),
             "extra": extra or {},
             "createdAt": datetime.now(timezone.utc).isoformat(),
-        })
+        }
+        if idempotency_key:
+            doc["idempotency_key"] = idempotency_key
+        return get_store().create(COLL, doc)
     except Exception:
         return None
 

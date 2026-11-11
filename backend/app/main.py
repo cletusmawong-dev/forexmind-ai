@@ -278,7 +278,7 @@ async def live_loop():
             if now - last_learning > 6 * 3600:
                 last_learning = now
                 try:  # Research Lab: discover new one-variable-testable patterns
-                    for _uid in (await _user_ids()):
+                    for _uid in _users_cached():
                         await asyncio.to_thread(
                             __import__("app.learning.research", fromlist=["discover"]).discover,
                             _uid)
