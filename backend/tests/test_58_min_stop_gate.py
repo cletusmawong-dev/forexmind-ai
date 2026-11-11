@@ -1,7 +1,8 @@
-"""The stop-tightness gate (retcode 10016 protection): broker-LIVE when the
-bridge serves the symbol's trade_stops_level, static 6-pip rule as the
-fail-closed fallback. Regression anchors the 2026-11-11 EURUSD SELL that was
-refused at 5.94 pips under the old hardcoded rule.
+"""The stop-distance gate after the OWNER'S 2026-11-11 directive: the
+invented 6-pip minimum is GONE. A signal executes with its own SL/TP; the
+only distance rule is the BROKER's own live stops level (retcode 10016
+truth). No broker truth -> execute. The 2026-11-11 EURUSD SELL (5.94-pip
+stop, broker minimum 1 pip) would now EXECUTE.
 """
 from __future__ import annotations
 
@@ -18,39 +19,39 @@ def _reset(monkeypatch, stops_payload=None, dead=False):
                             lambda path, timeout=6: stops_payload or {})
 
 
-def test_broker_live_level_allows_a_tight_but_legal_stop(monkeypatch):
-    # broker says 30 points = 0.0030 = 3 pips minimum -> a 5.94-pip SL is legal
-    _reset(monkeypatch, {"point": 1e-05, "trade_stops_level": 30,
-                         "stops_level_price": 0.0003})
+def test_the_invented_pip_minimum_is_gone():
+    assert not hasattr(X, "MIN_STOP_PIPS")
+
+
+def test_broker_minimum_1_pip_lets_yesterdays_refused_trade_execute(monkeypatch):
+    # the 2026-11-11 case: broker live minimum 10 points = 1 pip, stop 5.94
+    _reset(monkeypatch, {"point": 1e-05, "trade_stops_level": 10,
+                         "stops_level_price": 0.0001})
     tight, min_pips = X._stop_too_tight(1.11608, 1.1166737, PIP, "EURUSD")
-    assert tight is False and abs(min_pips - 3.0) < 1e-9
+    assert tight is False and abs(min_pips - 1.0) < 1e-9   # EXECUTES
 
 
-def test_broker_live_level_refuses_below_the_broker_truth(monkeypatch):
-    # broker says 80 points = 8 pips -> 5.94-pip SL must refuse
+def test_refuses_only_when_the_broker_itself_would_bounce(monkeypatch):
+    # broker widened to 8 pips (news) -> a 5.94-pip stop would bounce (10016)
     _reset(monkeypatch, {"point": 1e-05, "trade_stops_level": 80,
                          "stops_level_price": 0.0008})
     tight, min_pips = X._stop_too_tight(1.11608, 1.1166737, PIP, "EURUSD")
     assert tight is True and abs(min_pips - 8.0) < 1e-9
 
 
-def test_bridge_dead_falls_back_to_the_static_6_pip_rule(monkeypatch):
-    # fail-closed: no broker truth -> the historic 6-pip rule stands
+def test_no_broker_truth_means_execute_never_refuse(monkeypatch):
+    # OWNER DIRECTIVE: the platform never invents a minimum. Bridge silent ->
+    # execute; the broker's own /execute validation has the final word and
+    # any bounce is announced loudly, never silent.
     _reset(monkeypatch, dead=True)
     tight, min_pips = X._stop_too_tight(1.11608, 1.1166737, PIP, "EURUSD")
-    assert tight is True and abs(min_pips - 6.0) < 1e-9
-    # and a 6.5-pip stop passes under the same fallback
-    tight2, _ = X._stop_too_tight(1.11608, 1.11543, PIP, "EURUSD")
-    assert tight2 is False
+    assert tight is False and min_pips is None
 
 
-def test_zero_stops_level_is_no_data_falls_back_fail_closed(monkeypatch):
-    # stops_level 0 is indistinguishable from an OLD bridge without the
-    # field -> no data -> static 6-pip rule (fail-closed, by design)
-    _reset(monkeypatch, {"point": 1e-05, "trade_stops_level": 0,
-                         "stops_level_price": 0.0})
-    tight, min_pips = X._stop_too_tight(1.11608, 1.11600, PIP, "EURUSD")
-    assert tight is True and abs(min_pips - 6.0) < 1e-9
+def test_garbage_payload_means_execute(monkeypatch):
+    _reset(monkeypatch, {"point": 0, "trade_stops_level": "nonsense"})
+    tight, min_pips = X._stop_too_tight(1.11608, 1.1166737, PIP, "EURUSD")
+    assert tight is False and min_pips is None
 
 
 def test_tiny_live_level_gives_a_tiny_real_minimum(monkeypatch):
@@ -61,13 +62,14 @@ def test_tiny_live_level_gives_a_tiny_real_minimum(monkeypatch):
     assert tight is False and abs(min_pips - 0.5) < 1e-9
 
 
-def test_garbage_payload_is_ignored_not_crashed(monkeypatch):
-    _reset(monkeypatch, {"point": 0, "trade_stops_level": "nonsense"})
-    tight, min_pips = X._stop_too_tight(1.11608, 1.1166737, PIP, "EURUSD")
-    assert tight is True and abs(min_pips - 6.0) < 1e-9   # static fallback
-
-
 def test_unknown_pip_size_never_refuses_in_the_gate(monkeypatch):
     _reset(monkeypatch, dead=True)
     tight, min_pips = X._stop_too_tight(1.11608, 1.1166737, None, "EXOTIC")
     assert tight is False and min_pips is None
+
+
+def test_validate_order_no_longer_carries_a_static_minimum():
+    import inspect
+    from app.execution import pretrade
+    sig = inspect.signature(pretrade.validate_order)
+    assert sig.parameters["min_stop_pips"].default is None

@@ -254,14 +254,37 @@ def test_skip_paths_notify_telegram(monkeypatch):
     assert store.get("signals", "sig1")["execution_status"] == "SKIPPED_EXEC_DAILY_CAP"
     assert any(t == "EXECUTION_SKIPPED" for t, _ in notices)
 
-    # stop-too-tight path
+    # stop-too-tight path: ONLY the broker's OWN live stops level may refuse
+    # (owner 2026-11-11 - the invented 6-pip minimum is GONE)
     notices.clear()
-    tight = dict(SIG, id="sig_tight", sl=1.0999)   # 1 pip SL < broker minimum
+    tight = dict(SIG, id="sig_tight", sl=1.1001)   # side-valid SELL, 1 pip
     store.create("signals", dict(tight))
     monkeypatch.setattr(X, "_executed_today", lambda uid: 0)
+
+    def _wide_bridge(path, timeout=8):
+        if "/symbol_info" in path:
+            return json.loads('{"point": 1e-05, "trade_stops_level": 80, "stops_level_price": 0.0008, "trade_tick_value": 1.0, "trade_tick_size": 1e-05, "trade_contract_size": 100000.0, "volume_min": 0.01, "volume_max": 50.0, "volume_step": 0.01}')
+        if path == "/account":
+            return {"balance": 1000}
+        if path.startswith("/rates"):
+            return json.loads('{"bars": [{"c": 1.1000}]}')
+        return {}
+
+    monkeypatch.setattr(X, "bridge_get", _wide_bridge)
     X.execute_signal(tight, "u1")
     assert store.get("signals", "sig_tight")["execution_status"] == "SKIPPED_STOP_TOO_TIGHT"
     assert any(t == "EXECUTION_SKIPPED" for t, _ in notices)
+
+    # no broker truth -> the invented gate is gone: the trade proceeds
+    notices.clear()
+    tight2 = dict(SIG, id="sig_tight2", sl=1.1001)
+    store.create("signals", dict(tight2))
+    monkeypatch.setattr(X, "bridge_get",
+                        lambda p, timeout=8: {"balance": 1000} if p == "/account"
+                        else (json.loads('{"bars": [{"c": 1.1000}]}')
+                              if p.startswith("/rates") else None))
+    X.execute_signal(tight2, "u1")
+    assert store.get("signals", "sig_tight2")["execution_status"] != "SKIPPED_STOP_TOO_TIGHT"
 
 
 def test_apply_deals_never_rereads_confirmed_positions(monkeypatch):

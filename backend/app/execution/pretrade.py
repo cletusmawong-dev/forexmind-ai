@@ -86,7 +86,10 @@ def validate_order(
     lifecycle: str,
     pip_size: Optional[float],
     pip_value: Optional[float],
-    min_stop_pips: float,
+    # OWNER 2026-11-11: the invented pip minimum is GONE. None = no
+    # stop-distance refusal here; the ONLY distance rule is the broker's
+    # own live stops level, checked against broker truth in mt5.py.
+    min_stop_pips: Optional[float] = None,
     balance: float,
     eff_risk_pct: float,        # risk_per_trade_pct already scaled by lot-mode
     lots_cap: float,
@@ -152,7 +155,8 @@ def validate_order(
             if dirn == "SELL" and not (tp < entry < sl):
                 return (False, "SIDES_INCONSISTENT",
                         f"SELL requires TP < entry < SL (got TP {tp}, entry {entry}, SL {sl})")
-        if pip_size and abs(entry - sl) < min_stop_pips * pip_size:
+        if (pip_size and min_stop_pips
+                and abs(entry - sl) < min_stop_pips * pip_size):
             return (False, "STOP_TOO_TIGHT",
                     f"stop distance {abs(entry - sl) / pip_size:.1f} pips < broker "
                     f"minimum {min_stop_pips:g}")

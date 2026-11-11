@@ -78,6 +78,10 @@ def test_s2_bullish_state_cleared_after_signal(world):
 
 
 # ================= execution guards ========================================
+SYMI_TEMPLATE = ('{"point": 1e-05, "trade_stops_level": LEVEL, '
+                 '"stops_level_price": PRICE, "trade_tick_value": 1.0, '
+                 '"trade_tick_size": 1e-05, "trade_contract_size": 100000.0, '
+                 '"volume_min": 0.01, "volume_max": 50.0, "volume_step": 0.01}')
 @pytest.fixture()
 def env(monkeypatch, tmp_path):
     store = LocalStore(path=str(tmp_path / "db.json"))
@@ -111,14 +115,39 @@ def _sig(store, **over):
     return d
 
 
-def test_tight_stop_skipped_never_sent(env):
+def _with_broker_minimum(monkeypatch, level):
+    """Wrap env's bridge_get: /symbol_info serves the broker's LIVE stops
+    level (the only stop-distance rule left); everything else passes."""
+    base = X.bridge_get
+    payload = json.loads(SYMI_TEMPLATE.replace("LEVEL", str(level))
+                         .replace("PRICE", str(level * 1e-05)))
+    def routed(p, timeout=8):
+        if "/symbol_info" in p:
+            return payload
+        return base(p, timeout=8)
+    monkeypatch.setattr(X, "bridge_get", routed)
+
+
+def test_tight_stop_refused_only_on_broker_truth(env, monkeypatch):
     store, sent = env
     d = _sig(store, sl=1.10022)                     # 2.2 pips like SIG-007
+    _with_broker_minimum(monkeypatch, 80)           # broker widened to 8 pips
     X.execute_signal(store.get("signals", d["id"]), "u1")
     assert sent == []                               # nothing reached the broker
     doc = store.get("signals", d["id"])
     assert doc["execution_status"] == "SKIPPED_STOP_TOO_TIGHT"
     assert "2.2 pips" in (doc.get("mt5_note") or "")
+
+
+def test_tight_stop_executes_when_the_broker_allows_it(env, monkeypatch):
+    # the 2026-11-11 case: broker minimum 1 pip -> a 2.2-pip stop TRADES
+    store, sent = env
+    d = _sig(store, sl=1.10022)
+    _with_broker_minimum(monkeypatch, 10)
+    X.execute_signal(store.get("signals", d["id"]), "u1")
+    doc = store.get("signals", d["id"])
+    assert doc["execution_status"] != "SKIPPED_STOP_TOO_TIGHT"
+    assert sent, "the order reached the bridge"
 
 
 def test_normal_stop_still_executes(env):

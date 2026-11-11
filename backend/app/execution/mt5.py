@@ -132,14 +132,17 @@ TRAIL_ONLY_STRATEGIES = {"strategy_trendbreak_v2"}
 # PINSTRIPE V6 (owner locked rules 2025): TP1 partials are ladder-managed;
 # the broker ticket carries the FINAL target TP2.
 PINSTRIPE_TP2_STRATEGIES = {"strategy_hybrid_crt_tbs", "strategy_fade_crt_ext"}
-MIN_STOP_PIPS = float(os.getenv("EXECUTION_MIN_STOP_PIPS", "6"))
+# OWNER 2026-11-11 (prop-firm directive): the invented 6-pip minimum is
+# REMOVED. A signal executes with its own SL/TP; the only stop-distance
+# rule left is the BROKER's own live stops level (retcode 10016 truth)
+# - used purely to predict a bounce, never to invent a tighter rule.
 
 def _broker_min_stop_price(market: str) -> Optional[float]:
     """Live broker minimum stop distance in PRICE units (trade_stops_level
     points x point) straight from the bridge's symbol_info. None when the
-    bridge cannot answer - the caller then keeps the static MIN_STOP_PIPS
-    rule (fail-closed; that rule exists because the broker itself rejected
-    tighter stops with retcode 10016)."""
+    bridge cannot answer - the caller then EXECUTES (the broker's own
+    /execute validation has the final word; a bounce would be announced,
+    never silent)."""
     try:
         d = bridge_get(f"/symbol_info?market={market}", timeout=6) or {}
         pts = float(d.get("trade_stops_level") or 0)
@@ -153,17 +156,17 @@ def _broker_min_stop_price(market: str) -> Optional[float]:
 
 def _stop_too_tight(entry: float, sl: float, pip: Optional[float],
                     market: str) -> tuple:
-    """(too_tight, effective_min_pips). Broker-live when the bridge serves
-    the symbol's stops level (floored at 0.1 pip for sanity), else the
-    static MIN_STOP_PIPS rule. pip unknown -> never refuse here."""
+    """(too_tight, broker_min_pips). The ONLY stop-distance rule left:
+    refuse ONLY when the broker's OWN live stops level (floored at 0.1 pip
+    for sanity) says the order would bounce (retcode 10016). No broker
+    truth -> execute; the broker decides and any bounce is announced."""
     if not pip:
         return False, None
     dist = abs(float(entry) - float(sl))
     b = _broker_min_stop_price(market)
-    if b is not None:
-        min_dist = max(b, 0.1 * pip)
-    else:
-        min_dist = MIN_STOP_PIPS * pip
+    if b is None:
+        return False, None
+    min_dist = max(b, 0.1 * pip)
     return dist < min_dist, min_dist / pip
 MAX_LOTS = float(os.getenv("EXECUTION_MAX_LOTS", "1.0"))
 # OWNER RULE 2026-11-02: when a stop is too wide to size at the user's
@@ -672,19 +675,21 @@ def execute_signal(signal: dict, user_id: str) -> None:
                 "execution_status": "SKIPPED_STOP_TOO_TIGHT",
                 "mt5_note": f"SL {abs(entry - sl) / pip:.1f} pips from entry - the broker's live "
                             f"minimum is {_min_pips:g} pips (signal kept as advisory)"})
-            _log(f"Execution skipped - SL only {abs(entry - sl) / pip:.1f} pips from entry; "
-                 f"the broker's live minimum is {_min_pips:g} pips (retcode 10016 rule). "
-                 "Signal kept as advisory.", market, kind="EXEC_WARN")
+            _log(f"Execution skipped - the broker's OWN current minimum stop "
+                 f"distance ({_min_pips:g} pips) is wider than this stop "
+                 f"({abs(entry - sl) / pip:.1f} pips); the order would bounce "
+                 "(retcode 10016). Signal kept as advisory.", market, kind="EXEC_WARN")
             from ..notifications.fmt import ctx_line
             notify(user_id, "EXECUTION_SKIPPED",
                    f"⚠️ NOT EXECUTED - {signal.get('market')} {signal.get('direction')}",
                    f"{ctx_line(signal)}\n"
-                   f"Stop distance {abs(entry - sl) / pip:.1f} pips is under "
-                   f"the broker's live minimum ({_min_pips:g} pips). Research "
-                   "only - no trade was placed.",
+                   f"The broker's own current minimum stop distance "
+                   f"({_min_pips:g} pips) is wider than this stop "
+                   f"({abs(entry - sl) / pip:.1f} pips) - the order would bounce. "
+                   "No trade was placed.",
                    signal_id=signal.get("id"))
             _emit(user_id, "ENTRY", "SKIPPED", market=market, signal=signal,
-                  detail=f"stop too tight (< {MIN_STOP_PIPS:g} pips)")
+                  detail="broker stops-level would bounce this order")
             return
         # OWNER GOLD-PAIR GUIDE 2026-11-02 (section 5): per-strategy
         # account-level entry gates - spread cap, one-open-position, shared
@@ -1062,7 +1067,7 @@ def execute_signal(signal: dict, user_id: str) -> None:
                 symbol_known=market in PIP_SIZE,
                 strategy_status=(store.list("strategies", filters={"id": signal.get("strategy_id")}, limit=1) or [{}])[0].get("status"),
                 lifecycle=_life, pip_size=PIP_SIZE.get(market),
-                pip_value=PIP_VALUE.get(market), min_stop_pips=MIN_STOP_PIPS,
+                pip_value=PIP_VALUE.get(market), min_stop_pips=None,
                 balance=float(acct.get("balance") or 0.0),
                 eff_risk_pct=risk_pct * LOT_MODE_MULT.get(_mode, 1.0),
                 lots_cap=MAX_LOTS, dup_checked=True, budgets_allowed=True,
@@ -1173,7 +1178,7 @@ def execute_signal(signal: dict, user_id: str) -> None:
                 symbol_known=market in PIP_SIZE,
                 strategy_status=(store.list("strategies", filters={"id": signal.get("strategy_id")}, limit=1) or [{}])[0].get("status"),
                 lifecycle=_life, pip_size=PIP_SIZE.get(market),
-                pip_value=PIP_VALUE.get(market), min_stop_pips=MIN_STOP_PIPS,
+                pip_value=PIP_VALUE.get(market), min_stop_pips=None,
                 balance=float(bal or 0.0),
                 eff_risk_pct=risk_pct * LOT_MODE_MULT.get(_mode, 1.0),
                 lots_cap=MAX_LOTS, dup_checked=True, budgets_allowed=True,
