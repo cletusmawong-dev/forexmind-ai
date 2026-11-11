@@ -335,7 +335,7 @@ def test_chaos_killswitch_read_failure_fails_closed_for_entries(env, monkeypatch
         lvl = ks.current_level()                         # must NEVER raise
         assert lvl["level"] == 0
         assert lvl.get("degraded_read") is True          # honest, visible flag
-        ok, why = ks.check("EURUSD")                     # and enforcement stays loud-safe
-        assert ok is True and why == ""
+        ok, why = ks.check("EURUSD")                     # a failed read blocks the entry
+        assert ok is False and why == "KILLSWITCH_READ_FAILED"
     finally:
         store_mod._store = orig

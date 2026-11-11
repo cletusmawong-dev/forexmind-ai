@@ -297,14 +297,16 @@ def _executed_today(user_id: str) -> int:
 
 def _emit(user_id: Optional[str], kind: str, stage: str, market: Optional[str] = None,
           signal: Optional[dict] = None, ticket: Optional[int] = None,
-          detail: str = "", latency_ms: Optional[float] = None) -> None:
+          detail: str = "", latency_ms: Optional[float] = None,
+          idempotency_key: Optional[str] = None) -> None:
     """Lifecycle-ledger append (Phase 4). Never raises, never blocks."""
     try:
         from .ledger import emit
         emit(user_id, kind, stage, market=market,
              signal_id=(signal or {}).get("signal_id"),
              signal_doc_id=(signal or {}).get("id"),
-             ticket=ticket, detail=detail, latency_ms=latency_ms)
+             ticket=ticket, detail=detail, latency_ms=latency_ms,
+             idempotency_key=idempotency_key or (signal or {}).get("_idempotency_key"))
     except Exception:
         pass
 
@@ -338,11 +340,101 @@ def bridge_post(path: str, payload: dict, timeout: int = 15) -> Optional[dict]:
         r = requests.post(f"{settings.bridge_url}{path}", headers=_headers(),
                           json=payload, timeout=timeout)
         try:
-            return r.json()
+            body = r.json()
         except Exception:
-            return {"http_status": r.status_code}
+            body = {}
+        if not isinstance(body, dict):
+            body = {}
+        body.setdefault("http_status", r.status_code)
+        return body
     except Exception as exc:
         return {"error": f"bridge unreachable: {type(exc).__name__}"}
+
+
+def _registry_unprovisioned(exc: BaseException) -> bool:
+    """Missing trading_accounts table. That is today's production shape
+    until the owner runs the SQL, and it must keep the single-bridge path."""
+    text = str(exc).lower()
+    return ("pgrst205" in text or "could not find the table" in text
+            or "does not exist" in text or "schema cache" in text
+            or ("404" in text and "trading_accounts" in text))
+
+
+def _order_retryable(res: Optional[dict]) -> bool:
+    """Transport failures only. A parsed broker reject is terminal."""
+    if res and res.get("ok"):
+        return False
+    if not res:
+        return True
+    if str(res.get("error") or "").startswith("bridge unreachable"):
+        return True
+    code = res.get("http_status")
+    if code is None:
+        return False
+    try:
+        return int(code) >= 500
+    except (TypeError, ValueError):
+        return False
+
+
+def broker_already_filled(signal_id: Optional[str], magic: int) -> tuple:
+    """(fill_or_None, checked). checked is False when the terminal could not be read.
+
+    A retry is allowed only when checked is True and fill is None.
+    Comment match uses the same 31-character MT5 limit as the order itself."""
+    comment = (signal_id or "")[:31]
+    if not comment:
+        return None, False
+    pos = bridge_get("/positions", timeout=5)
+    if pos is None:
+        return None, False
+    for p in pos.get("positions") or []:
+        if (str(p.get("comment") or "")[:31] == comment
+                and int(p.get("magic") or 0) == int(magic)):
+            return {"ok": True, "duplicate": True, "ticket": p.get("ticket"),
+                    "position_id": p.get("ticket"), "volume": p.get("volume"),
+                    "price": p.get("price_open"), "symbol": p.get("symbol")}, True
+    since = int(time.time()) - 48 * 3600
+    deals = bridge_get(f"/deals?since={since}", timeout=8)
+    if deals is None:
+        return None, False
+    for d in deals.get("deals") or []:
+        # DEAL_ENTRY_IN is 0. A matching exit deal is not this order.
+        if int(d.get("entry") or 0) != 0:
+            continue
+        if (str(d.get("comment") or "")[:31] == comment
+                and int(d.get("magic") or 0) == int(magic)):
+            return {"ok": True, "duplicate": True,
+                    "ticket": d.get("order") or d.get("position_id"),
+                    "position_id": d.get("position_id"),
+                    "volume": d.get("volume"), "price": d.get("price"),
+                    "symbol": d.get("symbol")}, True
+    return None, True
+
+
+def submit_order(payload: dict, signal_id: Optional[str], magic: int) -> Optional[dict]:
+    """POST /execute. On a transport failure, look for the comment on the
+    terminal before any retry. At most two retries. A broker reject is not retried."""
+    res = bridge_post("/execute", payload)
+    if not _order_retryable(res):
+        return res
+    for _ in range(2):
+        found, checked = broker_already_filled(signal_id, magic)
+        if found:
+            return found
+        if not checked:
+            out = dict(res or {})
+            out["unknown"] = True
+            return out
+        res = bridge_post("/execute", payload)
+        if not _order_retryable(res):
+            return res
+    found, checked = broker_already_filled(signal_id, magic)
+    if found:
+        return found
+    out = dict(res or {})
+    out["unknown"] = True
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -529,23 +621,33 @@ def execute_signal(signal: dict, user_id: str) -> None:
     try:
         from ..api.routes_accounts import active_account
         acct = active_account(user_id)
-        if acct:
-            account_id = acct.get("id")
-            if acct.get("mode") != "signals_only" and not acct.get("trading_enabled"):
-                if signal.get("id"):
-                    get_store().update("signals", signal["id"], {
-                        "execution_status": "SKIPPED_ACCOUNT_DISABLED",
-                        "account_id": account_id,
-                        "mt5_note": f"Account '{acct.get('label')}' has trading disabled"})
-                _emit(user_id, "ENTRY", "SKIPPED", market=signal.get("market"),
-                      signal=signal, detail="account trading disabled")
-                return
-            signal["account_id"] = account_id
+    except Exception as exc:
+        # A missing table is the pre-SQL production state: keep sending on
+        # the single bridge. Any other read failure blocks the order.
+        if not _registry_unprovisioned(exc):
             if signal.get("id"):
-                get_store().update("signals", signal["id"],
-                                   {"account_id": account_id})
-    except Exception:
-        pass   # account registry is an isolation ADD-ON; base flow continues
+                get_store().update("signals", signal["id"], {
+                    "execution_status": "SKIPPED_ACCOUNT_REGISTRY",
+                    "mt5_note": "Account registry could not be read - order not sent"})
+            _emit(user_id, "ENTRY", "SKIPPED", market=signal.get("market"),
+                  signal=signal, detail=f"account registry unreadable ({type(exc).__name__})")
+            return
+        acct = None
+    if acct:
+        account_id = acct.get("id")
+        if acct.get("mode") != "signals_only" and not acct.get("trading_enabled"):
+            if signal.get("id"):
+                get_store().update("signals", signal["id"], {
+                    "execution_status": "SKIPPED_ACCOUNT_DISABLED",
+                    "account_id": account_id,
+                    "mt5_note": f"Account '{acct.get('label')}' has trading disabled"})
+            _emit(user_id, "ENTRY", "SKIPPED", market=signal.get("market"),
+                  signal=signal, detail="account trading disabled")
+            return
+        signal["account_id"] = account_id
+        if signal.get("id"):
+            get_store().update("signals", signal["id"],
+                               {"account_id": account_id})
 
     mode = user_mode(user_id)
     if mode == "off":
@@ -1077,19 +1179,74 @@ def execute_signal(signal: dict, user_id: str) -> None:
             if not _ok:
                 _reject_pretrade(store, signal, user_id, market, _code, _why)
                 return
-            _emit(user_id, "ENTRY", "REQUESTED", market=market, signal=signal,
-                  detail=f"{signal['direction']} {lots} lots @ {_anchor}, SL {sl_eff}, TP {tp_eff}")
+            from .order_ledger import LedgerError, claim as claim_order
+            order_detail = (f"{signal['direction']} {lots} lots @ {_anchor}, "
+                            f"SL {sl_eff}, TP {tp_eff}")
+            try:
+                claimed = claim_order(store, user_id, signal, account_id, detail=order_detail)
+            except LedgerError as exc:
+                store.update("signals", signal["id"], {
+                    "execution_status": "FAILED_LEDGER",
+                    "mt5_note": "Order ledger could not be written - order not sent"})
+                _emit(user_id, "ENTRY", "SKIPPED", market=market, signal=signal,
+                      detail=f"ledger write failed ({exc})")
+                return
+            ledger_row = claimed["row"]
+            idem_key = claimed["key"]
+            signal["_idempotency_key"] = idem_key
+            if claimed["action"] == "exists":
+                stage = ledger_row.get("stage")
+                already = (store.get("signals", signal["id"]) or {}).get("execution_status")
+                if stage in ("CONFIRMED", "SENT") or ledger_row.get("ticket"):
+                    if already == "SUBMITTED":
+                        return
+                    if ledger_row.get("ticket"):
+                        _apply_fill(store, signal, {
+                            "ok": True, "ticket": ledger_row.get("ticket"),
+                            "volume": ledger_row.get("volume"),
+                            "price": ledger_row.get("price"),
+                            "duplicate": True}, lots)
+                    else:
+                        store.update("signals", signal["id"], {
+                            "execution_status": "SKIPPED_ALREADY_SENT",
+                            "mt5_note": "This signal was already sent"})
+                    return
+                if stage == "FAILED":
+                    store.update("signals", signal["id"], {
+                        "execution_status": "FAILED",
+                        "mt5_note": "Broker already rejected this order - not sent again"})
+                    return
+                found, checked = broker_already_filled(signal.get("signal_id"), MAGIC)
+                if found:
+                    _apply_fill(store, signal, found, lots)
+                    return
+                if not checked:
+                    store.update("signals", signal["id"], {
+                        "execution_status": "UNKNOWN",
+                        "mt5_note": "A previous attempt exists and the terminal could not be read"})
+                    _emit(user_id, "ENTRY", "UNKNOWN", market=market, signal=signal,
+                          detail="prior claim; terminal could not be re-read",
+                          idempotency_key=idem_key)
+                    return
             _t0 = time.time()
-            res = bridge_post("/execute", {
+            res = submit_order({
                 "signal_id": signal["signal_id"], "symbol": market,
                 "direction": signal["direction"], "lots": lots,
-                "sl": sl_eff, "tp": tp_eff, "magic": MAGIC})
+                "sl": sl_eff, "tp": tp_eff, "magic": MAGIC},
+                signal.get("signal_id"), MAGIC)
             _lat = (time.time() - _t0) * 1000.0
             if res and res.get("ok"):
                 _apply_fill(store, signal, res, lots)
                 _log(f"MT5 EXECUTED {market} {signal['direction']} {res.get('volume')} lots "
                      f"@ {res.get('price')} (ticket {res.get('ticket')})."
                      + (f" Risk level: {_mode}." if _mode != "medium" else ""), market)
+            elif res and res.get("unknown"):
+                err = res.get("error") or res.get("detail") or "terminal state unknown"
+                store.update("signals", signal["id"],
+                             {"execution_status": "UNKNOWN", "mt5_error": str(err)[:200]})
+                _log(f"Execution UNKNOWN on bridge - {err}", market, kind="EXEC_WARN")
+                _emit(user_id, "ENTRY", "UNKNOWN", market=market, signal=signal,
+                      detail=str(err), latency_ms=_lat, idempotency_key=idem_key)
             else:
                 err = (res or {}).get("error") or (res or {}).get("detail") or \
                       f"HTTP {(res or {}).get('http_status')}"
@@ -1097,7 +1254,7 @@ def execute_signal(signal: dict, user_id: str) -> None:
                              {"execution_status": "FAILED", "mt5_error": str(err)[:200]})
                 _log(f"Execution FAILED on bridge - {err}", market, kind="EXEC_WARN")
                 _emit(user_id, "ENTRY", "FAILED", market=market, signal=signal,
-                      detail=str(err), latency_ms=_lat)
+                      detail=str(err), latency_ms=_lat, idempotency_key=idem_key)
 
         else:   # manual: queue for the PC connector
             if not connector_online(user_id) and not _connector_seen(user_id):
