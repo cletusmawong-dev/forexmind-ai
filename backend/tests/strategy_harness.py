@@ -137,8 +137,21 @@ def strategy_record(strategy, markets: List[str]) -> Dict[str, Any]:
 
 
 def build_snapshot() -> Dict[str, Any]:
+    """Hash rule outputs against an empty store.
+
+    Supply & Demand keeps a document per market. A developer db.json (or a
+    Supabase fallback) would change detect_signal without any rule change
+    and fail this anchor on CI, where that file does not exist.
+    """
+    import os
+    import tempfile
+
+    from app.db.store import LocalStore
+    from app.db import store as store_mod
     from app.strategies import all_strategies
     import importlib
+
+    store_mod._store = LocalStore(path=os.path.join(tempfile.mkdtemp(), "empty.json"))
 
     out: Dict[str, Any] = {}
     for sid, strategy in all_strategies().items():
