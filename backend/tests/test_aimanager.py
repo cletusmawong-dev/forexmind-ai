@@ -153,7 +153,7 @@ def test_gate_stale_decision_rejected():
 def test_gate_duplicate_suppressed(world):
     from app.aimanager import risk_gate
     ok1, verdict1, _ = risk_gate.validate_action("u1", POS, _decision(sl=2401),
-                                                 snapshot_ts=NOW, current_sl=2390,
+                                                 snapshot_ts=time.time(), current_sl=2390,
                                                  last_action={"action": "PROTECT", "sl": 2401,
                                                               "ts": time.time() - 5})
     assert ok1 is False and verdict1 == "DUPLICATE_SUPPRESSED"
@@ -162,20 +162,20 @@ def test_gate_duplicate_suppressed(world):
 def test_gate_protect_wrong_side_and_loosening():
     from app.aimanager import risk_gate
     ok, verdict, _ = risk_gate.validate_action("u1", POS, _decision(sl=2425),
-                                               snapshot_ts=NOW, current_sl=2390)
+                                               snapshot_ts=time.time(), current_sl=2390)
     assert ok is False and verdict == "SL_WRONG_SIDE"          # BUY: SL above price
     ok, verdict, _ = risk_gate.validate_action("u1", POS, _decision(sl=2380),
-                                               snapshot_ts=NOW, current_sl=2390)
+                                               snapshot_ts=time.time(), current_sl=2390)
     assert ok is False and verdict == "SL_WOULD_LOOSEN_RISK"   # must only tighten
 
 
 def test_gate_protect_ok_and_exit_plan():
     from app.aimanager import risk_gate
     ok, verdict, plan = risk_gate.validate_action("u1", POS, _decision(sl=2400),
-                                                  snapshot_ts=NOW, current_sl=2390)
+                                                  snapshot_ts=time.time(), current_sl=2390)
     assert ok is True and plan == {"modify_sl": 2400.0}
     ok, verdict, plan = risk_gate.validate_action("u1", POS, _decision(action="EXIT", sl=None),
-                                                  snapshot_ts=NOW, current_sl=2390)
+                                                  snapshot_ts=time.time(), current_sl=2390)
     assert ok is True and plan == {"close_full": True}
 
 
