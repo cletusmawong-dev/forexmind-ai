@@ -167,6 +167,11 @@ async def live_loop():
             now = time.time()
             _last_loop_tick = now
             _current_task = "Tracking active signals"
+            try:
+                from .execution.slot_health import poll_extra_slots
+                await asyncio.to_thread(poll_extra_slots)
+            except Exception:
+                pass
             for market in agent_core.scan_universe():
                 await asyncio.to_thread(State.tracker.update_market, market)
 
