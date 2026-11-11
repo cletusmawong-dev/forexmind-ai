@@ -58,6 +58,8 @@ async def startup():
     try:
         from .seed import ensure_strategy_docs
         ensure_strategy_docs()   # strategy registry only - never demo users/signals
+        from .accounts.backfill import backfill_slot1
+        backfill_slot1()          # no-op until the bridge is configured and the table exists
     except Exception as e:
         # Quota gate or transient DB issue: boot anyway so market-data and
         # health endpoints stay up; DB-backed features degrade honestly.
