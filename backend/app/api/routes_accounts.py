@@ -174,6 +174,43 @@ def add_account(body: dict, user_id: str = Depends(get_user_id)):
     return {"account": _public(doc)}
 
 
+@router.get("/accounts/summary")
+def accounts_summary(user_id: str = Depends(get_user_id)):
+    """One row per account for the All accounts view. No orders are sent."""
+    try:
+        rows = get_store().list("trading_accounts", filters={"userId": user_id}, limit=10)
+    except Exception:
+        return {"accounts": [], "note": _PROVISION_NOTE}
+    out = []
+    for row in rows:
+        out.append({
+            "id": row.get("id"),
+            "label": row.get("label"),
+            "bridge_slot": row.get("bridge_slot"),
+            "connected": bool(row.get("connected")),
+            "trading_enabled": bool(row.get("trading_enabled")),
+            "kill_switch": bool(row.get("kill_switch")),
+            "balance": row.get("balance"),
+            "equity": row.get("equity"),
+            "risk_per_trade_usd": row.get("risk_per_trade_usd"),
+            "max_daily_loss_usd": row.get("max_daily_loss_usd"),
+            "strategy_ids": list(row.get("strategy_ids") or []),
+            "symbol_suffix": row.get("symbol_suffix") or "",
+        })
+    return {"accounts": out}
+
+
+@router.post("/accounts/{account_id}/kill")
+def set_kill(account_id: str, body: dict, user_id: str = Depends(get_user_id)):
+    """Per-account kill switch. Does not change the global kill switch."""
+    doc = _mine(user_id, account_id)
+    if not doc:
+        raise HTTPException(404, "Account not found")
+    updated = get_store().update("trading_accounts", account_id,
+                                 {"kill_switch": bool(body.get("enabled"))})
+    return {"account": _public(updated or {})}
+
+
 @router.patch("/accounts/{account_id}")
 def update_account(account_id: str, body: dict, user_id: str = Depends(get_user_id)):
     """Owner fields for a slot: where its bridge is, what it trades, its risk.

@@ -6,6 +6,8 @@ import { usePolling } from "../lib/usePolling";
 type Account = {
   id: string; label: string; mode: string; is_active: boolean;
   is_default: boolean; trading_enabled: boolean; connected: boolean;
+  kill_switch?: boolean; risk_per_trade_usd?: number | null;
+  strategy_ids?: string[]; equity?: number | null; balance?: number | null;
 };
 
 /** Final build section 43: the active trading account is ALWAYS visible and
@@ -33,15 +35,37 @@ export function AccountSwitcher() {
     return () => document.removeEventListener("mousedown", close);
   }, []);
 
-  const select = async (id: string) => {
+  const [view, setView] = useState<string>(() => localStorage.getItem("fm_view_account") || "");
+
+  const select = (id: string) => {
+    // The tap only changes what this screen shows. It does not choose
+    // which accounts receive the next signal.
+    localStorage.setItem("fm_view_account", id);
+    setView(id);
+    window.dispatchEvent(new Event("fm-view-account"));
+    setOpen(false);
+  };
+
+  const setKill = async (id: string, enabled: boolean) => {
     if (busy) return;
     setBusy(true);
     try {
-      await api.post(`/api/accounts/${id}/select`);
-      window.location.reload();   // full context switch (section 43)
-    } finally {
-      setBusy(false);
-    }
+      await api.post(`/api/accounts/${id}/kill`, { enabled });
+      refresh();
+    } catch { /* surfaced by the request layer */ }
+    setBusy(false);
+  };
+
+  const saveRisk = async (id: string, risk: string) => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await api.patch(`/api/accounts/${id}`, {
+        risk_per_trade_usd: risk.trim() ? Number(risk) : null,
+      });
+      refresh();
+    } catch { /* surfaced by the request layer */ }
+    setBusy(false);
   };
 
   const setTrading = async (id: string, want: boolean) => {
@@ -80,13 +104,41 @@ export function AccountSwitcher() {
 
       {open && (
         <div className="glass-float absolute right-0 top-[calc(100%+8px)] z-50 w-64 rounded-2xl p-2 animate-fadeUp">
+          <button onClick={() => select("all")} disabled={busy}
+                  className="flex w-full items-center rounded-xl px-3 py-2 text-left hover:bg-[rgba(var(--p-rgb),0.05)]">
+            <span className="text-[12px] font-semibold text-txt-hi">All accounts</span>
+            {view === "all" && (
+              <span className="ml-auto rounded-full bg-[rgba(var(--pos-rgb),0.15)] px-2 py-0.5 text-[8.5px] font-bold uppercase tracking-wide text-pos">View</span>
+            )}
+          </button>
           {accounts.map((a) => (
             <div key={a.id} className="flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 hover:bg-[rgba(var(--p-rgb),0.05)]">
               <button disabled={busy} onClick={() => select(a.id)}
                       className="min-w-0 flex-1 text-left"
                       aria-label={`Switch to ${a.label}`}>
                 <span className="block truncate text-[12px] font-semibold text-txt-hi">{a.label}</span>
-                <span className="block text-[9.5px] text-txt-faint">{a.mode.replace("_", " ")}</span>
+                <span className="block text-[9.5px] text-txt-faint">
+                  {a.mode.replace(/_/g, " ")} · {(a.strategy_ids || []).length} strategies
+                  {a.equity != null ? ` · eq ${a.equity}` : ""}
+                </span>
+              </button>
+              <input
+                aria-label={`Dollar risk for ${a.label}`}
+                defaultValue={a.risk_per_trade_usd ?? ""}
+                placeholder="$"
+                onBlur={(e) => saveRisk(a.id, e.target.value)}
+                className="w-12 shrink-0 rounded-lg border border-[var(--glass-border)] bg-white px-1 py-1 text-[10px]"
+              />
+              <button
+                onClick={() => setKill(a.id, !a.kill_switch)}
+                disabled={busy}
+                aria-label={`${a.kill_switch ? "Clear" : "Set"} kill switch for ${a.label}`}
+                className={`shrink-0 rounded-full border px-2 py-1 text-[9px] font-bold ${
+                  a.kill_switch
+                    ? "border-[rgba(180,40,40,0.45)] bg-[rgba(180,40,40,0.1)] text-[#a32020]"
+                    : "border-[var(--glass-border)] text-[var(--text-muted)]"
+                }`}>
+                {a.kill_switch ? "KILLED" : "KILL"}
               </button>
               <button
                 onClick={() => setTrading(a.id, !a.trading_enabled)}
@@ -99,8 +151,8 @@ export function AccountSwitcher() {
                 }`}>
                 {a.trading_enabled ? "TRADING ON" : "TRADING OFF"}
               </button>
-              {a.is_active && (
-                <span className="shrink-0 rounded-full bg-[rgba(var(--pos-rgb),0.15)] px-2 py-0.5 text-[8.5px] font-bold uppercase tracking-wide text-pos">Active</span>
+              {(view ? view === a.id : a.is_active) && (
+                <span className="shrink-0 rounded-full bg-[rgba(var(--pos-rgb),0.15)] px-2 py-0.5 text-[8.5px] font-bold uppercase tracking-wide text-pos">View</span>
               )}
             </div>
           ))}
