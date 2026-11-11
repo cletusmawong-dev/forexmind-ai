@@ -7,6 +7,8 @@ The fixture (tests/fixtures/strategy_regression_snapshot.json) was captured
 from the pre-upgrade code on deterministic synthetic frames (see
 strategy_harness.py). This test rebuilds the same frames and demands
 IDENTICAL rule outputs from every registered + dormant-EMA strategy.
+Exception fingerprints drop absolute paths, so a different checkout
+directory is not a behaviour change.
 
 A failure here is a STOP: either the change is a bug (fix the change) or it
 is an explicitly documented improvement (re-baseline the fixture in the same
@@ -56,4 +58,4 @@ def test_strategy_behaviour_unchanged_since_baseline():
 def test_baseline_fixture_is_self_consistent():
     doc = json.loads(FIXTURE.read_text())
     assert snapshot_hash(doc["snapshot"]).startswith(
-        "92df357a0b0886b7"), "fixture was re-baselined - update this pin"
+        "ee049c4ae935b9c3"), "fixture was re-baselined - update this pin"

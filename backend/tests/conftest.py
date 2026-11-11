@@ -73,30 +73,34 @@ import pytest as _pytest
 
 
 @_pytest.fixture()
-def with_strategies():
+def with_strategies(monkeypatch):
     """Re-register the kept-for-history strategy modules for tests that
-    exercise STRATEGY behavior. The OWNER WIPE (2026-10-10) ships an empty
-    registry (nothing scanned/traded in production); these tests verify
-    module logic, not the registry state. Use via
-    `pytestmark = pytest.mark.usefixtures("with_strategies")`."""
+    exercise STRATEGY behavior. Production scanning uses OWNER_STRATEGY_IDS
+    only; these tests verify module logic, not the live registry. Use via
+    `pytestmark = pytest.mark.usefixtures("with_strategies")`.
+
+    Additions go through the same monkeypatch stack as the tests. A test
+    that monkeypatch.delitem's one of these keys (chart overlays when S/D
+    is unregistered) used to have its undo run AFTER this fixture restored
+    the dict, which put strategy_2_supply_demand_fvg back for every later
+    test. setitem/delitem undo in reverse call order, so the key is gone
+    again when the test ends."""
     import app.strategies as reg
     from app.strategies.strategy_1_zero_lag.strategy import ZeroLagStrategy
     from app.strategies.strategy_1_vp_pivots.strategy import VPPivotsStrategy
     from app.strategies.strategy_2_ema_atr.strategy import EmaAtrStrategy
     from app.strategies.strategy_2_mtf_sweep_bos_retest.strategy import MtfSweepBosRetestStrategy
     from app.strategies.strategy_2_supply_demand_fvg.strategy import SupplyDemandFvgStrategy
-    prev = dict(reg.STRATEGY_CLASSES)
-    reg.STRATEGY_CLASSES.update({
-        ZeroLagStrategy.id: ZeroLagStrategy,
-        VPPivotsStrategy.id: VPPivotsStrategy,
-        EmaAtrStrategy.id: EmaAtrStrategy,
-        MtfSweepBosRetestStrategy.id: MtfSweepBosRetestStrategy,
-        SupplyDemandFvgStrategy.id: SupplyDemandFvgStrategy,
-    })
+    for sid, cls in (
+        (ZeroLagStrategy.id, ZeroLagStrategy),
+        (VPPivotsStrategy.id, VPPivotsStrategy),
+        (EmaAtrStrategy.id, EmaAtrStrategy),
+        (MtfSweepBosRetestStrategy.id, MtfSweepBosRetestStrategy),
+        (SupplyDemandFvgStrategy.id, SupplyDemandFvgStrategy),
+    ):
+        monkeypatch.setitem(reg.STRATEGY_CLASSES, sid, cls)
     reg._INSTANCES.clear()
     yield reg.STRATEGY_CLASSES
-    reg.STRATEGY_CLASSES.clear()
-    reg.STRATEGY_CLASSES.update(prev)
     reg._INSTANCES.clear()
 
 @pytest.fixture(autouse=True)

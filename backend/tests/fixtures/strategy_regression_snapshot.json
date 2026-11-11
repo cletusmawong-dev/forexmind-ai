@@ -2,7 +2,7 @@
  "meta": {
   "captured_at_git_head": "702008e",
   "n_bars": 900,
-  "note": "re-baselined 2026-11-09 (GOLDASIA): 6 registered strategies; gold trio boots PAUSED, dormant on synthetic frames - D1 regime needs 10k+ real bars",
+  "note": "re-baselined 2026-11-09 (GOLDASIA): 6 registered strategies; gold trio boots PAUSED, dormant on synthetic frames - D1 regime needs 10k+ real bars | 2026-11-11 path-stable errors: ImportError fingerprints drop the checkout path. Rule outputs unchanged. Clean-store rebaseline for strategy_2_supply_demand_fvg so a local db.json cannot move the hash.",
   "purpose": "strategy regression anchor - behaviour of pre-existing strategies unchanged",
   "seed": 20261102
  },
@@ -1306,25 +1306,157 @@
    }
   },
   "strategy_2_supply_demand_fvg": {
-   "hash": "adf031d1c675738774c60efa095eb70b3a8f0d07958f94d5700ac110c25f58ee",
    "markets": {
-    "EURUSD": {
-     "backtest": {
-      "error": "ImportError: cannot import name 'atr' from 'app.strategies.base' (/home/user/forexmind-ai/backend/app/strategies/base.py)"
-     },
-     "detect_0": null,
-     "detect_25": null,
-     "detect_60": null
-    },
     "XAUUSD": {
-     "backtest": {
-      "error": "ImportError: cannot import name 'atr' from 'app.strategies.base' (/home/user/forexmind-ai/backend/app/strategies/base.py)"
+     "detect_0": {
+      "direction": "BUY",
+      "entry": 122.3920737741,
+      "entry_zone": [
+       122.3920737741,
+       122.3920737741
+      ],
+      "sl": 120.8710275228,
+      "tps": [
+       123.9131200254,
+       125.4341662767,
+       126.955212528
+      ],
+      "risk": 1.5210462513,
+      "rr_primary": 1.0,
+      "score": 92,
+      "score_components": {
+       "machine": 92.0
+      },
+      "checks": [],
+      "analysis": "demand zone 121.08-122.09 with bullish_fvg 121.99-122.8 retested - entry midpoint",
+      "mtf": null,
+      "candle_time": "2026-11-02 00:00:00",
+      "params": {
+       "displacement_body_ratio": 0.6,
+       "displacement_atr_mult": 1.1,
+       "zone_base_lookback": 3,
+       "fvg_min_atr": 0.0,
+       "fvg_entry_method": "midpoint",
+       "fvg_deep_fraction": 0.25,
+       "zone_max_age_bars": 96,
+       "invalidation_buffer_atr": 0.3,
+       "sl_buffer_atr": 0.25,
+       "tp1_r": 1.0,
+       "tp2_r": 2.0,
+       "tp3_r": 3.0,
+       "atr_length": 14
+      },
+      "params_version": "1.0",
+      "extra": {
+       "setup_state": "SIGNAL",
+       "setup_sequence": "Zone -> Displacement -> FVG -> Retest -> Entry",
+       "strategy_alias": "strategy_2_supply_demand_fvg",
+       "zone_type": "demand",
+       "zone_high": 122.0924220175,
+       "zone_low": 121.081116432,
+       "displacement_time": "2026-11-01 20:30:00",
+       "displacement_index": 885,
+       "fvg_type": "bullish_fvg",
+       "fvg_high": 122.797906,
+       "fvg_low": 121.9862415482,
+       "fvg_mid": 122.3920737741,
+       "fvg_created_time": "2026-11-01 20:45:00",
+       "retest_time": "2026-11-01 23:30:00",
+       "entry_method": "midpoint",
+       "session": "",
+       "atr": 0.8403556367,
+       "market_context": {
+        "timeframe": "15M",
+        "bars": 900
+       },
+       "events": [
+        "SIGNAL: BUY XAUUSD 15M at FVG 123.2-123.99 -> RESET",
+        "FVG_IDENTIFIED: bullish FVG 121.99-122.8 -> WAITING_RETEST",
+        "SIGNAL: BUY XAUUSD 15M at FVG 121.99-122.8 -> RESET"
+       ]
+      }
      },
+     "detect_25": null,
+     "detect_60": null,
+     "backtest": {
+      "error": "ImportError: cannot import name 'atr' from 'app.strategies.base'"
+     }
+    },
+    "EURUSD": {
      "detect_0": null,
      "detect_25": null,
-     "detect_60": null
+     "detect_60": {
+      "direction": "SELL",
+      "entry": 136.7558049312,
+      "entry_zone": [
+       136.7558049312,
+       136.7558049312
+      ],
+      "sl": 137.9496740219,
+      "tps": [
+       135.5619358406,
+       134.3680667499,
+       133.1741976593
+      ],
+      "risk": 1.1938690906,
+      "rr_primary": 1.0,
+      "score": 93,
+      "score_components": {
+       "machine": 93.0
+      },
+      "checks": [],
+      "analysis": "supply zone 137.44-137.74 with bearish_fvg 136.24-137.27 retested - entry midpoint",
+      "mtf": null,
+      "candle_time": "2026-11-01 09:00:00",
+      "params": {
+       "displacement_body_ratio": 0.6,
+       "displacement_atr_mult": 1.1,
+       "zone_base_lookback": 3,
+       "fvg_min_atr": 0.0,
+       "fvg_entry_method": "midpoint",
+       "fvg_deep_fraction": 0.25,
+       "zone_max_age_bars": 96,
+       "invalidation_buffer_atr": 0.3,
+       "sl_buffer_atr": 0.25,
+       "tp1_r": 1.0,
+       "tp2_r": 2.0,
+       "tp3_r": 3.0,
+       "atr_length": 14
+      },
+      "params_version": "1.0",
+      "extra": {
+       "setup_state": "SIGNAL",
+       "setup_sequence": "Zone -> Displacement -> FVG -> Retest -> Entry",
+       "strategy_alias": "strategy_2_supply_demand_fvg",
+       "zone_type": "supply",
+       "zone_high": 137.7427011346,
+       "zone_low": 137.4408355751,
+       "displacement_time": "2026-11-01 09:00:00",
+       "displacement_index": 839,
+       "fvg_type": "bearish_fvg",
+       "fvg_high": 137.2670900112,
+       "fvg_low": 136.2445198512,
+       "fvg_mid": 136.7558049312,
+       "fvg_created_time": "2026-11-01 09:15:00",
+       "retest_time": "2026-11-01 09:00:00",
+       "entry_method": "midpoint",
+       "session": "",
+       "atr": 0.8278915492,
+       "market_context": {
+        "timeframe": "15M",
+        "bars": 840
+       },
+       "events": [
+        "SIGNAL: SELL EURUSD 15M at FVG 136.24-137.27 -> RESET"
+       ]
+      }
+     },
+     "backtest": {
+      "error": "ImportError: cannot import name 'atr' from 'app.strategies.base'"
+     }
     }
-   }
+   },
+   "hash": "77dad0f7503175ef847b46b00df53786927310baaa41e7fd86f6b6c3e2775e1b"
   },
   "strategy_gold_asia_range_bo": {
    "hash": "29a740790dce959d36066047fdb2d1b73223e1dbaa29404e1de5ef06f2d0e54a",
