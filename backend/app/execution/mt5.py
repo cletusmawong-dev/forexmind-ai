@@ -133,6 +133,38 @@ TRAIL_ONLY_STRATEGIES = {"strategy_trendbreak_v2"}
 # the broker ticket carries the FINAL target TP2.
 PINSTRIPE_TP2_STRATEGIES = {"strategy_hybrid_crt_tbs", "strategy_fade_crt_ext"}
 MIN_STOP_PIPS = float(os.getenv("EXECUTION_MIN_STOP_PIPS", "6"))
+
+def _broker_min_stop_price(market: str) -> Optional[float]:
+    """Live broker minimum stop distance in PRICE units (trade_stops_level
+    points x point) straight from the bridge's symbol_info. None when the
+    bridge cannot answer - the caller then keeps the static MIN_STOP_PIPS
+    rule (fail-closed; that rule exists because the broker itself rejected
+    tighter stops with retcode 10016)."""
+    try:
+        d = bridge_get(f"/symbol_info?market={market}", timeout=6) or {}
+        pts = float(d.get("trade_stops_level") or 0)
+        point = float(d.get("point") or 0)
+        if pts > 0 and point > 0:
+            return pts * point
+    except Exception:
+        pass
+    return None
+
+
+def _stop_too_tight(entry: float, sl: float, pip: Optional[float],
+                    market: str) -> tuple:
+    """(too_tight, effective_min_pips). Broker-live when the bridge serves
+    the symbol's stops level (floored at 0.1 pip for sanity), else the
+    static MIN_STOP_PIPS rule. pip unknown -> never refuse here."""
+    if not pip:
+        return False, None
+    dist = abs(float(entry) - float(sl))
+    b = _broker_min_stop_price(market)
+    if b is not None:
+        min_dist = max(b, 0.1 * pip)
+    else:
+        min_dist = MIN_STOP_PIPS * pip
+    return dist < min_dist, min_dist / pip
 MAX_LOTS = float(os.getenv("EXECUTION_MAX_LOTS", "1.0"))
 # OWNER RULE 2026-11-02: when a stop is too wide to size at the user's
 # dollar setting (required lot < 0.01), the trade is still TAKEN at the
@@ -634,20 +666,21 @@ def execute_signal(signal: dict, user_id: str) -> None:
     try:
         entry, sl = float(signal["entry"]), float(signal["sl"])
         pip = PIP_SIZE.get(market)
-        if pip and abs(entry - sl) < MIN_STOP_PIPS * pip:
+        _tight, _min_pips = _stop_too_tight(entry, sl, pip, market)
+        if _tight:
             store.update("signals", signal["id"], {
                 "execution_status": "SKIPPED_STOP_TOO_TIGHT",
-                "mt5_note": f"SL {abs(entry - sl) / pip:.1f} pips from entry - broker minimum "
-                            f"is {MIN_STOP_PIPS:g} (signal kept as advisory)"})
+                "mt5_note": f"SL {abs(entry - sl) / pip:.1f} pips from entry - the broker's live "
+                            f"minimum is {_min_pips:g} pips (signal kept as advisory)"})
             _log(f"Execution skipped - SL only {abs(entry - sl) / pip:.1f} pips from entry; "
-                 f"the broker rejects stops under {MIN_STOP_PIPS:g} pips (retcode 10016). "
+                 f"the broker's live minimum is {_min_pips:g} pips (retcode 10016 rule). "
                  "Signal kept as advisory.", market, kind="EXEC_WARN")
             from ..notifications.fmt import ctx_line
             notify(user_id, "EXECUTION_SKIPPED",
                    f"⚠️ NOT EXECUTED - {signal.get('market')} {signal.get('direction')}",
                    f"{ctx_line(signal)}\n"
                    f"Stop distance {abs(entry - sl) / pip:.1f} pips is under "
-                   f"the broker minimum ({MIN_STOP_PIPS:g} pips). Research "
+                   f"the broker's live minimum ({_min_pips:g} pips). Research "
                    "only - no trade was placed.",
                    signal_id=signal.get("id"))
             _emit(user_id, "ENTRY", "SKIPPED", market=market, signal=signal,

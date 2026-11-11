@@ -184,6 +184,11 @@ def symbol_info_ep(market: str, x_bridge_token: Optional[str] = Header(None)):
             "trade_tick_value": info.trade_tick_value,
             "trade_tick_size": info.trade_tick_size,
             "trade_contract_size": info.trade_contract_size,
+            # live broker minimum stop distance (points x point = price):
+            # the cloud's stop-tightness gate reads THIS so refusals match
+            # what the broker actually accepts right now (retcode 10016)
+            "trade_stops_level": int(info.trade_stops_level or 0),
+            "stops_level_price": float(info.trade_stops_level or 0) * info.point,
             "volume_min": info.volume_min, "volume_max": info.volume_max,
             "volume_step": info.volume_step}
 
