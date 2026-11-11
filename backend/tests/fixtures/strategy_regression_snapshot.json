@@ -2,7 +2,7 @@
  "meta": {
   "captured_at_git_head": "702008e",
   "n_bars": 900,
-  "note": "re-baselined 2026-11-09 (GOLDASIA): 6 registered strategies; gold trio boots PAUSED, dormant on synthetic frames - D1 regime needs 10k+ real bars",
+  "note": "re-baselined 2026-11-09 (GOLDASIA): 6 registered strategies; gold trio boots PAUSED, dormant on synthetic frames - D1 regime needs 10k+ real bars | 2026-11-11 path-stable errors: ImportError fingerprints drop the checkout path. Rule outputs unchanged.",
   "purpose": "strategy regression anchor - behaviour of pre-existing strategies unchanged",
   "seed": 20261102
  },
@@ -1306,11 +1306,11 @@
    }
   },
   "strategy_2_supply_demand_fvg": {
-   "hash": "adf031d1c675738774c60efa095eb70b3a8f0d07958f94d5700ac110c25f58ee",
+   "hash": "a37a3bcda005fd4a08248e7e8fe5316a8c6d9118518c5e41c207dc1f074b7c14",
    "markets": {
     "EURUSD": {
      "backtest": {
-      "error": "ImportError: cannot import name 'atr' from 'app.strategies.base' (/home/user/forexmind-ai/backend/app/strategies/base.py)"
+      "error": "ImportError: cannot import name 'atr' from 'app.strategies.base'"
      },
      "detect_0": null,
      "detect_25": null,
@@ -1318,7 +1318,7 @@
     },
     "XAUUSD": {
      "backtest": {
-      "error": "ImportError: cannot import name 'atr' from 'app.strategies.base' (/home/user/forexmind-ai/backend/app/strategies/base.py)"
+      "error": "ImportError: cannot import name 'atr' from 'app.strategies.base'"
      },
      "detect_0": null,
      "detect_25": null,

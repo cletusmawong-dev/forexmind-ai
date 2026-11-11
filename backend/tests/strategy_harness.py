@@ -24,8 +24,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from dataclasses import asdict, is_dataclass
 from typing import Any, Dict, List
+
+# Exception text from ImportError includes the absolute file path
+# ("... base.py (/home/.../base.py)"). That is the machine, not the rule.
+_ABS_PATH = re.compile(r"\s*\((?:/|[A-Za-z]:\\)[^)]*\)")
 
 import numpy as np
 import pandas as pd
@@ -94,6 +99,12 @@ def _clean(obj: Any):
     return str(obj)
 
 
+def error_fingerprint(exc: BaseException) -> str:
+    """Stable exception text. Absolute paths are stripped so a checkout
+    under a different directory does not look like a strategy change."""
+    return _ABS_PATH.sub("", f"{type(exc).__name__}: {exc}")
+
+
 def candidate_record(cand) -> Any:
     if cand is None:
         return None
@@ -114,11 +125,11 @@ def strategy_record(strategy, markets: List[str]) -> Dict[str, Any]:
                     higher_frames=hf)
                 mrec[f"detect_{cut}"] = candidate_record(cand)
             except Exception as e:   # a deterministic error is a fingerprint
-                mrec[f"detect_{cut}"] = {"error": f"{type(e).__name__}: {e}"}
+                mrec[f"detect_{cut}"] = {"error": error_fingerprint(e)}
         try:
             mrec["backtest"] = _clean(strategy.backtest(df, max_hold_bars=200))
         except Exception as e:
-            mrec["backtest"] = {"error": f"{type(e).__name__}: {e}"}
+            mrec["backtest"] = {"error": error_fingerprint(e)}
         rec["markets"][market] = mrec
     rec["hash"] = hashlib.sha256(
         json.dumps(rec, sort_keys=True, default=str).encode()).hexdigest()
