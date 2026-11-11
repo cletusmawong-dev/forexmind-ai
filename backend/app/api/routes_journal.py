@@ -5,7 +5,9 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 
 import pandas as pd
-from fastapi import APIRouter, Depends
+from typing import Optional
+
+from fastapi import APIRouter, Depends, Query
 
 from ..config import session_of
 from ..learning.metrics import compute_metrics, equity_curve
@@ -21,11 +23,72 @@ def _completed_signals(user_id: str):
                             limit=2000)
 
 
+def _scoped_positions(user_id: str, account_id: str) -> dict:
+    """Positions and floating P&L for one account, or every account."""
+    from ..api.routes_accounts import _mine, active_account
+    from ..execution.mt5 import MAGIC, _bridge_ctx, bridge_get, user_mode
+    store = State.store
+    mode = user_mode(user_id)
+    if account_id == "all":
+        try:
+            rows = store.list("trading_accounts", filters={"userId": user_id}, limit=10)
+        except Exception:
+            rows = []
+    else:
+        doc = _mine(user_id, account_id) or active_account(user_id)
+        rows = [doc] if doc else []
+    positions = []
+    day_pl = 0.0
+    for account in rows:
+        if not account:
+            continue
+        url = str(account.get("bridge_url") or "").strip()
+        token = _bridge_ctx.set({"url": url, "token": None}) if url else None
+        try:
+            data = bridge_get("/positions", timeout=6) or {}
+        except Exception:
+            data = {}
+        finally:
+            if token is not None:
+                _bridge_ctx.reset(token)
+        magic = int(account.get("magic") or MAGIC)
+        pl = 0.0
+        for pos in data.get("positions") or []:
+            if int(pos.get("magic") or 0) != magic:
+                continue
+            profit = round(float(pos.get("profit") or 0), 2)
+            pl += profit
+            positions.append({
+                "ticket": pos.get("ticket"),
+                "account_id": account.get("id"),
+                "account_label": account.get("label"),
+                "market": pos.get("symbol"),
+                "direction": str(pos.get("type", "")).upper(),
+                "volume": pos.get("volume"),
+                "entry": float(pos.get("price_open") or 0),
+                "current": float(pos.get("price_current") or 0),
+                "sl": pos.get("sl"),
+                "profit_usd": profit,
+                "signal_id": str(pos.get("comment") or "") or None,
+            })
+        day_pl += pl
+    return {"positions": positions, "count": len(positions), "mode": mode,
+            "day_pl": round(day_pl, 2), "account_id": account_id,
+            "note": "Per-account broker positions. The switcher only changes this view."}
+
+
 @router.get("/positions/live")
-def positions_live(user_id: str = Depends(get_user_id)):
+def positions_live(user_id: str = Depends(get_user_id),
+                   account_id: Optional[str] = Query(None)):
     """Open broker positions (magic-filtered) joined with their signals and
     the latest AI-management decision per ticket (P3/P15 surface). Honest
-    empty list when not in vps mode - never fabricated."""
+    empty list when not in vps mode - never fabricated.
+
+    No account_id keeps the historical slot-1 read. An id or "all" is the
+    view the account switcher asks for.
+    """
+    if account_id:
+        return _scoped_positions(user_id, account_id)
     store = State.store
     out = []
     mode = "off"

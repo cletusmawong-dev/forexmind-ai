@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Activity, BrainCircuit, RefreshCw } from "lucide-react";
 import { api, endpoints } from "../lib/api";
@@ -22,13 +22,23 @@ type LivePosition = {
  *  and the deterministic risk gate (stated on screen, enforced in backend). */
 export function PositionsScreen() {
   const navigate = useNavigate();
-  const pos = usePolling<{ positions: LivePosition[]; count: number; mode: string; note?: string }>(
-    () => api.get("/api/positions/live"), 8000);
+  const [view, setView] = useState(() => localStorage.getItem("fm_view_account") || "");
+  useEffect(() => {
+    const sync = () => setView(localStorage.getItem("fm_view_account") || "");
+    window.addEventListener("fm-view-account", sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener("fm-view-account", sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+  const pos = usePolling<{ positions: LivePosition[]; count: number; mode: string; note?: string; day_pl?: number }>(
+    () => api.get(view ? `/api/positions/live?account_id=${encodeURIComponent(view)}` : "/api/positions/live"), 8000, [view]);
   const rows = pos.data?.positions ?? [];
 
   return (
     <div className="animate-fadeUp space-y-6">
-      <PageHeader title="Positions" sub="Live broker positions - truth, not paper"
+      <PageHeader title="Positions" sub={view === "all" ? "All accounts" : view ? "This account only" : "Live broker positions - truth, not paper"}
         icon={<Activity size={20} />}
         right={
           <button onClick={() => pos.refresh()}
@@ -37,6 +47,9 @@ export function PositionsScreen() {
           </button>
         } />
       <ErrorNote message={pos.error} onDismiss={() => pos.setData(null)} />
+      {view && pos.data?.day_pl != null && (
+        <p className="text-[12px] text-txt-mid">Floating P&L {pos.data.day_pl >= 0 ? "+" : ""}{pos.data.day_pl.toFixed(2)} USD</p>
+      )}
 
       {pos.loading && !pos.data ? <Spinner label="Reading broker positions..." /> :
         rows.length === 0 ? (

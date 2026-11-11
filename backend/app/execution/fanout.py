@@ -189,15 +189,15 @@ def _place(signal: dict, user_id: str, account: dict, store, gold_state: dict) -
         if balance <= 0:
             return {**base, "status": "FAILED", "detail": "no balance from this bridge"}
         risk = _risk_usd(user_id, signal, account, store)
-        if _is_gold(market):
-            gold_block = _reserve_gold(gold_state, risk)
-            if gold_block:
-                return {**base, "status": "SKIPPED", "detail": gold_block}
         risk_pct = (risk / balance) * 100.0 if risk > 0 else 1.0
         lots = calc_lot(market, anchor, sl_eff, balance, risk_pct)
         if lots <= 0 or market not in PIP_SIZE:
             return {**base, "status": "FAILED",
                     "detail": f"lot size refused lots={lots} market={market} bal={balance} risk={risk}"}
+        if _is_gold(market):
+            gold_block = _reserve_gold(gold_state, risk)
+            if gold_block:
+                return {**base, "status": "SKIPPED", "detail": gold_block}
         sign = 1.0 if str(signal.get("direction")).upper() == "BUY" else -1.0
         stop_d = abs(anchor - sl_eff)
         tp_eff = round(anchor + sign * 3.0 * stop_d, 5)
