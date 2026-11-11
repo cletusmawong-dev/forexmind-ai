@@ -135,9 +135,8 @@ def test_backfill_slot1_once_and_live_send_ignores_account_risk(monkeypatch, tmp
     assert backfill_slot1("u1") is None
     assert len(store.list("trading_accounts", limit=10)) == 1
 
-    # A stored per-account risk must not change the lot. Sizing still uses
-    # the user-level default ($50 -> 0.25 lots on this EURUSD stop).
-    store.update("trading_accounts", row["id"], {"risk_per_trade_usd": 1})
+    # Empty per-account risk stays on the legacy $50 path (0.25 lots).
+    # A set risk_per_trade_usd is covered by the fan-out tests.
     X.execute_signal(dict(SIG), "u1")
     assert len(posts) == 1
     assert posts[0][0] == "/execute"
