@@ -2,6 +2,9 @@ fastapi==0.141.1
 uvicorn[standard]==0.52.4
 python-dotenv>=1.0
 requests==2.33.0
+# FastAPI's TestClient imports Starlette, which imports httpx. The app's
+# own HTTP calls use requests; httpx is here so pytest can boot the app.
+httpx==0.28.1
 pandas==2.2.3
 numpy==2.3.5
 pytest>=8.0
