@@ -1,6 +1,6 @@
 # Multi-account trading design
 
-Up to five MT5 accounts, trading at the same time. Phase 1 design only. No order-path code in this pull request.
+Up to five MT5 accounts, trading at the same time. Owner decisions from 2026-11-11 are in [Decisions](#decisions-2026-11-11). Phases 2 and 3 are separate pull requests. This file does not change order routing by itself.
 
 Read with `docs/ARCHITECTURE_REVIEW.md`. The current system already stores account rows and shows a switcher. It executes on one terminal. This document is the path from that row to five live logins.
 
@@ -56,16 +56,16 @@ New fields, all optional so old rows still load:
 | `bridge_slot` | `1`–`5`. Supervisor and logs use it. |
 | `credential_ref` | Name of the VPS secret (`accounts/2.env`). Never a password. |
 | `magic` | Integer, unique per account. Default for slot 1 remains `20260914` so open tickets still match. |
-| `risk_per_trade_usd` | Overrides the user-level $ risk for this login. Empty means "use the user setting" during migration, then the owner picks a default. |
+| `risk_per_trade_usd` | This login's dollar risk. Empty means the user-level figure still applies, so the live account's lot size does not change until the owner sets a number. A strategy `risk_usd` still overrides this inside the account. |
 | `risk_pct_cap` | Hard ceiling. The user-level `EXECUTION_RISK_PCT_CAP` still applies if this is empty. |
 | `max_daily_loss_usd` | Realized + floating today. Breach stops new entries on this account. |
 | `max_trades_per_day` | Replaces the single global cap for this login once set. |
 | `max_positions` | Open engine positions on this login. |
 | `max_lot` | Broker min/max still wins; this is ours. |
-| `strategy_ids` | Allow-list of registry ids. Empty means all currently registered strategies. |
+| `strategy_ids` | Pick-list of registry ids this login may trade. Empty means none selected (a new account takes nothing). The slot-1 backfill copies the strategies registered today so the live login does not go silent when fan-out starts enforcing the list. |
 | `kill_switch` | `false` stops new entries on this account. Independent of the global levels in `risk/killswitch.py`. |
 | `prop_rules` | Already read by `propfirm.py`. Keep it. Feed it this account's balance, not the other terminal's. |
-| `symbol_aliases` | Optional per-broker names (`XAUUSD=XAUUSDm`). Falls back to the bridge's `SYMBOL_ALIASES`. |
+| `symbol_suffix` | Optional suffix appended to the app symbol (`m`, `.m`). Default empty. All five logins are at the same broker today, so this stays blank unless a symbol name ever differs. |
 
 Cap: `POST /api/accounts` rejects the sixth row for that user with 409. Five is the product limit in this design.
 
@@ -107,14 +107,14 @@ The API stores `login`, `server`, `broker`, `bridge_url`, and `credential_ref`. 
 
 Rotating a password is a file edit plus a bridge restart for that slot. The other slots stay up.
 
-If the owner would rather keep passwords only inside the MT5 GUI (today's model), leave `MT5_PASSWORD` unset. The process uses the portable terminal's saved session. Auto-restart after a reboot is weaker in that mode, because a terminal that comes up logged-out will fail health until someone logs in. The design supports both; the open question is which one the owner wants for slots 2–5.
+Passwords live in that VPS env file. Each bridge process calls `mt5.login` once at start. The cloud never sees the password. Rotating one slot restarts only that process. The current login on port 8700 is not restarted to add the file for a later slot.
 
 ## Fan-out
 
 `SignalEngine.scan` keeps producing one signal. It does not learn about accounts. After the signal document is stored, a dispatcher (new function next to `execute_signal`, called from the same place) does this:
 
-1. Load the user's `trading_accounts` (max 5). On a read error, write `FAILED` on the signal and **do not** fall through to the legacy bridge. That reverses today's `except: pass`.
-2. Keep rows with `trading_enabled`, `kill_switch` not set, `mode` in `vps_bridge` or `own_pc`, and (`strategy_ids` empty or containing this strategy).
+1. Load the user's `trading_accounts` (hard cap 5). A failed read of a provisioned registry does not send. A missing table (SQL not applied yet) keeps today's single-bridge path so the live login is not stopped early.
+2. Keep rows with `trading_enabled`, `kill_switch` not set, `mode` in `vps_bridge` or `own_pc`, and this strategy id present in `strategy_ids`. An empty pick-list takes nothing.
 3. Apply the global kill switch. On a read error, skip every account (fail closed).
 4. For each remaining account, build an intent. Sizing uses **that** bridge's `/account` equity and **that** account's risk fields. Symbol rules use **that** bridge's `/symbol_info`. A strategy-level `risk_usd` still overrides the account default, per the gold-pair guide, and the override is applied per account (profit-protect uses that account's equity).
 5. Run the intents concurrently, one worker per account, pool size 5. Each worker has its own try/except. The result is written to that `account_orders` row. Workers do not share `_exec_lock`. The lock becomes per `account_id`.
@@ -129,7 +129,7 @@ If the owner would rather keep passwords only inside the MT5 GUI (today's model)
 - AI trade manager state is keyed by `(account_id, ticket)`.
 - A pretrade reject (stops too tight, daily loss hit, strategy not allowed) records `REJECTED` for that account and the other workers continue.
 - A bridge 503 or connection error records `FAILED` or `UNKNOWN` for that account and the other workers continue.
-- Telegram: one message per account outcome, or one message that lists each account's result. The open question covers which the owner wants. Default in the plan: one message, one line per account, so a phone does not get five banners for one signal.
+- Telegram: one message per signal. Each account's result is a line in that message.
 
 ### Idempotency, retry, reconnect
 
@@ -181,31 +181,32 @@ Each phase is one reviewable PR into `main`, merged only when the owner wants it
 | Phase | PR | Risk | What it changes |
 | --- | --- | --- | --- |
 | 1 | This PR | Low | Audit, this design, test fixes, `httpx`, pytest on pull requests. No order behaviour change. |
-| 2 | Execution safety, one account | Medium | Fail closed on kill-switch and account-registry errors. `account_orders` (or the equivalent ledger row) written before send. Bridge duplicate check on comment + magic. Retry only when the terminal has no matching comment. Fix `live_loop` to call the real user list. Leave `seed_if_empty` uncalled. Do not change `lifecycle_of` or `STRATEGY_CLASSES`. |
+| 2 | Execution safety, one account | Medium | Fail closed when the kill switch cannot be read, and when a provisioned account registry cannot be read. A missing `trading_accounts` table keeps today's single-bridge send, so the live login is not stopped before the SQL exists. Ledger row in `exec_events` (table already in Supabase) written before send. Bridge duplicate check on comment + magic. Retry only after an "already filled?" check comes back empty. Fix `live_loop` to call `_users_cached`. Leave `seed_if_empty` uncalled. Do not change `lifecycle_of` or `STRATEGY_CLASSES`. |
 | 3 | Account document and SQL | Low–medium | New fields, cap of 5, Supabase DDL for the owner to run, backfill slot 1. Execution routing unchanged. |
 | 4 | Five processes, shadow | High operational, low trading | Portable terminals, supervisor, `initialize(path=...)`, health login check. Slots 2–5 are polled and cannot send. Slot 1 process restart is the risky moment; do it when the market is quiet, and keep the old bridge command one SSH session away. |
 | 5 | Fan-out | High | Concurrent per-account orders, per-account sizing, per-account locks, summary status on the signal. Ship behind `trading_enabled` so only slot 1 is on until the owner flips slot 2. |
 | 6 | Per-account P&L in the API and the app | Medium | Positions, day P&L, summary. View account vs trading flags. Coordinate with the UI PR so screen layout stays theirs and data hooks stay here. |
 | 7 | Security hardening | Medium–high | Separate on purpose. Require a real `FOREXMIND_JWT_SECRET` outside dev. New passwords use a slow hash; old SHA-256 still verifies, then gets rehashed on login. CORS allow-list. Webhook 401 on a bad secret. Bridge listens on localhost; the API reaches it over a private path. Fix `setup.sh` so the probe uses the real token. Scope `/api/agent/activity` to the caller. Rehearse on the VPS before it is on `main`, because a bad secret locks the owner out and auto-deploy will not roll back by itself. |
 
-Phases 2 and 3 can be reviewed in parallel. Phase 5 waits on 2, 3, and 4. Phase 6 can start from 3 (the reads) and finishes after 5. Phase 7 can happen any time and should not be bundled into a bridge restart.
+Phase 3 is stacked on phase 2. Phase 5 waits on 2, 3, and 4. Phase 6 can start from 3 (the reads) and finishes after 5. Phase 7 can happen any time and should not be bundled into a bridge restart.
 
-## Open questions for the owner
+## Decisions (2026-11-11)
 
-These change the design. The recommendations above are the defaults if an answer is late; they are not assumptions about the business.
+The owner answered the product questions. Items marked **default, owner can change** were not answered directly. They are the choice this build will follow until the owner says otherwise.
 
-1. **Lot size.** Is every account the same dollar risk (today's user setting, default $50, plus a strategy's own `risk_usd`), or does each login have its own number? A $50 risk on a $1,000 account and on a $100,000 account is a different trade.
-2. **Broker.** Are all five logins at the same broker, with the same symbol names? A second broker's `XAUUSDm` needs a per-account alias. Stops level and lot step already come from that terminal's `symbol_info` once the call is routed.
-3. **Where the terminals sit.** All five on the current Windows VPS, or some on another PC through the connector?
-4. **Whose accounts.** All five yours, or will another person have logins too? VPS execution is owner-only today.
-5. **Strategies.** Does every enabled account take every registered strategy, or do you pick (for example gold Asia only on the challenge account)?
-6. **Demo and live together.** Can a demo slot and a live slot both be `trading_enabled`? Should a demo reject be invisible to the live slot (the design says yes)?
-7. **Book-level risk.** Five accounts in the same gold signal is five times the idea. Do you want a cap on combined open risk across the five, or only a cap inside each account?
-8. **Passwords.** VPS secret file plus `mt5.login` on start, or GUI-only saved sessions and no password on disk? The second one matches today and needs a manual login after a reboot.
-9. **Downtime.** Must the current login keep taking signals on port 8700 with no bridge restart while slot 2 is installed? The plan says yes.
-10. **Prop firm.** Do the challenge rules differ per account (daily drawdown, max drawdown, trailing)? `propfirm.py` can express that once it sees the right balance.
-11. **The switcher.** When you tap an account, is that only "show me this book", while every `trading_enabled` account still takes the signal? The plan says yes. Say if the tap should also be the only account that trades.
-12. **Netlify.** Which file does the live site build with, root `netlify.toml` (VPS `169.58.98.139`) or `frontend/netlify.toml` (Render)? Is Render fully off?
-13. **The cap.** Is five a hard ceiling, or the first milestone?
-14. **Alerts.** One Telegram message listing each account's result, or one message per account?
-15. **Kill switch.** Confirm both layers: one global switch that stops every login, and one switch per login. The global levels (stop a strategy, stop a symbol, emergency close) stay global in this design. Say if emergency-close should be per account too. The recommendation is yes, once slots exist: closing every login because one challenge account hit its daily loss is the wrong blast radius.
+| Topic | Decision |
+| --- | --- |
+| Risk | Each account has its own dollar risk (`risk_per_trade_usd`). A strategy's own `risk_usd` still overrides that number inside the account. While the field is empty, the existing user-level figure is used so today's live lot size does not change. |
+| Broker | All five accounts are at the same broker. Symbol names match. `symbol_suffix` is still stored and defaults to none. |
+| Where they run | All five terminals run on the current VPS. |
+| Who owns them | All five belong to the owner. VPS trading stays owner-only. |
+| Strategies | Each account has its own pick-list. A new account starts with none selected. |
+| Demo and live | **Default, owner can change.** A demo slot and a live slot may both be `trading_enabled`. One slot's reject does not cancel the other. |
+| Drawdown | **Default, owner can change.** Each account has its own drawdown cap (`max_daily_loss_usd`, empty means no extra cap). An optional combined gold cap (`combined_gold_cap_usd` on the book settings) exists and is off when unset. |
+| Passwords | VPS env file per slot, `mt5.login` at process start. Not in the database and not in the app. |
+| Port 8700 | The current login keeps trading on port 8700. Adding another slot does not restart that bridge. |
+| Cap | Five accounts is a hard ceiling. |
+| Switcher | Tapping an account only changes the view. Every row with `trading_enabled` still receives signals once fan-out is on. |
+| Telegram | One message per signal. The body lists each account's result. |
+| Kill switch | A global kill switch, plus one per account. Emergency-close is per account (closing every login because one account hit its limit is the wrong blast radius). The global emergency path remains for a real stop-everything. |
+| Netlify / Render | Still unanswered. Do not change the proxy targets until the owner says which host the live site uses. |
