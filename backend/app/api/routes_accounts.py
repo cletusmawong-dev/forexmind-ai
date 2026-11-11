@@ -45,11 +45,54 @@ def _mine(user_id: str, account_id: str) -> Optional[dict]:
     return doc
 
 
+_PUBLIC_FIELDS = (
+    "id", "label", "broker", "server", "login", "mode",
+    "is_active", "is_default", "trading_enabled", "connected",
+    "currency", "createdAt",
+    "symbol_suffix", "strategy_ids", "risk_per_trade_usd",
+    "max_daily_loss_usd", "kill_switch", "bridge_slot", "bridge_url", "magic",
+)
+
+# Product ceiling. Not a soft limit.
+MAX_ACCOUNTS = 5
+
+
 def _public(d: dict) -> dict:
-    return {k: d.get(k) for k in
-            ("id", "label", "broker", "server", "login", "mode",
-             "is_active", "is_default", "trading_enabled", "connected",
-             "currency", "createdAt")}
+    out = {k: d.get(k) for k in _PUBLIC_FIELDS}
+    out["strategy_ids"] = list(out.get("strategy_ids") or [])
+    out["symbol_suffix"] = out.get("symbol_suffix") or ""
+    out["kill_switch"] = bool(out.get("kill_switch"))
+    return out
+
+
+def _strategy_ids(body: dict) -> list:
+    """Pick-list. Omitted means none selected. Unknown ids are refused."""
+    if "strategy_ids" not in body or body.get("strategy_ids") is None:
+        return []
+    raw = body.get("strategy_ids")
+    if not isinstance(raw, list):
+        raise HTTPException(422, "strategy_ids must be a list")
+    from ..strategies import OWNER_STRATEGY_IDS
+    ids = []
+    for item in raw:
+        sid = str(item).strip()
+        if sid not in OWNER_STRATEGY_IDS:
+            raise HTTPException(422, f"unknown strategy '{sid}'")
+        if sid not in ids:
+            ids.append(sid)
+    return ids
+
+
+def _optional_usd(body: dict, key: str) -> Optional[float]:
+    if key not in body or body.get(key) in (None, ""):
+        return None
+    try:
+        value = float(body[key])
+    except (TypeError, ValueError):
+        raise HTTPException(422, f"{key} must be a number")
+    if value <= 0:
+        raise HTTPException(422, f"{key} must be a positive number of USD")
+    return value
 
 
 def active_account(user_id: str) -> Optional[dict]:
@@ -80,9 +123,9 @@ def list_accounts(user_id: str = Depends(get_user_id)):
     return {"accounts": [_public(d) for d in rows]}
 
 
-_PROVISION_NOTE = ("accounts table not provisioned yet - run the "
-                   "trading_accounts SQL on Supabase (Settings > System shows "
-                   "the same note)")
+_PROVISION_NOTE = ("accounts table not provisioned yet - run "
+                   "backend/scripts/supabase_trading_accounts.sql in the "
+                   "Supabase SQL editor")
 
 
 @router.post("/accounts")
@@ -101,6 +144,8 @@ def add_account(body: dict, user_id: str = Depends(get_user_id)):
         existing = store.list("trading_accounts", filters={"userId": user_id}, limit=50)
     except Exception:
         raise HTTPException(503, _PROVISION_NOTE)
+    if len(existing) >= MAX_ACCOUNTS:
+        raise HTTPException(409, "5 accounts is the hard ceiling")
     doc = store.create("trading_accounts", {
         "userId": user_id,
         "label": label,
@@ -108,11 +153,19 @@ def add_account(body: dict, user_id: str = Depends(get_user_id)):
         "server": str(body.get("server") or "").strip(),
         "login": str(body.get("login") or "").strip(),
         "mode": mode,
-        "is_active": not existing,          # first account becomes active
-        "is_default": not existing,         # and the default
+        "is_active": not existing,          # first account becomes the view
+        "is_default": not existing,         # and the default view
         "trading_enabled": False,           # born safe: enable explicitly
         "connected": False,
         "currency": str(body.get("currency") or "USD"),
+        "symbol_suffix": str(body.get("symbol_suffix") or "").strip(),
+        "strategy_ids": _strategy_ids(body),   # none selected until chosen
+        "risk_per_trade_usd": _optional_usd(body, "risk_per_trade_usd"),
+        "max_daily_loss_usd": _optional_usd(body, "max_daily_loss_usd"),
+        "kill_switch": False,
+        "bridge_slot": None,
+        "bridge_url": "",
+        "magic": None,
         "createdAt": _now(),
     })
     if doc is None:
