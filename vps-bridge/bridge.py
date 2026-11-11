@@ -28,11 +28,19 @@ from uvicorn import run as uvicorn_run
 
 TOKEN = os.getenv("BRIDGE_TOKEN", "")
 PORT = int(os.getenv("BRIDGE_PORT", "8700"))
+# Slot 1 keeps the historical bind. Slots 2-5 must not listen on every
+# interface; resolve_listen() enforces that when the process starts.
+HOST = os.getenv("BRIDGE_HOST", "0.0.0.0")
+SLOT = int(os.getenv("BRIDGE_SLOT", "1") or "1")
 MAGIC_DEFAULT = 20260914
+_logged_in_for = ""
 
 app = FastAPI(title="ForexMind MT5 Bridge")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
+# One lock per process. Each slot is its own Python process, so this
+# lock, the MT5 module, and any terminal handle are never shared with
+# another login.
 _mt5_lock = threading.RLock()  # REENTRANT: /execute & /partial_close call
                                # _filling_mode() while holding the lock; a plain
                                # Lock self-deadlocks the whole bridge (found by
@@ -44,10 +52,53 @@ def _auth(token: Optional[str]):
         raise HTTPException(401, "bad bridge token")
 
 
+def resolve_listen(slot: int, host: str) -> str:
+    """Slots 2-5 refuse 0.0.0.0. Slot 1 keeps today's bind so a restart
+    of the existing service does not change who can reach port 8700."""
+    host = (host or "0.0.0.0").strip()
+    if int(slot) >= 2 and host in ("0.0.0.0", "::"):
+        raise SystemExit(
+            f"slot {slot} must set BRIDGE_HOST=127.0.0.1 "
+            "(refusing to listen on every interface)")
+    return host
+
+
+def _login_if_configured() -> None:
+    """Call mt5.login only when this process was given a login.
+
+    Slot 1 does not set MT5_LOGIN. The function returns immediately and
+    the terminal session that is already open is used, same as before.
+    """
+    global _logged_in_for
+    login = os.getenv("MT5_LOGIN", "").strip()
+    password = os.getenv("MT5_PASSWORD", "")
+    server = os.getenv("MT5_SERVER", "").strip()
+    if not (login and password and server):
+        return
+    info = mt5.account_info()
+    if _logged_in_for == login and info is not None and str(info.login) == str(login):
+        return
+    path_note = os.getenv("MT5_TERMINAL_PATH", "")
+    ok = mt5.login(int(login), password=password, server=server)
+    if not ok:
+        _logged_in_for = ""
+        raise HTTPException(
+            503,
+            f"mt5.login failed for {login}@{server}"
+            + (f" via {path_note}" if path_note else "")
+            + f": {mt5.last_error()}")
+    _logged_in_for = login
+
+
 def _ensure() -> None:
     if not mt5.terminal_info():
-        if not mt5.initialize():
+        terminal = os.getenv("MT5_TERMINAL_PATH", "").strip()
+        ok = mt5.initialize(terminal) if terminal else mt5.initialize()
+        if not ok:
             raise HTTPException(503, f"MT5 terminal not reachable: {mt5.last_error()}")
+        global _logged_in_for
+        _logged_in_for = ""
+    _login_if_configured()
 
 
 # symbol aliases: brokers name indices differently (Exness: USTEC / US100)
@@ -145,7 +196,7 @@ def health(x_bridge_token: Optional[str] = Header(None)):
         _ensure()
         t = mt5.terminal_info()
         a = mt5.account_info()
-    return {"ok": True, "terminal": {"name": t.name, "connected": t.connected,
+    return {"ok": True, "slot": SLOT, "terminal": {"name": t.name, "connected": t.connected,
                                      "trade_allowed": t.trade_allowed},
             "account": {"login": a.login, "server": a.server, "currency": a.currency,
                         "balance": a.balance, "equity": a.equity, "leverage": a.leverage}}
@@ -560,5 +611,6 @@ def deals(since: int = Query(0), x_bridge_token: Optional[str] = Header(None)):
 if __name__ == "__main__":
     if not TOKEN:
         raise SystemExit("Set BRIDGE_TOKEN first:  set BRIDGE_TOKEN=your-long-secret")
-    print(f"ForexMind MT5 bridge listening on 0.0.0.0:{PORT}")
-    uvicorn_run(app, host="0.0.0.0", port=PORT)
+    host = resolve_listen(SLOT, HOST)
+    print(f"ForexMind MT5 bridge slot {SLOT} listening on {host}:{PORT}")
+    uvicorn_run(app, host=host, port=PORT)

@@ -51,6 +51,7 @@ _PUBLIC_FIELDS = (
     "currency", "createdAt",
     "symbol_suffix", "strategy_ids", "risk_per_trade_usd",
     "max_daily_loss_usd", "kill_switch", "bridge_slot", "bridge_url", "magic",
+    "balance", "equity",
 )
 
 # Product ceiling. Not a soft limit.
@@ -171,6 +172,48 @@ def add_account(body: dict, user_id: str = Depends(get_user_id)):
     if doc is None:
         raise HTTPException(503, _PROVISION_NOTE)
     return {"account": _public(doc)}
+
+
+@router.patch("/accounts/{account_id}")
+def update_account(account_id: str, body: dict, user_id: str = Depends(get_user_id)):
+    """Owner fields for a slot: where its bridge is, what it trades, its risk.
+
+    Does not turn trading on. That stays on POST /accounts/{id}/trading.
+    """
+    doc = _mine(user_id, account_id)
+    if not doc:
+        raise HTTPException(404, "Account not found")
+    patch = {}
+    if "label" in body:
+        label = str(body.get("label") or "").strip()
+        if not label:
+            raise HTTPException(422, "label is required")
+        patch["label"] = label
+    if "symbol_suffix" in body:
+        patch["symbol_suffix"] = str(body.get("symbol_suffix") or "").strip()
+    if "strategy_ids" in body:
+        patch["strategy_ids"] = _strategy_ids(body)
+    if "risk_per_trade_usd" in body:
+        patch["risk_per_trade_usd"] = _optional_usd(body, "risk_per_trade_usd")
+    if "max_daily_loss_usd" in body:
+        patch["max_daily_loss_usd"] = _optional_usd(body, "max_daily_loss_usd")
+    if "bridge_url" in body or "bridge_slot" in body:
+        if user_id != settings.owner_user_id:
+            raise HTTPException(403, "VPS bridge routing is reserved for the owner")
+        if "bridge_url" in body:
+            patch["bridge_url"] = str(body.get("bridge_url") or "").strip()
+        if "bridge_slot" in body and body.get("bridge_slot") not in (None, ""):
+            try:
+                slot = int(body.get("bridge_slot"))
+            except (TypeError, ValueError):
+                raise HTTPException(422, "bridge_slot must be 1-5")
+            if slot < 1 or slot > 5:
+                raise HTTPException(422, "bridge_slot must be 1-5")
+            patch["bridge_slot"] = slot
+    if not patch:
+        raise HTTPException(422, "no fields to update")
+    updated = get_store().update("trading_accounts", account_id, patch)
+    return {"account": _public(updated or {})}
 
 
 @router.post("/accounts/{account_id}/select")

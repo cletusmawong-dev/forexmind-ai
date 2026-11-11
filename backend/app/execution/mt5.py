@@ -644,6 +644,18 @@ def execute_signal(signal: dict, user_id: str) -> None:
             _emit(user_id, "ENTRY", "SKIPPED", market=signal.get("market"),
                   signal=signal, detail="account trading disabled")
             return
+        # Slots 2-5 are health-only on this path. Their orders go out in the
+        # fan-out path, which returns before it reaches here. Never place
+        # their order on the slot-1 terminal.
+        if int(acct.get("bridge_slot") or 1) >= 2:
+            if signal.get("id"):
+                get_store().update("signals", signal["id"], {
+                    "execution_status": "SKIPPED_SLOT_HEALTH_ONLY",
+                    "account_id": account_id,
+                    "mt5_note": "This slot is not the slot-1 bridge"})
+            _emit(user_id, "ENTRY", "SKIPPED", market=signal.get("market"),
+                  signal=signal, detail="slot >= 2 is not sent on the slot-1 bridge")
+            return
         signal["account_id"] = account_id
         if signal.get("id"):
             get_store().update("signals", signal["id"],

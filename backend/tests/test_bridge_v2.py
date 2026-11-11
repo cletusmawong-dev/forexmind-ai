@@ -357,6 +357,55 @@ def test_execute_adopts_existing_comment_instead_of_sending(bridge_mod):
     assert fake.sent == []
 
 
+def test_slot1_listen_stays_on_all_interfaces(bridge_mod):
+    assert bridge_mod.resolve_listen(1, "0.0.0.0") == "0.0.0.0"
+
+
+def test_extra_slot_refuses_open_bind(bridge_mod):
+    with pytest.raises(SystemExit):
+        bridge_mod.resolve_listen(2, "0.0.0.0")
+    assert bridge_mod.resolve_listen(2, "127.0.0.1") == "127.0.0.1"
+
+
+def test_slot1_does_not_call_mt5_login(bridge_mod, monkeypatch):
+    fake = FakeMT5()
+    calls = []
+    fake.login = lambda *a, **k: calls.append(1) or True
+    bridge_mod.mt5 = fake
+    bridge_mod._logged_in_for = ""
+    monkeypatch.delenv("MT5_LOGIN", raising=False)
+    monkeypatch.delenv("MT5_PASSWORD", raising=False)
+    monkeypatch.delenv("MT5_SERVER", raising=False)
+    bridge_mod._login_if_configured()
+    assert calls == []
+
+
+def test_configured_slot_calls_mt5_login_once(bridge_mod, monkeypatch):
+    fake = FakeMT5()
+    calls = []
+
+    def _login(login, password="", server=""):
+        calls.append((login, server))
+        fake._account_login = str(login)
+        return True
+
+    def _account():
+        return NS(login=getattr(fake, "_account_login", "1"), server="s",
+                  currency="USD", balance=1000.0, equity=1000.0, leverage=100,
+                  margin_free=900.0)
+
+    fake.login = _login
+    fake.account_info = _account
+    bridge_mod.mt5 = fake
+    bridge_mod._logged_in_for = ""
+    monkeypatch.setenv("MT5_LOGIN", "55")
+    monkeypatch.setenv("MT5_PASSWORD", "pw")
+    monkeypatch.setenv("MT5_SERVER", "Broker-Server")
+    bridge_mod._login_if_configured()
+    bridge_mod._login_if_configured()
+    assert calls == [(55, "Broker-Server")]
+
+
 def test_execute_sends_when_comment_is_new(bridge_mod):
     fake = FakeMT5()
     bridge_mod.mt5 = fake
