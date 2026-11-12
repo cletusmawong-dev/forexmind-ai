@@ -1,58 +1,64 @@
 import { Link } from "react-router-dom";
-import { BarChart3, Bell, BookOpen, ChevronRight, FlaskConical, Layers, LayoutGrid, LogOut, Newspaper, Settings as SettingsIcon, ShieldCheck, Zap , Network } from "lucide-react";
-import { Eyebrow, Glass } from "../components/ui";
-import { Logo } from "../components/Logo";
+import { BarChart3, Bell, BookOpen, Bot, ChevronRight, FlaskConical, Layers, LogOut, Newspaper, Settings as SettingsIcon, ShieldCheck, Users, Zap, Network } from "lucide-react";
 
-const ITEMS = [
-  { to: "/news", label: "News & Events", desc: "Economic calendar + AI explain", icon: Newspaper },
-  { to: "/journal", label: "Journal", desc: "Trade log & lessons", icon: BookOpen },
-  { to: "/strategies", label: "Strategies", desc: "Live, sleeping & research", icon: Layers },
-  { to: "/learning", label: "AI Research Lab", desc: "Experiments & evidence", icon: FlaskConical },
-  { to: "/pipeline", label: "Research Pipeline", desc: "Autonomous strategy research + evidence", icon: Network },
-  { to: "/analytics", label: "Analytics", desc: "Performance deep-dive", icon: BarChart3 },
-  { to: "/execution", label: "Execution", desc: "VPS / MT5 / connector", icon: Zap },
-  { to: "/notifications", label: "Notifications", desc: "History & Telegram", icon: Bell },
-  { to: "/admin", label: "Admin", desc: "Users & risk (owner)", icon: ShieldCheck },
-  { to: "/settings", label: "Settings", desc: "Accounts, risk, appearance", icon: SettingsIcon },
+const GROUPS: { title: string; items: { to: string; label: string; icon: typeof Bot }[] }[] = [
+  {
+    title: "Research",
+    items: [
+      { to: "/agent", label: "AI manager", icon: Bot },
+      { to: "/learning", label: "Learning lab", icon: FlaskConical },
+      { to: "/pipeline", label: "Research pipeline", icon: Network },
+      { to: "/strategies", label: "Strategies", icon: Layers },
+      { to: "/analytics", label: "Analytics", icon: BarChart3 },
+    ],
+  },
+  {
+    title: "Account",
+    items: [
+      { to: "/journal", label: "Journal", icon: BookOpen },
+      { to: "/execution", label: "Execution", icon: Zap },
+      { to: "/news", label: "News", icon: Newspaper },
+      { to: "/community", label: "Community", icon: Users },
+      { to: "/notifications", label: "Notifications", icon: Bell },
+      { to: "/settings", label: "Settings", icon: SettingsIcon },
+      { to: "/admin", label: "Admin", icon: ShieldCheck },
+    ],
+  },
 ];
 
 export function MoreScreen() {
   return (
-    <div className="animate-fadeUp">
-      <header className="mb-7 flex items-start justify-between">
-        <div className="flex items-center gap-3.5">
-          <span className="icon-chip" aria-hidden="true"><LayoutGrid size={20} /></span>
-          <div>
-            <h1 className="text-[22px] font-semibold tracking-tight">More</h1>
-            <p className="mt-1 text-[12.5px] text-txt-low">Everything in FOREXMIND.</p>
+    <div className="animate-fadeUp pb-6">
+      <h1 className="px-1 pb-6 pt-2 text-[34px] font-semibold tracking-[-0.03em]">More</h1>
+      {GROUPS.map((group) => (
+        <section key={group.title} className="mb-8">
+          <h2 className="px-1 pb-2 text-[13px] font-medium text-[var(--text-muted)]">{group.title}</h2>
+          <div className="-mx-4">
+            {group.items.map(({ to, label, icon: Icon }) => (
+              <Link
+                key={to}
+                to={to}
+                className="press flex items-center gap-3 border-b border-white/[0.06] px-4 py-3.5 active:bg-white/[0.04]"
+              >
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.05] text-[var(--text-secondary)]">
+                  <Icon size={18} strokeWidth={1.75} />
+                </span>
+                <span className="flex-1 text-[16px] font-medium tracking-tight">{label}</span>
+                <ChevronRight size={16} className="text-[var(--text-faint)]" />
+              </Link>
+            ))}
           </div>
-        </div>
-      </header>
-      <Glass pad={false} className="overflow-hidden">
-        {ITEMS.map(({ to, label, desc, icon: Icon }, i) => (
-          <Link key={to} to={to}
-                 className={`flex items-center gap-3.5 px-4 py-3.5 active:bg-[rgba(var(--p-rgb),0.06)] ${i ? "border-t border-[rgba(var(--warm-rgb),0.06)]" : ""}`}>
-            <span className="icon-chip shrink-0" aria-hidden="true"><Icon size={17} /></span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-[13px] font-semibold text-txt-hi">{label}</span>
-              <span className="block text-[10.5px] text-txt-faint">{desc}</span>
-            </span>
-            <ChevronRight size={15} className="shrink-0 text-txt-faint" />
-          </Link>
-        ))}
-      </Glass>
+        </section>
+      ))}
       <button
         onClick={() => {
           try { localStorage.removeItem("fm_token"); } catch { /* noop */ }
           window.location.href = "/";
         }}
-        className="tap mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-[rgba(var(--neg-rgb),0.3)] bg-[rgba(var(--neg-rgb),0.06)] px-4 py-3.5 text-[13px] font-semibold text-[var(--accent-red)] transition-all hover:bg-[rgba(var(--neg-rgb),0.12)]"
+        className="press mt-2 flex w-full items-center justify-center gap-2 py-4 text-[16px] font-medium text-[var(--accent-red)]"
       >
-        <LogOut size={15} /> Log out
+        <LogOut size={16} /> Log out
       </button>
-      <p className="mt-8 pb-4 text-center text-[10px] text-txt-faint">
-        <Logo /> FOREXMIND AI - Trade - Learn - Grow
-      </p>
     </div>
   );
 }

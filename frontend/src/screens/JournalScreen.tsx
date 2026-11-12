@@ -4,7 +4,7 @@ import { Area, AreaChart, ResponsiveContainer, Tooltip } from "recharts";
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
 import type { Signal } from "../lib/types";
-import { ConnectionState, DemoTag, Divider, Eyebrow, Glass, Pill, Segmented, Spinner } from "../components/ui";
+import { ConnectionState, DemoTag, Divider, Eyebrow, Glass, Pill, Segmented, SkeletonList } from "../components/ui";
 import { fmtDateTime, fmtR } from "../lib/format";
 import { useNavigate } from "react-router-dom";
 import {NotebookPen, ArrowUpRight, ArrowDownRight} from "lucide-react";
@@ -17,7 +17,7 @@ export function JournalScreen() {
   const navigate = useNavigate();
 
   if (!stats.data) {
-    if (stats.loading) return <Spinner label="Opening the journal..." />;
+    if (stats.loading) return <SkeletonList rows={4} />;
     return <ConnectionState onRetry={stats.refresh} label="Can't load the journal" />;
   }
   const j = stats.data;
@@ -29,14 +29,8 @@ export function JournalScreen() {
 
   return (
     <div className="animate-fadeUp">
-      <header className="mb-7 flex items-start justify-between">
-        <div className="flex items-center gap-3.5">
-          <span className="icon-chip icon-chip-cyan" aria-hidden="true"><NotebookPen size={20} /></span>
-          <div>
-            <h1 className="text-[22px] font-semibold tracking-tight">Journal</h1>
-          <p className="mt-1 text-[12.5px] text-txt-low">The complete research record.</p>
-          </div>
-        </div>
+      <header className="mb-6 flex items-end justify-between px-1">
+        <h1 className="text-[34px] font-semibold tracking-[-0.03em]">Journal</h1>
         <DemoTag />
       </header>
 
@@ -65,11 +59,12 @@ export function JournalScreen() {
                   {fmtR(weekR)}
                 </span>
               </div>
-              <p className="mt-3 text-[12px] text-txt-low">
-                <span className="num font-bold text-txt-hi">{j?.total_signals ?? 0}</span> signals -{" "}
-                <span className="num font-bold text-txt-hi">{m.win_rate ?? 0}%</span> win rate -{" "}
-                <span className="num font-bold text-txt-hi">{fmtR(m.avg_r)}</span> avg -{" "}
-                <span className="num font-bold text-txt-hi">{m.profit_factor ?? "-"}</span> profit factor
+              <p className="mt-3 text-[14px] leading-relaxed text-[var(--text-secondary)]">
+                <span className="num text-[var(--text-primary)]">{j?.total_signals ?? 0}</span> signals
+                <span className="text-[var(--text-faint)]"> · </span>
+                <span className="num text-[var(--text-primary)]">{m.win_rate ?? 0}%</span> win rate
+                <span className="text-[var(--text-faint)]"> · </span>
+                <span className="num text-[var(--text-primary)]">{fmtR(m.avg_r)}</span> average
               </p>
             </section>
 
@@ -166,12 +161,12 @@ function EquityChart({ curve }: { curve: { i: number; cum: number }[] }) {
           <defs>
             <linearGradient id="jrnl" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="var(--c-p1)" stopOpacity={0.32} />
-              <stop offset="100%" stopColor="#6C9EFF" stopOpacity={0} />
+              <stop offset="100%" stopColor="#4C8DFF" stopOpacity={0} />
             </linearGradient>
           </defs>
           <Tooltip
             cursor={{ stroke: "rgba(255,255,255,0.1)" }}
-            contentStyle={{ background: "rgba(16,19,26,0.95)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, fontSize: 11 }}
+            contentStyle={{ background: "#141c27", border: "1px solid rgba(232,238,246,0.10)", borderRadius: 12, fontSize: 11, color: "#f4f7fb" }}
             formatter={(v: any) => [fmtR(v), "Cumulative"]}
             labelFormatter={() => ""}
           />
@@ -514,7 +509,7 @@ function MyJournalTab({ onOpenHistory }: { onOpenHistory: () => void }) {
     not_executed: number; tracked_results: number; notes_written: number }>(
     () => api.get(endpoints.journalEntries), 10000);
   if (!q.data) {
-    if (q.loading) return <Spinner label="Opening your journal..." />;
+    if (q.loading) return <SkeletonList rows={3} />;
     return <ConnectionState onRetry={q.refresh} label="Can't load your journal" />;
   }
   const entries = q.data.entries ?? [];

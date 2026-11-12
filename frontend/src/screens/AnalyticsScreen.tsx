@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Area, AreaChart, Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
-import { ChevronSection, ConnectionState, DemoTag, Divider, Eyebrow, Glass, Pill, SectionHeader } from "../components/ui";
+import { ChevronSection, ConnectionState, DemoTag, Divider, Eyebrow, Glass, Pill, SectionHeader, SkeletonList } from "../components/ui";
 import { fmtR } from "../lib/format";
 
 export function AnalyticsScreen() {
@@ -11,7 +11,7 @@ export function AnalyticsScreen() {
   const { data, loading } = usePolling<any>(() => api.get(endpoints.analytics), 10000);
   const score = usePolling<{ strategies: any[] }>(() => api.get("/api/scorecard"), 15000);
   const sessions = usePolling<{ sessions: any[] }>(() => api.get("/api/analytics/sessions"), 15000);
-  if (!data) return loading ? <div className="py-20" /> : <ConnectionState label="Can't load analytics" />;
+  if (!data) return loading ? <SkeletonList rows={3} /> : <ConnectionState label="Can't load analytics" />;
   const a = data;
   const m = a?.metrics ?? {};
 
@@ -47,17 +47,17 @@ export function AnalyticsScreen() {
           <AreaChart data={curve} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
             <defs>
               <linearGradient id="aneq" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#7CD5F2" stopOpacity={0.26} />
-                <stop offset="100%" stopColor="#7CD5F2" stopOpacity={0} />
+                <stop offset="0%" stopColor="#4C8DFF" stopOpacity={0.28} />
+                <stop offset="100%" stopColor="#4C8DFF" stopOpacity={0} />
               </linearGradient>
             </defs>
             <Tooltip
-              cursor={{ stroke: "rgba(255,255,255,0.08)" }}
-              contentStyle={{ background: "rgba(16,19,26,0.95)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, fontSize: 11 }}
+              cursor={{ stroke: "rgba(232,238,246,0.16)" }}
+              contentStyle={{ background: "#141c27", border: "1px solid rgba(232,238,246,0.10)", borderRadius: 12, fontSize: 11, color: "#f4f7fb" }}
               formatter={(v: any) => [fmtR(v), "Cumulative"]}
               labelFormatter={() => ""}
             />
-            <Area type="monotone" dataKey="cum_r" stroke="#7CD5F2" strokeWidth={1.7} fill="url(#aneq)" dot={false} />
+            <Area type="monotone" dataKey="cum_r" stroke="#4C8DFF" strokeWidth={1.7} fill="url(#aneq)" dot={false} />
           </AreaChart>
         </ResponsiveContainer>
       </Glass>
@@ -89,11 +89,11 @@ export function AnalyticsScreen() {
       <Section open={open === "distribution"} onToggle={() => toggle("distribution")} title="R distribution">
         <ResponsiveContainer width="100%" height={150}>
           <BarChart data={rDist} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
-            <XAxis dataKey="bucket" tick={{ fill: "#69748C", fontSize: 9 }} axisLine={false} tickLine={false} />
-            <Tooltip cursor={{ fill: "rgba(255,255,255,0.03)" }} contentStyle={{ background: "rgba(16,19,26,0.95)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, fontSize: 11 }} />
+            <XAxis dataKey="bucket" tick={{ fill: "#93A0B0", fontSize: 10 }} axisLine={false} tickLine={false} />
+            <Tooltip cursor={{ fill: "rgba(232,238,246,0.04)" }} contentStyle={{ background: "#141c27", border: "1px solid rgba(232,238,246,0.10)", borderRadius: 12, fontSize: 11, color: "#f4f7fb" }} />
             <Bar dataKey="count" radius={[5, 5, 2, 2]} maxBarSize={26}>
               {rDist.map((d, i) => (
-                <Cell key={i} fill={d.bucket.includes("-") || d.bucket.startsWith("<") ? "#F0788C" : "#3ECF8E"} fillOpacity={0.65} />
+                <Cell key={i} fill={d.bucket.includes("-") || d.bucket.startsWith("<") ? "#F0434A" : "#1FBF75"} fillOpacity={0.85} />
               ))}
             </Bar>
           </BarChart>
@@ -189,9 +189,9 @@ function Bars({ title, data }: { title: string; data: { name: string; win_rate: 
       <div className="eyebrow !text-[9.5px] mb-3">{title}</div>
       <ResponsiveContainer width="100%" height={110}>
         <BarChart data={data} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
-          <XAxis dataKey="name" tick={{ fill: "#69748C", fontSize: 9.5 }} axisLine={false} tickLine={false} />
-          <Tooltip cursor={{ fill: "rgba(255,255,255,0.03)" }} contentStyle={{ background: "rgba(16,19,26,0.95)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, fontSize: 11 }} />
-          <Bar dataKey="win_rate" radius={[5, 5, 2, 2]} maxBarSize={30} fill="#6C9EFF" fillOpacity={0.55} />
+          <XAxis dataKey="name" tick={{ fill: "#93A0B0", fontSize: 10 }} axisLine={false} tickLine={false} />
+          <Tooltip cursor={{ fill: "rgba(232,238,246,0.04)" }} contentStyle={{ background: "#141c27", border: "1px solid rgba(232,238,246,0.10)", borderRadius: 12, fontSize: 11, color: "#f4f7fb" }} />
+          <Bar dataKey="win_rate" radius={[5, 5, 2, 2]} maxBarSize={30} fill="#4C8DFF" fillOpacity={0.85} />
         </BarChart>
       </ResponsiveContainer>
     </div>

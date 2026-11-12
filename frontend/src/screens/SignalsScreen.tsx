@@ -4,7 +4,7 @@ import { Crosshair, SlidersHorizontal } from "lucide-react";
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
 import type { Signal } from "../lib/types";
-import { DemoTag, Empty, Eyebrow, Segmented, Spinner } from "../components/ui";
+import { DemoTag, Empty, Eyebrow, Segmented, SkeletonList } from "../components/ui";
 import { SignalRow } from "../components/SignalRow";
 
 export function SignalsScreen() {
@@ -48,20 +48,14 @@ export function SignalsScreen() {
 
   return (
     <div className="anim-fadeUp">
-      <header className="mb-4 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-[30px] font-extrabold leading-[1.1] tracking-[-0.03em]">Signals</h1>
-          <p className="mt-1 text-[13px] text-[var(--text-muted)]">AI-powered trade ideas with full analysis</p>
-        </div>
-        <div className="mt-1.5 shrink-0"><DemoTag /></div>
+      <header className="mb-5 flex items-end justify-between px-1">
+        <h1 className="text-[34px] font-semibold tracking-[-0.03em]">Signals</h1>
+        <DemoTag />
       </header>
 
       {/* live settings gates - exactly what the engine enforces on new signals */}
       {(riskQ.data || stratQ.data) && (
-        <div className="glass-2 mb-4 flex items-center gap-2.5 px-4 py-2.5 text-[11px] font-medium text-[var(--text-secondary)]" role="status">
-          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--accent-green)]" />
-          {gateLine}
-        </div>
+        <p className="mb-4 px-1 text-[13px] text-[var(--text-muted)]" role="status">{gateLine}</p>
       )}
       {showNote && (
         <div className="mb-4 flex items-start gap-2.5 rounded-2xl border border-[rgba(var(--amber-rgb),0.28)] bg-[rgba(var(--amber-rgb),0.07)] px-4 py-3 text-[11px] leading-relaxed text-[var(--c-golddeep)]">
@@ -74,17 +68,17 @@ export function SignalsScreen() {
 
       <div className="no-scrollbar -mx-4 mb-2.5 flex items-center gap-2 overflow-x-auto px-4 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <button onClick={() => setMarket("all")} aria-pressed={market === "all"}
-          className={`tap shrink-0 rounded-full px-4 py-2 text-[12px] font-bold ${market === "all" ? "bg-[#101828] text-white" : "chip-off"}`}>
+          className={`tap min-h-11 shrink-0 rounded-full px-4 py-2 text-caption font-semibold ${market === "all" ? "chip-on" : "chip-off"}`}>
           All
         </button>
         {(marketsQ.data?.markets ?? []).map((m) => (
           <button key={m.symbol} onClick={() => setMarket(m.symbol)} aria-pressed={market === m.symbol}
-            className={`tap shrink-0 rounded-full border px-4 py-2 text-[12px] font-bold ${market === m.symbol ? "bg-[#101828] text-white border-transparent" : "chip-off"}`}>
+            className={`tap min-h-11 shrink-0 rounded-full border px-4 py-2 text-caption font-semibold ${market === m.symbol ? "chip-on border-transparent" : "chip-off"}`}>
             {m.symbol}
           </button>
         ))}
         <button onClick={() => setFiltersOpen((o) => !o)} aria-expanded={filtersOpen}
-          className={`tap ml-auto flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-[12px] font-bold ${filtersOpen ? "border-transparent bg-[#101828] text-white" : "chip-off"}`}>
+          className={`tap ml-auto flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-caption font-semibold ${filtersOpen ? "chip-on border-transparent" : "chip-off"}`}>
           <SlidersHorizontal size={13} /> Filters
         </button>
       </div>
@@ -113,7 +107,7 @@ export function SignalsScreen() {
       )}
 
       {loading && !data ? (
-        <Spinner label="Loading signals..." />
+        <SkeletonList rows={3} />
       ) : signals.length === 0 ? (
         <Empty
           icon={<Crosshair size={20} strokeWidth={1.6} />}
@@ -121,11 +115,9 @@ export function SignalsScreen() {
           sub={filter === "open" ? "No qualifying setup. Capital protected - the agent is watching for real conditions." : "Completed signals appear here with their outcomes."}
         />
       ) : (
-        <div className="space-y-3">
-          {signals.map((s, i) => (
-            <div key={s.id} data-reveal style={{ transitionDelay: `${Math.min(i * 40, 300)}ms` }}>
-              <SignalRow signal={s} onClick={() => navigate(`/signals/${s.id}`)} />
-            </div>
+        <div className="-mx-4">
+          {signals.map((s) => (
+            <SignalRow key={s.id} signal={s} onClick={() => navigate(`/signals/${s.id}`)} />
           ))}
         </div>
       )}

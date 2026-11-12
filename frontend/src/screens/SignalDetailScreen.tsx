@@ -73,9 +73,9 @@ export function SignalDetailScreen() {
 
   return (
     <div className="anim-fadeUp">
-      <header className="mb-5 flex items-center justify-between">
-        <button onClick={() => navigate(-1)} className="tap -ml-2 flex items-center gap-1.5 rounded-full p-2 text-[13px] font-semibold text-[var(--text-secondary)] transition hover:text-[var(--text-primary)]">
-          <ArrowLeft size={17} /> Signals
+      <header className="sticky top-0 z-20 -mx-4 mb-4 flex items-center justify-between bg-[rgba(7,11,16,0.8)] px-3 py-2 backdrop-blur-xl">
+        <button onClick={() => navigate(-1)} className="press flex items-center gap-1 py-2 text-[15px] font-medium text-[var(--accent)]">
+          <ArrowLeft size={18} /> Signals
         </button>
         <DemoTag />
       </header>
@@ -85,7 +85,7 @@ export function SignalDetailScreen() {
       <div className="flex items-start justify-between px-1">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-[28px] font-bold tracking-[-0.02em]">{s.market}</h1>
+            <h1 className="text-[34px] font-semibold tracking-[-0.03em]">{s.market}</h1>
             <span
               className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-bold tracking-[0.1em]"
               style={{
@@ -104,8 +104,8 @@ export function SignalDetailScreen() {
           </p>
         </div>
         <div className="text-right">
-          <div className="eyebrow">Score</div>
-          <div className="num text-[24px] font-light">{s.score}</div>
+          <div className="text-[13px] text-[var(--text-muted)]">Score</div>
+          <div className="num text-[28px] font-semibold tracking-tight">{s.score}</div>
         </div>
       </div>
 
@@ -281,9 +281,9 @@ export function SignalDetailScreen() {
         </Glass>
       )}
 
-      {/* ---- your decision ---- */}
-      <Glass className="mt-4">
-        <div className="eyebrow mb-3">Your decision</div>
+      {/* ---- your decision, as a bottom sheet ---- */}
+      <div className="fixed inset-x-0 bottom-[calc(52px+env(safe-area-inset-bottom,0px))] z-30 rounded-t-[28px] bg-[#121922] px-5 pb-4 pt-3 shadow-[0_-16px_40px_rgba(0,0,0,0.45)] lg:static lg:bottom-auto lg:z-auto lg:mt-6 lg:rounded-3xl lg:shadow-none">
+        <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/15 lg:hidden" />
         {!s.user_action && !mode && (
           <div>
           <p className="mb-3 px-1 text-[11px] leading-relaxed text-txt-faint">
@@ -340,8 +340,9 @@ export function SignalDetailScreen() {
             <CircleSlash size={13} /> Skipped - the agent still follows this signal to learn from it.
           </div>
         )}
-        {error && <div className="mt-3 text-[11.5px] text-[var(--accent-red)]">{error}</div>}
-      </Glass>
+        {error && <div className="mt-3 text-[13px] text-[var(--accent-red)]">{error}</div>}
+      </div>
+      <div className="h-28 lg:hidden" aria-hidden="true" />
 
       {/* ---- result analysis ---- */}
       {s.result_analysis && (

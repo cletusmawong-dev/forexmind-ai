@@ -85,7 +85,7 @@ export function PageHeader({ title, sub, right, icon, tone = "blue" }: { title: 
       <div className="flex min-w-0 items-center gap-2.5">
         {icon && <span className={`${chip} !h-9 !w-9 !rounded-xl`} aria-hidden="true">{icon}</span>}
         <div className="min-w-0">
-          <h1 className="truncate text-[21px] font-bold leading-tight tracking-[-0.02em]">{title}</h1>
+          <h1 className="truncate text-title font-semibold">{title}</h1>
           {sub && <p className="mt-0.5 truncate text-[11.5px] text-[var(--text-muted)]">{sub}</p>}
         </div>
       </div>
@@ -156,7 +156,7 @@ export type PillTone = keyof typeof pillTones;
 
 export function Pill({ tone = "neutral", children, className = "", style }: { tone?: PillTone; children: React.ReactNode; className?: string; style?: React.CSSProperties }) {
   return (
-    <span style={style} className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-semibold tracking-wide ${pillTones[tone]} ${className}`}>
+    <span style={style} className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium tracking-normal ${pillTones[tone]} ${className}`}>
       {children}
     </span>
   );
@@ -182,7 +182,7 @@ export function DemoTag() {
     return (
       <Pill tone="neutral" className="!px-3 !py-1.5 whitespace-nowrap">
         <span className="h-1.5 w-1.5 rounded-full bg-[var(--text-faint)]" />
-        <span className="hidden min-[420px]:inline">CONNECTING...</span>
+        <span className="hidden min-[420px]:inline">Connecting</span>
         <span className="min-[420px]:hidden">...</span>
       </Pill>
     );
@@ -190,19 +190,15 @@ export function DemoTag() {
   if (live) {
     return (
       <Pill tone="green" className="!px-3 !py-1.5 whitespace-nowrap">
-        <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-green)] anim-pulse" style={{ boxShadow: "0 0 8px rgba(var(--p-rgb),0.9)" }} />
-        LIVE<span className="hidden min-[420px]:inline"> - REAL-TIME</span>
+        <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-green)]" />
+        Live
       </Pill>
     );
   }
   return (
-    <Pill tone="amber" className="!px-3 !py-1.5 whitespace-nowrap" style={{
-      background: "linear-gradient(115deg, rgba(var(--amber-rgb),0.2), rgba(217,79,184,0.14))",
-      borderColor: "rgba(var(--amber-rgb),0.5)",
-      boxShadow: "0 0 18px rgba(var(--amber-rgb),0.28), inset 0 1px 0 rgba(255,255,255,0.25)",
-    }}>
-      <Crown size={11} className="text-[var(--accent-gold)]" />
-      DEMO - HISTORICAL
+    <Pill tone="amber" className="!px-3 !py-1.5 whitespace-nowrap">
+      <Crown size={12} strokeWidth={1.75} />
+      Demo · historical
     </Pill>
   );
 }
@@ -317,6 +313,28 @@ export function BtnSpinner({ className = "" }: { className?: string }) {
   );
 }
 
+export function Skeleton({ className = "" }: { className?: string }) {
+  return <div className={`skeleton ${className}`} aria-hidden="true" />;
+}
+
+export function SkeletonList({ rows = 4 }: { rows?: number }) {
+  return (
+    <div className="space-y-3" aria-busy="true" aria-label="Loading">
+      <Skeleton className="h-8 w-40" />
+      <Skeleton className="h-28 w-full rounded-card" />
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="glass flex items-center gap-3 p-4">
+          <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
+          <div className="min-w-0 flex-1 space-y-2">
+            <Skeleton className="h-3 w-1/3" />
+            <Skeleton className="h-3 w-2/3" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function Spinner({ label }: { label?: string }) {
   return (
     <div className="flex flex-col items-center justify-center gap-4 py-20">
@@ -328,11 +346,13 @@ export function Spinner({ label }: { label?: string }) {
 
 export function Empty({ title, sub, icon }: { title: string; sub?: string; icon?: React.ReactNode }) {
   return (
-    <Glass level={2} className="py-12 text-center">
-      {icon && <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-[rgba(var(--warm-rgb),0.09)] bg-[rgba(var(--warm-rgb),0.045)] text-[var(--text-muted)]">{icon}</div>}
-      <div className="text-[14px] font-semibold">{title}</div>
-      {sub && <div className="mx-auto mt-1.5 max-w-[280px] text-[12px] leading-relaxed text-[var(--text-muted)]">{sub}</div>}
-    </Glass>
+    <div className="flex flex-col items-center px-8 py-16 text-center">
+      <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-[rgba(255,255,255,0.04)] text-[var(--text-secondary)]">
+        {icon}
+      </div>
+      <div className="text-[20px] font-semibold tracking-tight text-[var(--text-primary)]">{title}</div>
+      {sub && <p className="mt-2 max-w-[280px] text-[14px] leading-relaxed text-[var(--text-muted)]">{sub}</p>}
+    </div>
   );
 }
 

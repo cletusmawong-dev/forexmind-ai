@@ -1,0 +1,374 @@
+/* ForexMind terminal — one dark system.
+   Tokens live here so every screen that already uses var(--*) or the
+   Tailwind txt/pos/neg/acc utilities restyles together. Saved theme keys
+   (ivory / navy / onyx / slate) still switch, but they only shift the
+   canvas. Gain, loss, and the single accent never change. */
+
+:root,
+html[data-theme="ivory"],
+html[data-theme="navy"],
+html[data-theme="onyx"],
+html[data-theme="slate"] {
+  color-scheme: dark;
+
+  --bg-primary: #070b10;
+  --bg-secondary: #0e141c;
+  --bg-elevated: #141c27;
+  --glass-surface: #121a24;
+  --glass-surface-hover: #1a2432;
+  --glass-border: rgba(232, 238, 246, 0.10);
+  --glass-border-soft: rgba(232, 238, 246, 0.06);
+  --glass-highlight: rgba(255, 255, 255, 0.05);
+
+  /* One accent. Green and red are reserved for P&L. */
+  --accent: #4c8dff;
+  --accent-blue: #4c8dff;
+  --accent-blue-bright: #7aabff;
+  --accent-cyan: #4c8dff;
+  --accent-green: #1fbf75;
+  --accent-red: #f0434a;
+  --accent-purple: #4c8dff;
+  --accent-magenta: #4c8dff;
+  --accent-gold: #4c8dff;
+  --accent-amber: #e3a008;
+
+  --text-primary: #f4f7fb;
+  --text-secondary: #c5d0dc;
+  --text-muted: #93a0b0;
+  --text-faint: #7d8b9c;
+
+  --radius: 16px;
+  --radius-control: 12px;
+  --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 12px 32px rgba(0, 0, 0, 0.38);
+  --shadow-float: 0 18px 48px rgba(0, 0, 0, 0.5);
+  --glow-blue: none;
+
+  --p-rgb: 76, 141, 255;
+  --p2-rgb: 122, 171, 255;
+  --p3-rgb: 46, 108, 214;
+  --gold-rgb: 76, 141, 255;
+  --goldhi-rgb: 122, 171, 255;
+  --amber-rgb: 227, 160, 8;
+  --neg-rgb: 240, 67, 74;
+  --pos-rgb: 31, 191, 117;
+  --info-rgb: 76, 141, 255;
+  --warm-rgb: 148, 163, 180;
+
+  --txt-hi-rgb: 244, 247, 251;
+  --txt-mid-rgb: 197, 208, 220;
+  --txt-low-rgb: 147, 160, 176;
+  --txt-faint-rgb: 125, 139, 156;
+
+  --c-p1: #7aabff;
+  --c-p2: #4c8dff;
+  --c-p3: #2e6cd6;
+  --c-gold: #4c8dff;
+  --c-goldhi: #7aabff;
+  --c-golddeep: #2e6cd6;
+  --c-neg: #f0434a;
+  --c-negdeep: #c42e36;
+  --c-mag: #4c8dff;
+  --c-ink2: #f4f7fb;
+
+  --input-bg: #0c1219;
+  --input-mini-bg: #0c1219;
+  --on-desc: #f4f7fb;
+  --chip-desc: var(--text-muted);
+  --hero-warm: #4c8dff;
+  --font-ui: Inter, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+}
+
+html[data-theme="navy"] { --bg-primary: #08111a; --bg-secondary: #0c1722; }
+html[data-theme="onyx"] { --bg-primary: #05070a; --bg-secondary: #0c1016; }
+html[data-theme="slate"] { --bg-primary: #101820; --bg-secondary: #16202b; }
+
+body {
+  background:
+    radial-gradient(880px 420px at 100% -8%, rgba(76, 141, 255, 0.16), transparent 58%),
+    radial-gradient(640px 380px at -12% 8%, rgba(31, 191, 117, 0.06), transparent 52%),
+    var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+}
+
+/* Surfaces — depth from tone, not a border on every box */
+html[data-theme] .glass,
+.glass {
+  border: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.02));
+  box-shadow: none;
+  border-radius: 20px;
+}
+.eyebrow {
+  text-transform: none;
+  letter-spacing: -0.01em;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+/* Prices stay in Inter. Tabular figures keep columns aligned without a mono face. */
+.num,
+.font-mono {
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif !important;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+.login-trace {
+  stroke-dasharray: 640;
+  stroke-dashoffset: 640;
+  animation: loginDraw 1.15s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes loginDraw { to { stroke-dashoffset: 0; } }
+.press { transition: transform 140ms ease, opacity 140ms ease; }
+.press:active { transform: scale(0.98); opacity: 0.86; }
+html[data-theme] .glass-2,
+.glass-2 {
+  border: 1px solid var(--glass-border-soft);
+  background: var(--bg-secondary);
+  box-shadow: none;
+  border-radius: 14px;
+}
+html[data-theme] .glass-float,
+.glass-float {
+  border: 1px solid var(--glass-border);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-float);
+  border-radius: 16px;
+}
+html[data-theme] .hero-card,
+.hero-card {
+  border-color: var(--glass-border);
+  box-shadow: var(--shadow-card);
+  background: linear-gradient(180deg, #172232 0%, #121a24 100%);
+}
+.glass-hover:hover {
+  border-color: rgba(76, 141, 255, 0.35);
+  background: var(--glass-surface-hover);
+  box-shadow: var(--shadow-card);
+}
+html[data-theme] .divider,
+.divider,
+.page-head-divider,
+.hairline-b {
+  background: var(--glass-border-soft);
+  border-color: var(--glass-border-soft);
+}
+html[data-theme] .glass-nav,
+.glass-nav {
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--glass-border);
+  backdrop-filter: none;
+}
+
+/* Icon chips — accent, gain, loss. No extra hues. */
+html[data-theme] .icon-chip,
+.icon-chip {
+  border: 1px solid rgba(var(--p-rgb), 0.35);
+  background: rgba(var(--p-rgb), 0.12);
+  color: var(--accent);
+  box-shadow: none;
+}
+html[data-theme] .icon-chip-cyan,
+.icon-chip-cyan {
+  border-color: rgba(var(--pos-rgb), 0.35);
+  background: rgba(var(--pos-rgb), 0.12);
+  color: var(--accent-green);
+}
+html[data-theme] .icon-chip-violet,
+.icon-chip-violet {
+  border-color: rgba(var(--neg-rgb), 0.35);
+  background: rgba(var(--neg-rgb), 0.12);
+  color: var(--accent-red);
+}
+
+/* Controls — 44px touch targets */
+html[data-theme] .btn,
+.btn {
+  min-height: 44px;
+  border-radius: 12px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+html[data-theme] .btn-primary,
+.btn-primary {
+  background: var(--accent);
+  color: #f7fbff;
+  box-shadow: none;
+}
+html[data-theme] .btn-primary:hover,
+.btn-primary:hover { background: #3b7ef0; }
+html[data-theme] .btn-ghost,
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  color: var(--text-secondary);
+}
+html[data-theme] .btn-ghost:hover,
+.btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(76, 141, 255, 0.4);
+  color: var(--text-primary);
+}
+html[data-theme] .btn-approve,
+.btn-approve {
+  background: rgba(var(--pos-rgb), 0.12);
+  border: 1px solid rgba(var(--pos-rgb), 0.4);
+  color: var(--accent-green);
+}
+html[data-theme] .btn-reject,
+.btn-reject {
+  background: rgba(var(--neg-rgb), 0.1);
+  border: 1px solid rgba(var(--neg-rgb), 0.4);
+  color: var(--accent-red);
+}
+
+html[data-theme] .input,
+html[data-theme] .input-mini,
+.input,
+.input-mini {
+  background: var(--input-bg);
+  border: 1px solid var(--glass-border);
+  color: var(--text-primary);
+  min-height: 44px;
+  box-shadow: none;
+}
+html[data-theme] .input:focus,
+html[data-theme] .input-mini:focus,
+.input:focus,
+.input-mini:focus {
+  background: #101820;
+  border-color: rgba(76, 141, 255, 0.7);
+  box-shadow: 0 0 0 3px rgba(76, 141, 255, 0.2);
+}
+
+html[data-theme] .seg-track,
+.seg-track {
+  background: var(--bg-secondary);
+  border-color: var(--glass-border);
+}
+html[data-theme] .seg-btn,
+.seg-btn { color: var(--text-muted); min-height: 36px; }
+html[data-theme] .seg-btn-active,
+.seg-btn-active {
+  background: var(--accent);
+  color: #f7fbff;
+  box-shadow: none;
+}
+
+html[data-theme] .chip,
+.chip,
+html[data-theme] .chip-off,
+.chip-off {
+  background: var(--bg-secondary);
+  border-color: var(--glass-border);
+  color: var(--text-secondary);
+}
+html[data-theme] .chip-off:hover,
+.chip-off:hover,
+html[data-theme] .chip:hover,
+.chip:hover {
+  border-color: rgba(76, 141, 255, 0.45);
+  color: var(--text-primary);
+}
+html[data-theme] .chip.chip-active,
+html[data-theme] .chip-on,
+.chip-active,
+.chip-on,
+html[data-theme] .chip-on-pos,
+html[data-theme] .chip-on-warn,
+html[data-theme] .chip-on-muted,
+.chip-on-pos,
+.chip-on-warn,
+.chip-on-muted {
+  background: var(--accent);
+  color: #f7fbff;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+html[data-theme] .progress-track,
+.progress-track {
+  background: #0a1016;
+  border-color: var(--glass-border);
+}
+
+/* Tabs / list rows */
+.list-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--glass-border-soft);
+}
+.list-row:last-child { border-bottom: 0; }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 22px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--glass-border);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+}
+.badge-gain {
+  border-color: rgba(var(--pos-rgb), 0.4);
+  background: rgba(var(--pos-rgb), 0.12);
+  color: var(--accent-green);
+}
+.badge-loss {
+  border-color: rgba(var(--neg-rgb), 0.4);
+  background: rgba(var(--neg-rgb), 0.12);
+  color: var(--accent-red);
+}
+.badge-accent {
+  border-color: rgba(var(--p-rgb), 0.4);
+  background: rgba(var(--p-rgb), 0.14);
+  color: var(--accent);
+}
+
+.skeleton {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.11) 45%, rgba(255, 255, 255, 0.04) 100%);
+  background-size: 220% 100%;
+  animation: shimmerX 1.5s linear infinite;
+  border-radius: 8px;
+}
+
+nav[aria-label="Primary"] {
+  z-index: 200;
+  background: rgba(7, 11, 16, 0.96);
+}
+.tv-lightweight-charts { z-index: 0 !important; }
+
+::selection { background: rgba(76, 141, 255, 0.35); }
+:focus-visible { outline-color: rgba(76, 141, 255, 0.8); }
+::-webkit-scrollbar-thumb { background: rgba(232, 238, 246, 0.18); }
+
+html[data-theme] .text-grad-blue,
+html[data-theme] .text-grad-green,
+html[data-theme] .text-grad-ai,
+.text-grad-blue,
+.text-grad-green,
+.text-grad-ai {
+  background: none;
+  -webkit-background-clip: unset;
+  background-clip: unset;
+  color: var(--accent);
+}

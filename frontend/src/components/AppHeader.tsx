@@ -8,7 +8,7 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Bell, UserRound } from "lucide-react";
-import { Logo } from "./ui";
+import { LogoMark } from "./ui";
 import { AccountSwitcher } from "./AccountSwitcher";
 import { api } from "../lib/api";
 import { endpoints } from "../lib/api";
@@ -42,12 +42,12 @@ export function AppHeader() {
 
   return (
     <header
-      className="hairline-b sticky top-0 z-[70] bg-[var(--bg-primary)]/95 backdrop-blur-sm lg:hidden"
+      className="sticky top-0 z-[70] border-b border-white/[0.05] bg-[rgba(7,11,16,0.72)] backdrop-blur-xl lg:hidden"
       style={{ paddingTop: "max(env(safe-area-inset-top, 0px), 10px)" }}
     >
-      <div className="mx-auto flex h-[52px] w-full max-w-[560px] items-center justify-between gap-2 px-4 pb-2.5">
+      <div className="mx-auto flex h-14 w-full max-w-[560px] items-center justify-between gap-2 px-4">
         <Link to="/" aria-label="ForexMind AI home" className="flex min-w-0 items-center">
-          <Logo size={30} />
+          <LogoMark size={32} />
         </Link>
 
         <div className="flex min-w-0 items-center gap-1.5">
@@ -58,13 +58,13 @@ export function AppHeader() {
           <Link
             to="/notifications"
             aria-label="Notifications"
-            className={`tap relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border ${
-              onNotifications ? "border-transparent bg-[rgb(var(--p-rgb))] text-white" : "border-[var(--glass-border)] bg-white text-[var(--text-secondary)]"
+            className={`tap relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full border ${
+              onNotifications ? "border-transparent bg-[rgb(var(--p-rgb))] text-white" : "border-[var(--glass-border)] bg-[var(--bg-elevated)] text-[var(--text-secondary)]"
             }`}
           >
             <Bell size={16} strokeWidth={onNotifications ? 2.2 : 1.8} />
             {unread > 0 && (
-              <span className="absolute -right-1 -top-1 flex h-[15px] min-w-[15px] items-center justify-center rounded-full border-[1.5px] border-white bg-[var(--accent-red)] px-0.5 text-[8px] font-bold text-white">
+              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--accent-red)] px-1 text-[11px] font-medium leading-none text-white">
                 {unread > 99 ? "99+" : unread}
               </span>
             )}
@@ -73,10 +73,10 @@ export function AppHeader() {
           <Link
             to="/more"
             aria-label="Profile and settings"
-            className={`tap flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-[12px] font-bold ${
+            className={`tap flex h-11 w-11 shrink-0 items-center justify-center rounded-full border text-[12px] font-bold ${
               onMore
                 ? "border-transparent bg-[rgb(var(--p-rgb))] text-white"
-                : "border-[var(--glass-border)] bg-white text-[var(--text-secondary)]"
+                : "border-[var(--glass-border)] bg-[var(--bg-elevated)] text-[var(--text-secondary)]"
             }`}
           >
             {me.loaded && me.initial !== "F" ? me.initial : <UserRound size={15} strokeWidth={1.9} />}

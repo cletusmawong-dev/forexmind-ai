@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import {Sparkles, Send, Brain} from "lucide-react";
+import { Check, Send } from "lucide-react";
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
-import { BtnSpinner, DemoTag, Divider, Eyebrow, Glass, GlowDot, Pill, Segmented, Spinner } from "../components/ui";
+import { BtnSpinner, DemoTag, Divider, Eyebrow, Glass, GlowDot, Pill, Segmented, SkeletonList, Spinner } from "../components/ui";
 import { Logo } from "../components/Logo";
 
 export function SettingsScreen() {
@@ -26,7 +26,7 @@ export function SettingsScreen() {
   });
 
   const THEME_BAR: Record<string, string> = {
-    ivory: "#f7f1e3", navy: "#cdd4e0", onyx: "#0a0a0c", slate: "#2e3c55",
+    ivory: "#070b10", navy: "#08111a", onyx: "#05070a", slate: "#101820",
   };
 
   const mintInvite = async () => {
@@ -46,7 +46,7 @@ export function SettingsScreen() {
     localStorage.setItem("fm_theme", t);
     if (t === "ivory") {
       document.documentElement.removeAttribute("data-theme");
-      document.querySelector('meta[name="theme-color"]')?.setAttribute("content", "#f7f1e3");
+      document.querySelector('meta[name="theme-color"]')?.setAttribute("content", "#070b10");
     } else {
       document.documentElement.setAttribute("data-theme", t);
       document.querySelector('meta[name="theme-color"]')?.setAttribute("content", THEME_BAR[t]);
@@ -246,19 +246,13 @@ export function SettingsScreen() {
     setSavingRisk(false);
   };
 
-  if (!goals.data || !risk.data) return <Spinner label="Loading settings..." />;
+  if (!goals.data || !risk.data) return <SkeletonList rows={5} />;
 
   return (
     <div className="animate-fadeUp" onPointerDownCapture={touch} onKeyDownCapture={touch} onBlurCapture={touch}>
       {popup && <SavePopup kind={popup.kind} title={popup.title} text={popup.text} onClose={() => setPopup(null)} />}
-      <header className="mb-7 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="icon-chip icon-chip-violet" aria-hidden="true"><Brain size={20} /></span>
-          <div>
-            <h1 className="text-[22px] font-semibold tracking-tight">ForexMind</h1>
-            <p className="text-[10.5px] text-txt-faint">Agent objective - never a command to trade.</p>
-          </div>
-        </div>
+      <header className="mb-6 flex items-end justify-between px-1">
+        <h1 className="text-[34px] font-semibold tracking-[-0.03em]">Settings</h1>
         <DemoTag />
       </header>
 
@@ -268,24 +262,24 @@ export function SettingsScreen() {
       {/* ---- appearance: theme switcher ---- */}
       <Eyebrow>Appearance</Eyebrow>
       <Glass className="mt-2">
-        <div className="eyebrow !text-[9px] mb-2.5">Design - applies instantly, saved on this device</div>
+        <p className="mb-3 text-[13px] text-[var(--text-muted)]">Saved on this device</p>
         <div className="grid grid-cols-2 gap-2">
-          {([["ivory", "Ivory", "Cream + teal", "#f7f1e3", "#1aa98c"],
-             ["navy", "Navy & Gold", "Silver + navy", "#cdd4e0", "#1d4f8f"],
-             ["onyx", "Onyx & Gold", "Black + gold", "#141419", "#d4af37"],
-             ["slate", "Slate & Gold", "Blue-gray + navy", "#5f6d83", "#1d4f8f"]] as const).map(([k, label, desc, dotA, dotB]) => (
+          {([["ivory", "Graphite", "Default terminal", "#070b10", "#4c8dff"],
+             ["navy", "Navy", "Cooler canvas", "#08111a", "#4c8dff"],
+             ["onyx", "Onyx", "Deeper black", "#05070a", "#4c8dff"],
+             ["slate", "Slate", "Lifted surface", "#101820", "#4c8dff"]] as const).map(([k, label, desc, dotA, dotB]) => (
             <button
               key={k}
               onClick={() => setTheme(k as any)}
               aria-pressed={theme === k}
-              className={`tap min-h-[76px] rounded-2xl border p-3 text-left ${
-                theme === k ? "chip-on" : "chip-off"
+              className={`press min-h-[76px] rounded-2xl p-3 text-left ${
+                theme === k ? "bg-white/[0.08] ring-1 ring-[var(--accent)]" : "bg-white/[0.03]"
               }`}
             >
               <span className="flex items-center gap-1.5">
-                <span className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ background: dotA }} />
-                <span className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ background: dotB }} />
-                <span className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ background: "#d4af37" }} />
+                <span className="h-3.5 w-3.5 rounded-full border border-white/15" style={{ background: dotA }} />
+                <span className="h-3.5 w-3.5 rounded-full border border-white/15" style={{ background: dotB }} />
+                <span className="h-3.5 w-3.5 rounded-full border border-white/15" style={{ background: "#1fbf75" }} />
               </span>
               <span className="mt-2 block text-[12.5px] font-bold">{label}</span>
               <span className={`mt-0.5 block text-[10px] leading-snug ${theme === k ? "text-[var(--on-desc)]" : "text-txt-faint"}`}>{desc}</span>
@@ -303,7 +297,7 @@ export function SettingsScreen() {
           <Field label="Weekly %" value={weekly} onChange={setWeekly} />
         </div>
         <button className="btn-primary mt-5 flex w-full items-center justify-center gap-2" disabled={savingGoals} onClick={saveGoals}>
-          {savingGoals ? <BtnSpinner /> : <Sparkles size={14} />} {savingGoals ? "Saving..." : "Save objective"}
+          {savingGoals ? <BtnSpinner /> : <Check size={16} strokeWidth={1.75} />} {savingGoals ? "Saving..." : "Save objective"}
         </button>
       </Glass>
 
@@ -586,7 +580,7 @@ export function SettingsScreen() {
           </>
         )}
         <button className="btn-primary mt-5 flex w-full items-center justify-center gap-2" disabled={savingRisk} onClick={saveRisk}>
-          {savingRisk ? <BtnSpinner /> : <Sparkles size={14} />} {savingRisk ? "Saving..." : "Save settings"}
+          {savingRisk ? <BtnSpinner /> : <Check size={16} strokeWidth={1.75} />} {savingRisk ? "Saving..." : "Save settings"}
         </button>
       </Glass>
 

@@ -70,7 +70,7 @@ export function AccountSwitcher() {
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-label="Switch trading account"
-        className="tap flex max-w-full items-center gap-1.5 rounded-full border border-[var(--glass-border)] bg-white px-3 py-2 text-left">
+        className="tap flex max-w-full items-center gap-1.5 rounded-full border border-[var(--glass-border)] bg-[var(--bg-elevated)] px-3 py-2 text-left">
         <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${active?.trading_enabled ? "bg-pos" : "bg-[var(--text-faint)]"}`} />
         <span className="min-w-0 truncate text-[11.5px] font-semibold text-txt-hi">
           {active ? active.label : "No account"}
@@ -94,7 +94,7 @@ export function AccountSwitcher() {
                 aria-label={`${a.trading_enabled ? "Disable" : "Enable"} trading for ${a.label}`}
                 className={`shrink-0 rounded-full border px-2 py-1 text-[9px] font-bold transition-colors ${
                   a.trading_enabled
-                    ? "border-[rgba(18,160,92,0.4)] bg-[rgba(18,160,92,0.1)] text-[#0d8a4e]"
+                    ? "border-[rgba(var(--pos-rgb),0.4)] bg-[rgba(var(--pos-rgb),0.12)] text-gain"
                     : "border-[var(--glass-border)] bg-[var(--bg-secondary)] text-[var(--text-muted)]"
                 }`}>
                 {a.trading_enabled ? "TRADING ON" : "TRADING OFF"}

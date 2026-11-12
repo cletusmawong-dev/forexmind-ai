@@ -1,17 +1,19 @@
 import { useCallback, useRef, useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  Bell, CandlestickChart, ChevronRight, Cpu, Eye, Shield, ShieldAlert,
-  Target, TrendingUp, TrendingDown, Users, Wallet,
+  Bell, Building, Building2, CandlestickChart, ChevronRight, Cpu, Eye, Landmark, Shield, ShieldAlert,
+  Sun, Target, TrendingUp, TrendingDown, Users, Wallet,
 } from "lucide-react";
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
 import type { MarketCard, Signal } from "../lib/types";
 import {
-  AnimatedNumber, DemoTag, Glass, ProgressBar, SectionHeader, Spinner,
+  AnimatedNumber, DemoTag, Glass, ProgressBar, SectionHeader, SkeletonList,
   StatusDot, ConnectionState, Pill,
 } from "../components/ui";
 import { fmtPct, fmtPrice, greeting } from "../lib/format";
+import { MarketFlag } from "../components/MarketFlag";
+import { MiniChart, useSpark } from "../components/MiniChart";
 import { SignalRow } from "../components/SignalRow";
 import { notEnteredReason as notEnteredSignal } from "../lib/execution";
 import { AgentPulse } from "../components/AgentPulse";
@@ -49,6 +51,71 @@ const S1_WORD = (s1?: { active?: boolean; direction?: string; outcome?: string }
 const S1_TONE = (s1?: { active?: boolean; direction?: string; outcome?: string }) =>
   s1?.active ? (s1.direction === "SELL" ? "neg" : "pos") : "neutral";
 
+function sessionIcon(name: string) {
+  const key = name.replace(/\s/g, "");
+  if (key === "Sydney") return Sun;
+  if (key === "Tokyo") return Building2;
+  if (key === "London") return Landmark;
+  return Building;
+}
+
+function SessionStory({ name, active, hours }: { name: string; active: boolean; hours: number }) {
+  const pct = active ? 1 : Math.max(0.16, 1 - Math.min(hours, 14) / 14);
+  const r = 28;
+  const circ = 2 * Math.PI * r;
+  const label = name === "NewYork" ? "New York" : name;
+  return (
+    <div className="flex w-[84px] shrink-0 flex-col items-center">
+      <div className="relative h-[72px] w-[72px]">
+        <svg viewBox="0 0 72 72" className="absolute inset-0">
+          <circle cx="36" cy="36" r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="2" />
+          <circle
+            cx="36" cy="36" r={r} fill="none"
+            stroke={active ? "#1fbf75" : "rgba(244,247,251,0.55)"}
+            strokeWidth="2.25"
+            strokeDasharray={`${circ * pct} ${circ}`}
+            strokeLinecap="round"
+            transform="rotate(-90 36 36)"
+          />
+        </svg>
+        <div className={`absolute inset-[9px] flex items-center justify-center rounded-full ${active ? "bg-[rgba(31,191,117,0.12)] text-[var(--accent-green)]" : "bg-white/[0.04] text-[var(--text-secondary)]"}`}>
+          {(() => { const Icon = sessionIcon(name); return <Icon size={16} strokeWidth={1.75} />; })()}
+        </div>
+      </div>
+      <div className="mt-2 text-[13px] font-medium">{label}</div>
+      <div className="text-[12px] text-[var(--text-muted)]">{active ? "Open" : `Opens in ${Math.max(1, Math.round(hours))}h`}</div>
+    </div>
+  );
+}
+
+function MarketRow({ row }: { row: { symbol: string; price: number | null; change_pct?: number | null; s1?: { active?: boolean; direction?: string }; s2?: { word?: string; direction?: string } } }) {
+  const { change } = useSpark(row.symbol, 96);
+  const pct = row.change_pct != null ? row.change_pct : change;
+  const up = (pct ?? 0) >= 0;
+  const note = row.s2?.word && row.s2.word !== "NO DATA" && row.s2.word !== "NO SETUP"
+    ? row.s2.word.toLowerCase()
+    : row.s1?.active ? `${row.s1.direction === "SELL" ? "Sell" : "Buy"} live` : null;
+  return (
+    <Link to={`/charts?symbol=${row.symbol}`}
+      className="press flex items-center gap-3 border-b border-white/[0.06] px-4 py-3 active:bg-white/[0.03]">
+      <MarketFlag market={row.symbol} size={40} />
+      <div className="min-w-0 flex-1">
+        <div className="text-[16px] font-semibold tracking-tight">{row.symbol}</div>
+        {note && <div className="truncate text-[12px] text-[var(--text-muted)]">{note}</div>}
+      </div>
+      <div className="w-[72px]">
+        <MiniChart market={row.symbol} width={72} height={32} />
+      </div>
+      <div className="w-[92px] text-right">
+        <div className="num text-[15px] font-medium">{row.price == null ? "" : fmtPrice(row.price, row.symbol)}</div>
+        {pct != null && (
+          <div className={`num text-[13px] font-medium ${up ? "text-pos" : "text-neg"}`}>{fmtPct(pct)}</div>
+        )}
+      </div>
+    </Link>
+  );
+}
+
 export function HomeScreen() {
   const navigate = useNavigate();
   const [refreshKey, setRefreshKey] = useState(0);
@@ -79,7 +146,7 @@ export function HomeScreen() {
   }, [pulling, refresh]);
 
   if (!overview.data) {
-    if (overview.loading) return <Spinner label="Connecting to your agent..." />;
+    if (overview.loading) return <SkeletonList rows={4} />;
     return (
       <div className="pt-10">
         <ConnectionState onRetry={refresh} label="Can't reach your agent" />
@@ -112,6 +179,11 @@ export function HomeScreen() {
     String(acct.trading_status || "").startsWith("LOSS LIMIT") ? "neg" :
     acct.execution_mode === "off" ? "neutral" : "pos";
 
+  const liveSignals = (signals.data?.signals ?? []).filter((s) => !s.extra_signal && !notEnteredSignal(s)).slice(0, 3);
+  const todayLabel = acct.today_pl_usd != null
+    ? `${acct.today_pl_usd >= 0 ? "+" : "−"}$${Math.abs(acct.today_pl_usd).toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+    : acct.daily_pl_pct != null ? fmtPct(acct.daily_pl_pct) : null;
+
   return (
     <div onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} className="lg:grid lg:grid-cols-12 lg:gap-10">
       {/* pull indicator */}
@@ -130,7 +202,7 @@ export function HomeScreen() {
             </div>
             <Link
               to="/notifications"
-              className="tap relative flex h-10 w-10 items-center justify-center rounded-full border border-[rgba(var(--p-rgb),0.28)] bg-[rgba(240,231,210,0.55)] text-[var(--text-secondary)] backdrop-blur-xl transition-all duration-300 hover:border-[rgba(var(--p-rgb),0.5)] hover:text-[var(--text-primary)]"
+              className="tap relative flex h-11 w-11 items-center justify-center rounded-full border border-[var(--glass-border)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] transition-all duration-300 hover:border-[rgba(var(--p-rgb),0.5)] hover:text-[var(--text-primary)]"
               style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.12)" }}
               aria-label="Notifications"
             >
@@ -156,80 +228,45 @@ export function HomeScreen() {
 
         {/* active trading account */}
 
-        {/* ---- hero: ANSWER 1 - your account -------------------------------- */}
-        <Glass className="hero-card relative overflow-hidden" pad={false} data-reveal>
-          <div className="relative p-6">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-[13px] font-medium text-[var(--text-secondary)]">{greeting()}</p>
-              <Pill tone={statusTone as any}>{acct.trading_status || "STATUS UNAVAILABLE"}</Pill>
-            </div>
-            <AnimatedNumber
-              value={balance}
-              format={(v) => `$${v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-              className="num mt-2.5 block text-[38px] font-extrabold leading-none tracking-[-0.03em] lg:text-[48px]"
-            />
-            <p className="mt-1.5 text-[10px] text-txt-faint">
-              {vpsLive
-                ? `MT5 live equity - ${acct.server || "your VPS terminal"}`
-                : acct.goal_balance != null
-                  ? "Objective account balance"
-                  : "DATA UNAVAILABLE - connect your MT5 bridge"}
-            </p>
-
-            {/* account facts: today / open / drawdown / week - broker truth or honest empty */}
-            <div className="mt-4 grid grid-cols-4 gap-2">
-              <div className="rounded-xl border border-[var(--glass-border-soft)] bg-[var(--bg-secondary)] px-2 py-2.5 text-center">
-                <div className="whitespace-nowrap text-[8px] font-bold uppercase tracking-[0.1em] text-txt-faint">Today P/L</div>
-                <div className={`num mt-1 text-[14px] font-extrabold ${upToday ? "text-pos" : "text-neg"}`}>
-                  {acct.today_pl_usd != null
-                    ? `${acct.today_pl_usd >= 0 ? "+" : ""}$${Math.abs(acct.today_pl_usd).toLocaleString(undefined, { maximumFractionDigits: 2 })}`
-                    : acct.daily_pl_pct != null ? fmtPct(acct.daily_pl_pct) : "-"}
-                </div>
-              </div>
-              <div className="rounded-xl border border-[var(--glass-border-soft)] bg-[var(--bg-secondary)] px-2 py-2.5 text-center">
-                <div className="whitespace-nowrap text-[8px] font-bold uppercase tracking-[0.1em] text-txt-faint">Open P/L</div>
-                <div className={`num mt-1 text-[14px] font-extrabold ${Number(acct.open_pl ?? 0) >= 0 ? "text-pos" : "text-neg"}`}>
-                  {acct.open_pl != null
-                    ? `${acct.open_pl >= 0 ? "+" : "-"}$${Math.abs(acct.open_pl).toLocaleString(undefined, { maximumFractionDigits: 2 })}`
-                    : "-"}
-                </div>
-              </div>
-              <div className="rounded-xl border border-[var(--glass-border-soft)] bg-[var(--bg-secondary)] px-2 py-2.5 text-center">
-                <div className="whitespace-nowrap text-[8px] font-bold uppercase tracking-[0.1em] text-txt-faint">Drawdown</div>
-                <div className="num mt-1 text-[14px] font-extrabold text-neg">
-                  {acct.drawdown_pct != null && acct.drawdown_pct > 0 ? `${acct.drawdown_pct.toFixed(2)}%` : "0.00%"}
-                </div>
-              </div>
-              <div className="rounded-xl border border-[var(--glass-border-soft)] bg-[var(--bg-secondary)] px-2 py-2.5 text-center">
-                <div className="whitespace-nowrap text-[8px] font-bold uppercase tracking-[0.1em] text-txt-faint">Week Trades</div>
-                <div className="num mt-1 text-[14px] font-extrabold">
-                  {acct.week_trades != null ? acct.week_trades : "-"}
-                </div>
-                <div className="text-[8px] text-txt-faint">
-                  {acct.week_wins != null ? `${acct.week_wins} win${acct.week_wins === 1 ? "" : "s"}` : "last 7 days"}
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              {acct.daily_pl_pct != null && acct.objective_pct != null && (
-                <span className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold"
-                      style={{
-                        borderColor: upToday ? "rgba(var(--p-rgb),0.3)" : "rgba(var(--neg-rgb),0.3)",
-                        color: upToday ? "var(--accent-green)" : "var(--accent-red)",
-                        background: upToday ? "rgba(var(--p-rgb),0.08)" : "rgba(var(--neg-rgb),0.08)",
-                      }}>
-                  {upToday ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
-                  {fmtPct(acct.daily_pl_pct)} / +{acct.objective_pct}% objective
-                </span>
-              )}
-              <span className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)]">
-                <Shield size={11} /> {acct.risk_per_trade_pct ?? "-"}% risk per signal
-                {acct.execution_mode === "vps" && (acct.trades_today != null) ? ` - ${acct.trades_today}/${acct.max_per_day ?? "-"} trades today` : ""}
-              </span>
-            </div>
+        <section className="px-1 pb-2 pt-1">
+          <p className="text-[15px] text-[var(--text-secondary)]">{greeting()}</p>
+          <AnimatedNumber
+            value={balance}
+            format={(v) => `$${v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            className="num mt-1 block text-[44px] font-semibold leading-none tracking-[-0.04em]"
+          />
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className={`num text-[15px] font-medium ${todayLabel ? (upToday ? "text-pos" : "text-neg") : "text-[var(--text-muted)]"}`}>
+              {todayLabel ?? "No P&L yet"}
+            </span>
+            <span className="text-[13px] text-[var(--text-muted)]">today</span>
           </div>
-        </Glass>
+          <p className="mt-1 text-[13px] text-[var(--text-muted)]">
+            {vpsLive
+              ? `Live equity · ${acct.server || "MT5"}`
+              : acct.goal_balance != null
+                ? "Objective balance"
+                : "Connect MT5 to see a live balance"}
+          </p>
+          <div className="-mx-1 mt-5 h-16">
+            <MiniChart market="XAUUSD" width={360} height={64} fill />
+          </div>
+          <div className="mt-4 grid grid-cols-3 gap-3">
+            {[
+              ["Open", acct.open_pl != null ? `${Number(acct.open_pl) >= 0 ? "+" : "−"}$${Math.abs(Number(acct.open_pl)).toFixed(0)}` : "—"],
+              ["Drawdown", acct.drawdown_pct != null ? `${Number(acct.drawdown_pct).toFixed(2)}%` : "0.00%"],
+              ["Risk", acct.risk_per_trade_pct != null ? `${acct.risk_per_trade_pct}%` : "—"],
+            ].map(([label, value]) => (
+              <div key={label}>
+                <div className="text-[12px] text-[var(--text-muted)]">{label}</div>
+                <div className="num mt-0.5 text-[15px] font-medium">{value}</div>
+              </div>
+            ))}
+          </div>
+          {acct.trading_status && (
+            <p className="mt-3 text-[13px] text-[var(--text-secondary)]">{acct.trading_status}</p>
+          )}
+        </section>
 
         {/* MT5 bridge line (vps mode) */}
         {acct.execution_mode === "vps" && (
@@ -294,163 +331,53 @@ export function HomeScreen() {
           </Glass>
         )}
 
-        {/* ---- ANSWER 2 - market sessions ---------------------------------- */}
-        <div className="mt-4 grid grid-cols-4 gap-2">
+        <div className="no-scrollbar -mx-4 mt-7 flex gap-4 overflow-x-auto px-5 pb-1 [scrollbar-width:none]">
           {(ov.sessions ?? []).map((s) => (
-            <div key={s.name}
-                 className={`glass flex flex-col items-center gap-0.5 px-1 py-2.5 text-center transition-all ${s.active ? "!border-[rgba(var(--p-rgb),0.4)]" : "opacity-60"}`}
-                 style={s.active ? { boxShadow: "0 0 16px rgba(var(--p-rgb),0.25)" } : undefined}>
-              <div className="flex items-center gap-1 text-[10.5px] font-bold tracking-tight">
-                {s.active && <StatusDot tone="green" size={5} pulse />}
-                {s.name}
-              </div>
-              <div className="text-[8.5px] text-txt-faint">{s.active ? "OPEN" : `opens in ${s.opens_in_hours}h`}</div>
-            </div>
+            <SessionStory key={s.name} name={s.name} active={s.active} hours={s.opens_in_hours} />
           ))}
         </div>
 
-        {/* ---- ANSWER 3 - what FOREXMIND finds ------------------------------ */}
-        <SectionHeader className="mt-6" right={<Link to="/charts" className="text-[11.5px] font-semibold text-[#1b69b8] transition hover:text-[var(--accent-cyan)]">Open chart</Link>}>
-          What FOREXMIND finds
-        </SectionHeader>
-        <Glass pad={false} className="overflow-hidden !p-1.5" data-reveal>
+        <div className="mt-8 flex items-baseline justify-between px-1">
+          <h2 className="text-[20px] font-semibold tracking-tight">Markets</h2>
+          <Link to="/charts" className="text-[14px] font-medium text-[var(--accent)]">See all</Link>
+        </div>
+        <div className="-mx-4 mt-2">
           {findingRows.length === 0 && (
-            <div className="px-4 py-6 text-center text-[12px] text-[var(--text-muted)]">DATA UNAVAILABLE - market list not loaded yet.</div>
+            <p className="px-5 py-8 text-center text-[14px] text-[var(--text-muted)]">Markets will show here once the feed answers.</p>
           )}
-          <div className="space-y-1">
-            {findingRows.map((r) => (
-              <Link key={r.symbol} to={`/charts?symbol=${r.symbol}`}
-                    className="tap flex items-center gap-3 rounded-2xl px-3.5 py-3 transition hover:bg-[rgba(var(--warm-rgb),0.045)]">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-[13px] font-bold tracking-tight">{r.symbol}</span>
-                    <span className="num text-[11px] text-[var(--text-muted)]">{fmtPrice(r.price, r.symbol)}</span>
-                    <span className={`num text-[9.5px] ${(r.change_pct ?? 0) >= 0 ? "text-[var(--accent-green)]" : "text-[var(--accent-red)]"}`}>{fmtPct(r.change_pct)}</span>
-                  </div>
-                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                    <span className="text-[8.5px] font-bold uppercase tracking-[0.08em] text-txt-faint">9/21 EMA</span>
-                    <Pill tone={S1_TONE(r.s1) as any} className="!px-1.5 !py-0.5 !text-[8.5px]">{S1_WORD(r.s1)}</Pill>
-                  </div>
-                </div>
-                <div className="flex flex-col items-end gap-1">
-                  <span className="text-[8.5px] font-bold uppercase tracking-[0.08em] text-txt-faint">S/D + FVG - 15M</span>
-                  <Pill tone={(S2_TONE[r.s2Word] ?? "neutral") as any} className="!px-2 !py-0.5 !text-[9px]">
-                    {r.s2Word}{r.s2?.direction ? ` - ${r.s2.direction}` : ""}
-                  </Pill>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </Glass>
+          {findingRows.map((r) => (
+            <MarketRow key={r.symbol} row={r} />
+          ))}
+        </div>
 
-        {/* ---- ANSWER 4 - compact AI insight (real notes only) --------------- */}
-        <SectionHeader className="mt-6" right={<Link to="/agent" className="text-[11.5px] font-semibold text-[#1b69b8]">Ask the AI</Link>}>
-          AI insight
-        </SectionHeader>
-        {ov.ai ? (
-          <Glass level={2} className="cursor-pointer tap !p-4" data-reveal onClick={() => navigate("/agent")}>
-            <div className="flex items-center gap-2">
-              <Cpu size={13} className="text-[var(--accent-cyan)]" />
-              <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--accent-cyan)]">
-                {ov.ai.symbol ? `${ov.ai.symbol} - ` : ""}{ov.ai.action || "AI MANAGER"}
-              </span>
-              {ov.ai.confidence != null && <span className="ml-auto text-[9.5px] text-txt-faint">confidence {ov.ai.confidence}%</span>}
-            </div>
-            <p className="mt-2 line-clamp-3 text-[12px] leading-relaxed text-[var(--text-secondary)]">{ov.ai.message}</p>
-          </Glass>
-        ) : (
-          <Glass level={2} className="!p-4" data-reveal>
-            <p className="text-[12px] text-[var(--text-muted)]">No AI note yet - the AI manager speaks when it has a real trade decision to explain.</p>
-          </Glass>
+        {ov.ai && (
+          <button onClick={() => navigate("/agent")} className="press mt-8 block w-full px-1 text-left">
+            <div className="text-[13px] text-[var(--text-muted)]">{ov.ai.symbol || "Agent"}</div>
+            <p className="mt-1 text-[16px] leading-snug tracking-tight">{ov.ai.message}</p>
+          </button>
         )}
 
-        {/* ---- ANSWER 5 - quick access --------------------------------------- */}
-        <div className="mt-4 grid grid-cols-5 gap-2">
-          {([["/charts", "Chart", CandlestickChart], ["/signals", "Signals", Eye],
-             ["/positions", "Positions", Wallet], ["/agent", "AI", Cpu],
-             ["/community", "Community", Users]] as const).map(
-            ([to, label, Icon]) => (
-              <Link key={to} to={to}
-                className="glass tap flex flex-col items-center gap-1.5 px-1 py-3 text-[9.5px] font-medium text-txt-mid transition-all hover:!border-[rgba(var(--p-rgb),0.4)]">
-                <Icon size={16} className="text-[var(--text-secondary)]" />
-                {label}
-              </Link>
+        <div className="mt-8 flex items-baseline justify-between px-1">
+          <h2 className="text-[20px] font-semibold tracking-tight">Signals</h2>
+          <Link to="/signals" className="text-[14px] font-medium text-[var(--accent)]">View all</Link>
+        </div>
+        {liveSignals.length > 0 ? (
+          <div className="-mx-4 mt-1">
+            {liveSignals.map((s) => (
+              <SignalRow key={s.id} signal={s} variant="home" onClick={() => navigate(`/signals/${s.id}`)} />
             ))}
-        </div>
-
-        {/* ---- agent pulse: live proof the agent is working ------------------- */}
-        <div className="mt-4">
-          <AgentPulse />
-        </div>
-
-        {/* ---- active signals -------------------------------------------------- */}
-        <SectionHeader className="mt-8" right={<Link to="/signals" className="text-[11.5px] font-semibold text-[#1b69b8] transition hover:text-[var(--accent-cyan)]">View all</Link>}>
-          Active Signals
-        </SectionHeader>
-        <div className="space-y-3">
-          {signals.data && signals.data.signals.filter((s) => !s.extra_signal && !notEnteredSignal(s)).slice(0, 3).length > 0 ? (
-            signals.data.signals.filter((s) => !s.extra_signal && !notEnteredSignal(s)).slice(0, 3).map((s, i) => (
-              <div key={s.id} className="anim-fadeUp" style={{ animationDelay: `${i * 60}ms` }}>
-                <SignalRow signal={s} variant="home" onClick={() => navigate(`/signals/${s.id}`)} />
-              </div>
-            ))
-          ) : (
-            <Glass level={2} className="px-5 py-6 text-center">
-              <p className="text-[13px] font-semibold text-[var(--text-secondary)]">No qualifying setup.</p>
-              <p className="mt-1 text-[11.5px] text-[var(--text-muted)]">Capital protected - the agent waits for real conditions.</p>
-            </Glass>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="px-1 py-8">
+            <p className="text-[17px] font-medium tracking-tight">Nothing qualifies right now.</p>
+            <p className="mt-1 text-[14px] leading-relaxed text-[var(--text-muted)]">The agent stays quiet until a setup is real. Capital stays put.</p>
+          </div>
+        )}
       </div>
 
       {/* ---- right column (desktop) / below (mobile) ---- */}
       <div className="mt-10 lg:col-span-5 lg:mt-0 lg:border-l lg:border-[rgba(var(--warm-rgb),0.07)] lg:pl-10 lg:pt-2">
         <MorningBriefCard />
-
-        <SectionHeader className="mt-8" right={<DemoTag />}>Market Watch</SectionHeader>
-        <Glass pad={false} className="overflow-hidden !p-1.5" data-reveal>
-          {marketList.length === 0 && <div className="px-4 py-6 text-center text-[12px] text-[var(--text-muted)]">DATA UNAVAILABLE - markets not loaded yet.</div>}
-          <div className="space-y-1">
-            {marketList.map((m) => {
-              const f2 = s2map[m.symbol.toUpperCase()];
-              return (
-                <Link key={m.symbol} to={`/charts?symbol=${m.symbol.toUpperCase()}`}
-                      className="tap flex items-center gap-3 rounded-2xl px-3.5 py-3 transition hover:bg-[rgba(var(--warm-rgb),0.045)]">
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[13px] font-bold tracking-tight">{m.symbol}</div>
-                    <div className="mt-1 flex items-center gap-1">
-                      {m.mtf &&
-                        Object.entries(m.mtf).map(([tf, v]) => (
-                          <span
-                            key={tf}
-                            title={`${tf} ${["Bearish", "Neutral", "Bullish"][v + 1]}`}
-                            className={`h-1 w-3.5 rounded-full ${
-                              v === 1 ? "bg-[var(--accent-green)]/70" : v === -1 ? "bg-[var(--accent-red)]/70" : "bg-[rgba(var(--warm-rgb),0.18)]"
-                            }`}
-                          />
-                        ))}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="num text-[12.5px] font-semibold">{fmtPrice(m.price, m.symbol)}</div>
-                    <div className={`num text-[10px] ${(m.change_pct ?? 0) >= 0 ? "text-[var(--accent-green)]" : "text-[var(--accent-red)]"}`}>{fmtPct(m.change_pct)}</div>
-                  </div>
-                  <div className="w-[86px] text-right">
-                    <div className={`text-[10.5px] font-bold ${m.bias === "BUY BIAS" ? "text-[var(--accent-green)]" : m.bias === "SELL BIAS" ? "text-[var(--accent-red)]" : "text-[var(--text-muted)]"}`}>
-                      {m.bias.replace(" BIAS", "")}
-                    </div>
-                    <div className={`text-[8.5px] font-bold uppercase tracking-[0.1em] ${
-                      f2?.word === "SIGNAL READY" ? "text-[var(--accent-cyan)]"
-                        : f2?.word === "WATCHING" || f2?.word === "RETESTING" || f2?.word === "DISPLACEMENT" ? "text-[var(--accent-amber)]"
-                        : "text-[var(--text-muted)]"}`}>
-                      {f2?.word ? f2.word.toLowerCase() : "no data"}
-                    </div>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        </Glass>
 
         {/* today's goal (objective bar) */}
         {acct.daily_pl_pct != null && acct.objective_pct != null && (

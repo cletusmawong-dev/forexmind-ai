@@ -4,7 +4,7 @@ import { Activity, BrainCircuit, RefreshCw } from "lucide-react";
 import { api, endpoints } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
 import { useAsyncAction } from "../lib/useAsyncAction";
-import { ActionButton, Empty, ErrorNote, Glass, PageHeader, Pill, SectionHeader, Spinner } from "../components/ui";
+import { ActionButton, Empty, ErrorNote, Glass, Pill, SectionHeader, SkeletonList } from "../components/ui";
 import { shortAgo } from "../lib/format";
 
 type LivePosition = {
@@ -28,24 +28,23 @@ export function PositionsScreen() {
 
   return (
     <div className="animate-fadeUp space-y-6">
-      <PageHeader title="Positions" sub="Live broker positions - truth, not paper"
-        icon={<Activity size={20} />}
-        right={
-          <button onClick={() => pos.refresh()}
-            className="tap flex items-center gap-1.5 rounded-xl border border-[rgba(var(--p-rgb),0.25)] px-3 py-1.5 text-[11.5px] text-txt-mid hover:bg-[rgba(var(--p-rgb),0.08)]">
-            <RefreshCw size={13} className={pos.loading ? "animate-spin" : ""} /> Refresh
-          </button>
-        } />
+      <header className="flex items-end justify-between px-1">
+        <div>
+          <h1 className="text-[34px] font-semibold tracking-[-0.03em]">Portfolio</h1>
+          <p className="mt-1 text-[14px] text-[var(--text-muted)]">Open trades from the broker</p>
+        </div>
+        <button onClick={() => pos.refresh()} className="press text-[14px] font-medium text-[var(--accent)]">
+          <RefreshCw size={16} className={pos.loading ? "animate-spin" : ""} />
+        </button>
+      </header>
       <ErrorNote message={pos.error} onDismiss={() => pos.setData(null)} />
 
-      {pos.loading && !pos.data ? <Spinner label="Reading broker positions..." /> :
+      {pos.loading && !pos.data ? <SkeletonList rows={3} /> :
         rows.length === 0 ? (
-          <Glass className="p-8 text-center">
-            <Empty title="No open positions"
-              sub={pos.data?.mode === "vps" ? "The bridge reports nothing open right now."
-                : `Execution mode is "${pos.data?.mode ?? "unknown"}" - positions appear when the VPS bridge is live.`}
+          <Empty title="No open trades"
+              sub={pos.data?.mode === "vps" ? "The broker has nothing open right now."
+                : "Positions show up here when the MT5 bridge is connected."}
               icon={<Activity size={26} />} />
-          </Glass>
         ) : (
           <div className="space-y-3">
             {rows.map((p: any) => (

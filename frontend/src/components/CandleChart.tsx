@@ -9,8 +9,8 @@ export interface ChartLine {
   fade?: number;
 }
 
-const UP = "#3ECF8E";
-const DOWN = "#F0788C";
+const UP = "#1FBF75";
+const DOWN = "#F0434A";
 
 /** Professional terminal-style candlestick chart:
  *  thin candles, whisper grid, smooth level lines with neutral glass labels,

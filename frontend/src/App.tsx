@@ -135,8 +135,9 @@ export default function App() {
         <AppHeader />
         <div className="mx-auto flex w-full max-w-[1180px]">
           <Sidebar />
-          <main className="min-h-screen min-w-0 flex-1 pb-24 lg:pb-12">
+          <main className="min-h-screen min-w-0 flex-1 pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] lg:pb-12">
             <div className="mx-auto w-full max-w-[560px] px-4 pb-4 pt-4 lg:max-w-none lg:px-10 lg:pt-10">
+              <div key={location.pathname} className="animate-fadeUp">
               <Routes>
                 <Route path="/" element={<HomeScreen />} />
                 <Route path="/signals" element={<SignalsScreen />} />
@@ -159,6 +160,7 @@ export default function App() {
                 <Route path="/admin" element={<AdminScreen />} />
                 <Route path="*" element={<HomeScreen />} />
               </Routes>
+              </div>
             </div>
           </main>
         </div>

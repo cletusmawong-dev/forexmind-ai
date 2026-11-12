@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#f7f1e3" />
+    <meta name="theme-color" content="#070b10" />
     <script>
       // self-heal: if any old build left a service worker or CacheStorage
       // shell behind, evict it BEFORE the app loads (never show stale UI)
@@ -24,7 +24,7 @@
       // apply saved theme before first paint (no flash)
       try {
         var t = localStorage.getItem("fm_theme");
-        var bar = { ivory: "#f7f1e3", navy: "#cdd4e0", onyx: "#0a0a0c", slate: "#2e3c55" };
+        var bar = { ivory: "#070b10", navy: "#08111a", onyx: "#05070a", slate: "#101820" };
         if (t && bar[t]) {
           if (t !== "ivory") document.documentElement.setAttribute("data-theme", t);
           var m = document.querySelector('meta[name="theme-color"]');
